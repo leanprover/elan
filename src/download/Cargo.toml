@@ -1,0 +1,27 @@
+[package]
+
+name = "download"
+version = "0.4.0"
+authors = [ "Brian Anderson <banderson@mozilla.com>" ]
+
+license = "MIT/Apache-2.0"
+
+[features]
+
+default = ["curl-backend"]
+
+curl-backend = ["curl"]
+reqwest-backend = ["reqwest", "env_proxy", "lazy_static"]
+
+[dependencies]
+error-chain = "0.11"
+url = "1.2"
+curl = { version = "0.4.6", optional = true }
+env_proxy = { version = "0.2.0", optional = true }
+lazy_static = { version = "1.0", optional = true }
+reqwest = { version = "0.8.4", optional = true }
+
+[dev-dependencies]
+futures = "0.1"
+hyper = "0.11"
+tempdir = "0.3.4"
