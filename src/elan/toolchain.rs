@@ -391,8 +391,8 @@ impl<'a> Toolchain<'a> {
         // definitions of leanpkg home (elan doesn't read HOME on
         // windows), we must set it here to ensure leanpkg and
         // elan agree.
-        if let Ok(leanpkg_home) = utils::leanpkg_home() {
-            cmd.env("LEANPKG_HOME", &leanpkg_home);
+        if let Ok(elan_home) = utils::elan_home() {
+            cmd.env("ELAN_HOME", &elan_home);
         }
 
         env_var::inc("LEAN_RECURSION_COUNT", cmd);
@@ -414,13 +414,13 @@ impl<'a> Toolchain<'a> {
         }
         env_var::prepend_path(sysenv::LOADER_PATH, vec![new_path.clone()], cmd);
 
-        // Prepend LEANPKG_HOME/bin to the PATH variable so that we're sure to run
+        // Prepend ELAN_HOME/bin to the PATH variable so that we're sure to run
         // leanpkg/lean via the proxy bins. There is no fallback case for if the
         // proxy bins don't exist. We'll just be running whatever happens to
         // be on the PATH.
         let mut path_entries = vec![];
-        if let Ok(leanpkg_home) = utils::leanpkg_home() {
-            path_entries.push(leanpkg_home.join("bin").to_path_buf());
+        if let Ok(elan_home) = utils::elan_home() {
+            path_entries.push(elan_home.join("bin").to_path_buf());
         }
 
         if cfg!(target_os = "windows") {

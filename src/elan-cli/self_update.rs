@@ -8,14 +8,14 @@
 //!
 //! During install (as `elan-init`):
 //!
-//! * copy the self exe to $LEANPKG_HOME/bin
+//! * copy the self exe to $ELAN_HOME/bin
 //! * hardlink lean, etc to *that*
 //! * update the PATH in a system-specific way
 //! * run the equivalent of `elan default stable`
 //!
 //! During upgrade (`elan self upgrade`):
 //!
-//! * download elan-init to $LEANPKG_HOME/bin/elan-init
+//! * download elan-init to $ELAN_HOME/bin/elan-init
 //! * run leanu-init with appropriate flags to indicate
 //!   this is a self-upgrade
 //! * elan-init copies bins and hardlinks into place. On windows
@@ -24,7 +24,7 @@
 //! During uninstall (`elan self uninstall`):
 //!
 //! * Delete `$ELAN_HOME`.
-//! * Delete everything in `$LEANPKG_HOME`, including
+//! * Delete everything in `$ELAN_HOME`, including
 //!   the elan binary and its hardlinks
 //!
 //! Deleting the running binary during uninstall is tricky
@@ -64,13 +64,14 @@ concat!(
 r"
 # Welcome to Lean!
 
-This will download and install the official compiler for the Lean
-programming language, and its package manager, Leanpkg.
+This will download and install Elan, a tool for managing different Lean versions used in
+packages you create or download. It will also install a default version of Lean and its package
+manager, leanpkg, for editing files not belonging to any package.
 
 It will add the `leanpkg`, `lean`, `elan` and other commands to
-Leanpkg's bin directory, located at:
+Elan's bin directory, located at:
 
-    {leanpkg_home_bin}
+    {elan_home_bin}
 
 ",
 $platform_msg
@@ -111,22 +112,22 @@ but will not be added automatically."
 
 macro_rules! post_install_msg_unix {
     () => {
-r"# Lean is installed now. Great!
+r"# Elan is installed now. Great!
 
-To get started you need Leanpkg's bin directory ({leanpkg_home}/bin) in your `PATH`
+To get started you need Elan's bin directory ({elan_home}/bin) in your `PATH`
 environment variable. Next time you log in this will be done
 automatically.
 
-To configure your current shell run `source {leanpkg_home}/env`
+To configure your current shell run `source {elan_home}/env`
 "
     };
 }
 
 macro_rules! post_install_msg_win {
     () => {
-r"# Lean is installed now. Great!
+r"# Elan is installed now. Great!
 
-To get started you need Leanpkg's bin directory ({leanpkg_home}\bin) in your `PATH`
+To get started you need Elan's bin directory ({elan_home}\bin) in your `PATH`
 environment variable. Future applications will automatically have the
 correct environment, but you may need to restart your current shell.
 "
@@ -135,21 +136,21 @@ correct environment, but you may need to restart your current shell.
 
 macro_rules! post_install_msg_unix_no_modify_path {
     () => {
-r"# Lean is installed now. Great!
+r"# Elan is installed now. Great!
 
-To get started you need Leanpkg's bin directory ({leanpkg_home}/bin) in your `PATH`
+To get started you need Elan's bin directory ({elan_home}/bin) in your `PATH`
 environment variable.
 
-To configure your current shell run `source {leanpkg_home}/env`
+To configure your current shell run `source {elan_home}/env`
 "
     };
 }
 
 macro_rules! post_install_msg_win_no_modify_path {
     () => {
-r"# Lean is installed now. Great!
+r"# Elan is installed now. Great!
 
-To get started you need Leanpkg's bin directory ({leanpkg_home}\bin) in your `PATH`
+To get started you need Elan's bin directory ({elan_home}\bin) in your `PATH`
 environment variable. This has not been done automatically.
 "
     };
@@ -157,10 +158,8 @@ environment variable. This has not been done automatically.
 
 macro_rules! pre_uninstall_msg {
     () => {
-r"# Thanks for hacking in Lean!
-
-This will uninstall all Lean toolchains and data, and remove
-`{leanpkg_home}/bin` from your `PATH` environment variable.
+r"This will uninstall all Lean toolchains and data, and remove
+`{elan_home}/bin` from your `PATH` environment variable.
 
 "
     }
@@ -177,18 +176,18 @@ static DUP_TOOLS: &'static [&'static str] = &[];
 static UPDATE_ROOT: &'static str
     = "https://static.lean-lang.org/elan";
 
-/// `LEANPKG_HOME` suitable for display, possibly with $HOME
+/// `ELAN_HOME` suitable for display, possibly with $HOME
 /// substituted for the directory prefix
-fn canonical_leanpkg_home() -> Result<String> {
-    let path = try!(utils::leanpkg_home());
+fn canonical_elan_home() -> Result<String> {
+    let path = try!(utils::elan_home());
     let mut path_str = path.to_string_lossy().to_string();
 
-    let default_leanpkg_home = utils::home_dir().unwrap_or(PathBuf::from(".")).join(".leanpkg");
-    if default_leanpkg_home == path {
+    let default_elan_home = utils::home_dir().unwrap_or(PathBuf::from(".")).join(".elan");
+    if default_elan_home == path {
         if cfg!(unix) {
-            path_str = String::from("$HOME/.leanpkg");
+            path_str = String::from("$HOME/.elan");
         } else {
-            path_str = String::from(r"%USERPROFILE%\.leanpkg");
+            path_str = String::from(r"%USERPROFILE%\.elan");
         }
     }
 
@@ -196,26 +195,14 @@ fn canonical_leanpkg_home() -> Result<String> {
 }
 
 /// Installing is a simple matter of coping the running binary to
-/// `LEANPKG_HOME`/bin, hardlinking the various Lean tools to it,
-/// and adding `LEANPKG_HOME`/bin to PATH.
+/// `ELAN_HOME`/bin, hardlinking the various Lean tools to it,
+/// and adding `ELAN_HOME`/bin to PATH.
 pub fn install(no_prompt: bool, verbose: bool,
                mut opts: InstallOpts) -> Result<()> {
 
     try!(do_pre_install_sanity_checks());
     try!(check_existence_of_lean_or_leanpkg_in_path(no_prompt));
     try!(do_anti_sudo_check(no_prompt));
-
-    if !try!(do_msvc_check(&opts)) {
-        if no_prompt {
-            warn!("installing msvc toolchain without its prerequisites");
-        } else {
-            term2::stdout().md(MSVC_MESSAGE);
-            if !try!(common::confirm("\nContinue? (Y/n)", true)) {
-                info!("aborting installation");
-                return Ok(());
-            }
-        }
-    }
 
     if !no_prompt {
         let ref msg = try!(pre_install_msg(opts.no_modify_path));
@@ -240,19 +227,14 @@ pub fn install(no_prompt: bool, verbose: bool,
     }
 
     let install_res: Result<()> = (|| {
-        try!(cleanup_legacy());
         try!(install_bins());
         if !opts.no_modify_path {
             try!(do_add_to_path(&get_add_path_methods()));
         }
-        // Create ~/.elan and a compatibility ~/.multilean symlink.
-        // FIXME: Someday we can stop setting up the symlink, and when
-        // we do that we can stop creating ~/.elan as well.
-        try!(utils::create_elan_home());
         try!(maybe_install_lean(&opts.default_toolchain, &opts.default_host_triple, verbose));
 
         if cfg!(unix) {
-            let ref env_file = try!(utils::leanpkg_home()).join("env");
+            let ref env_file = try!(utils::elan_home()).join("env");
             let ref env_str = format!(
                 "{}\n",
                 try!(shell_export_string()));
@@ -281,22 +263,22 @@ pub fn install(no_prompt: bool, verbose: bool,
 
     // More helpful advice, skip if -y
     if !no_prompt {
-        let leanpkg_home = try!(canonical_leanpkg_home());
+        let elan_home = try!(canonical_elan_home());
         let msg = if !opts.no_modify_path {
             if cfg!(unix) {
                 format!(post_install_msg_unix!(),
-                         leanpkg_home = leanpkg_home)
+                         elan_home = elan_home)
             } else {
                 format!(post_install_msg_win!(),
-                        leanpkg_home = leanpkg_home)
+                        elan_home = elan_home)
             }
         } else {
             if cfg!(unix) {
                 format!(post_install_msg_unix_no_modify_path!(),
-                         leanpkg_home = leanpkg_home)
+                         elan_home = elan_home)
             } else {
                 format!(post_install_msg_win_no_modify_path!(),
-                        leanpkg_home = leanpkg_home)
+                        elan_home = elan_home)
             }
         };
         term2::stdout().md(msg);
@@ -488,33 +470,9 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
     Ok(())
 }
 
-// Provide guidance about setting up MSVC if it doesn't appear to be
-// installed
-#[cfg(windows)]
-fn do_msvc_check(opts: &InstallOpts) -> Result<bool> {
-    // Test suite skips this since it's env dependent
-    if env::var("ELAN_INIT_SKIP_MSVC_CHECK").is_ok() {
-        return Ok(true);
-    }
-
-    use gcc::windows_registry;
-    let installing_msvc = opts.default_host_triple.contains("msvc");
-    let have_msvc = windows_registry::find_tool(&opts.default_host_triple, "cl.exe").is_some();
-    if installing_msvc && !have_msvc {
-        return Ok(false);
-    }
-
-    Ok(true)
-}
-
-#[cfg(not(windows))]
-fn do_msvc_check(_opts: &InstallOpts) -> Result<bool> {
-    Ok(true)
-}
-
 fn pre_install_msg(no_modify_path: bool) -> Result<String> {
-    let leanpkg_home = try!(utils::leanpkg_home());
-    let leanpkg_home_bin = leanpkg_home.join("bin");
+    let elan_home = try!(utils::elan_home());
+    let elan_home_bin = elan_home.join("bin");
 
     if !no_modify_path {
         if cfg!(unix) {
@@ -531,16 +489,16 @@ fn pre_install_msg(no_modify_path: bool) -> Result<String> {
             let rcfiles = rcfiles.into_iter().map(|f| format!("    {}", f)).collect::<Vec<_>>();
             let rcfiles = rcfiles.join("\n");
             Ok(format!(pre_install_msg_unix!(),
-                       leanpkg_home_bin = leanpkg_home_bin.display(),
+                       elan_home_bin = elan_home_bin.display(),
                        plural = plural,
                        rcfiles = rcfiles))
         } else {
             Ok(format!(pre_install_msg_win!(),
-                       leanpkg_home_bin = leanpkg_home_bin.display()))
+                       elan_home_bin = elan_home_bin.display()))
         }
     } else {
         Ok(format!(pre_install_msg_no_modify_path!(),
-                   leanpkg_home_bin = leanpkg_home_bin.display()))
+                   elan_home_bin = elan_home_bin.display()))
     }
 }
 
@@ -567,12 +525,8 @@ fn customize_install(mut opts: InstallOpts) -> Result<InstallOpts> {
 
     println!("");
 
-    opts.default_host_triple = try!(common::question_str(
-        "Default host triple?",
-        &opts.default_host_triple));
-
     opts.default_toolchain = try!(common::question_str(
-        "Default toolchain? (stable/beta/nightly/none)",
+        "Default toolchain? (stable/nightly/none)",
         &opts.default_toolchain));
 
     opts.no_modify_path = !try!(common::question_bool(
@@ -583,7 +537,7 @@ fn customize_install(mut opts: InstallOpts) -> Result<InstallOpts> {
 }
 
 fn install_bins() -> Result<()> {
-    let ref bin_path = try!(utils::leanpkg_home()).join("bin");
+    let ref bin_path = try!(utils::elan_home()).join("bin");
     let ref this_exe_path = try!(utils::current_exe());
     let ref elan_path = bin_path.join(&format!("elan{}", EXE_SUFFIX));
 
@@ -599,7 +553,7 @@ fn install_bins() -> Result<()> {
 }
 
 pub fn install_proxies() -> Result<()> {
-    let ref bin_path = try!(utils::leanpkg_home()).join("bin");
+    let ref bin_path = try!(utils::elan_home()).join("bin");
     let ref elan_path = bin_path.join(&format!("elan{}", EXE_SUFFIX));
 
     let elan = Handle::from_path(elan_path)?;
@@ -645,24 +599,6 @@ pub fn install_proxies() -> Result<()> {
             // Like above, don't clobber anything that's already hardlinked to
             // avoid extraneous errors from being returned.
             if elan == handle {
-                continue
-            }
-
-            // If this file exists and is *not* equivalent to all other
-            // preexisting tools we found, then we're going to assume that it
-            // was preinstalled and actually pointing to a totally different
-            // binary. This is intended for cases where historically users
-            // rand `leanpkg install leanfmt` and so they had custom `leanfmt`
-            // and `leanpkg-fmt` executables lying around, but we as elan have
-            // since started managing these tools.
-            //
-            // If the file is managed by elan it should be equivalent to some
-            // previous file, and if it's not equivalent to anything then it's
-            // pretty likely that it needs to be dealt with manually.
-            if tool_handles.iter().all(|h| *h != handle) {
-                warn!("tool `{}` is already installed, remove it from `{}`, then run `elan update` \
-                       to have elan manage this tool.",
-                      tool, bin_path.to_string_lossy());
                 continue
             }
         }
@@ -722,16 +658,16 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
         process::exit(0);
     }
 
-    let ref leanpkg_home = try!(utils::leanpkg_home());
+    let ref elan_home = try!(utils::elan_home());
 
-    if !leanpkg_home.join(&format!("bin/elan{}", EXE_SUFFIX)).exists() {
-        return Err(ErrorKind::NotSelfInstalled(leanpkg_home.clone()).into());
+    if !elan_home.join(&format!("bin/elan{}", EXE_SUFFIX)).exists() {
+        return Err(ErrorKind::NotSelfInstalled(elan_home.clone()).into());
     }
 
     if !no_prompt {
         println!("");
         let ref msg = format!(pre_uninstall_msg!(),
-                              leanpkg_home = try!(canonical_leanpkg_home()));
+                              elan_home = try!(canonical_elan_home()));
         term2::stdout().md(msg);
         if !try!(common::confirm("\nContinue? (y/N)", false)) {
             info!("aborting uninstallation");
@@ -739,34 +675,22 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
         }
     }
 
-    info!("removing elan home");
-
-    try!(utils::delete_legacy_multilean_symlink());
-
-    // Delete ELAN_HOME
-    let ref elan_dir = try!(utils::elan_home());
-    if elan_dir.exists() {
-        try!(utils::remove_dir("elan_home", elan_dir, &|_| {}));
-    }
-
-    let read_dir_err = "failure reading directory";
-
     info!("removing leanpkg home");
 
-    // Remove LEANPKG_HOME/bin from PATH
+    // Remove ELAN_HOME/bin from PATH
     let ref remove_path_methods = try!(get_remove_path_methods());
     try!(do_remove_from_path(remove_path_methods));
 
-    // Delete everything in LEANPKG_HOME *except* the elan bin
+    // Delete everything in ELAN_HOME *except* the elan bin
 
     // First everything except the bin directory
-    for dirent in try!(fs::read_dir(leanpkg_home).chain_err(|| read_dir_err)) {
+    for dirent in try!(fs::read_dir(elan_home).chain_err(|| read_dir_err)) {
         let dirent = try!(dirent.chain_err(|| read_dir_err));
         if dirent.file_name().to_str() != Some("bin") {
             if dirent.path().is_dir() {
-                try!(utils::remove_dir("leanpkg_home", &dirent.path(), &|_| {}));
+                try!(utils::remove_dir("elan_home", &dirent.path(), &|_| {}));
             } else {
-                try!(utils::remove_file("leanpkg_home", &dirent.path()));
+                try!(utils::remove_file("elan_home", &dirent.path()));
             }
         }
     }
@@ -775,15 +699,15 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
     // until this process exits (on windows).
     let tools = TOOLS.iter().chain(DUP_TOOLS.iter()).map(|t| format!("{}{}", t, EXE_SUFFIX));
     let tools: Vec<_> = tools.chain(vec![format!("elan{}", EXE_SUFFIX)]).collect();
-    for dirent in try!(fs::read_dir(&leanpkg_home.join("bin")).chain_err(|| read_dir_err)) {
+    for dirent in try!(fs::read_dir(&elan_home.join("bin")).chain_err(|| read_dir_err)) {
         let dirent = try!(dirent.chain_err(|| read_dir_err));
         let name = dirent.file_name();
         let file_is_tool = name.to_str().map(|n| tools.iter().any(|t| *t == n));
         if file_is_tool == Some(false) {
             if dirent.path().is_dir() {
-                try!(utils::remove_dir("leanpkg_home", &dirent.path(), &|_| {}));
+                try!(utils::remove_dir("elan_home", &dirent.path(), &|_| {}));
             } else {
-                try!(utils::remove_file("leanpkg_home", &dirent.path()));
+                try!(utils::remove_file("elan_home", &dirent.path()));
             }
         }
     }
@@ -793,7 +717,7 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
     // Delete elan. This is tricky because this is *probably*
     // the running executable and on Windows can't be unlinked until
     // the process exits.
-    try!(delete_elan_and_leanpkg_home());
+    try!(delete_elan_and_elan_home());
 
     info!("elan is uninstalled");
 
@@ -831,21 +755,21 @@ fn get_msi_product_code() -> Result<String> {
 }
 
 #[cfg(unix)]
-fn delete_elan_and_leanpkg_home() -> Result<()> {
-    let ref leanpkg_home = try!(utils::leanpkg_home());
-    try!(utils::remove_dir("leanpkg_home", leanpkg_home, &|_| ()));
+fn delete_elan_and_elan_home() -> Result<()> {
+    let ref elan_home = try!(utils::elan_home());
+    try!(utils::remove_dir("elan_home", elan_home, &|_| ()));
 
     Ok(())
 }
 
 // The last step of uninstallation is to delete *this binary*,
-// elan.exe and the LEANPKG_HOME that contains it. On Unix, this
+// elan.exe and the ELAN_HOME that contains it. On Unix, this
 // works fine. On Windows you can't delete files while they are open,
 // like when they are running.
 //
 // Here's what we're going to do:
 // - Copy elan to a temporary file in
-//   LEANPKG_HOME/../elan-gc-$random.exe.
+//   ELAN_HOME/../elan-gc-$random.exe.
 // - Open the gc exe with the FILE_FLAG_DELETE_ON_CLOSE and
 //   FILE_SHARE_DELETE flags. This is going to be the last
 //   file to remove, and the OS is going to do it for us.
@@ -853,7 +777,7 @@ fn delete_elan_and_leanpkg_home() -> Result<()> {
 //   processes created with the option to inherit handles
 //   will also keep them open.
 // - Run the gc exe, which waits for the original elan
-//   process to close, then deletes LEANPKG_HOME. This process
+//   process to close, then deletes ELAN_HOME. This process
 //   has inherited a FILE_FLAG_DELETE_ON_CLOSE handle to itself.
 // - Finally, spawn yet another system binary with the inherit handles
 //   flag, so *it* inherits the FILE_FLAG_DELETE_ON_CLOSE handle to
@@ -869,22 +793,22 @@ fn delete_elan_and_leanpkg_home() -> Result<()> {
 // .. augmented with this SO answer
 // http://stackoverflow.com/questions/10319526/understanding-a-self-deleting-program-in-c
 #[cfg(windows)]
-fn delete_elan_and_leanpkg_home() -> Result<()> {
+fn delete_elan_and_elan_home() -> Result<()> {
     use rand;
     use scopeguard;
     use std::thread;
     use std::time::Duration;
 
-    // LEANPKG_HOME, hopefully empty except for bin/elan.exe
-    let ref leanpkg_home = try!(utils::leanpkg_home());
+    // ELAN_HOME, hopefully empty except for bin/elan.exe
+    let ref elan_home = try!(utils::elan_home());
     // The elan.exe bin
-    let ref elan_path = leanpkg_home.join(&format!("bin/elan{}", EXE_SUFFIX));
+    let ref elan_path = elan_home.join(&format!("bin/elan{}", EXE_SUFFIX));
 
-    // The directory containing LEANPKG_HOME
-    let work_path = leanpkg_home.parent().expect("LEANPKG_HOME doesn't have a parent?");
+    // The directory containing ELAN_HOME
+    let work_path = elan_home.parent().expect("ELAN_HOME doesn't have a parent?");
 
     // Generate a unique name for the files we're about to move out
-    // of LEANPKG_HOME.
+    // of ELAN_HOME.
     let numbah: u32 = rand::random();
     let gc_exe = work_path.join(&format!("elan-gc-{:x}.exe", numbah));
 
@@ -944,7 +868,7 @@ fn delete_elan_and_leanpkg_home() -> Result<()> {
     Ok(())
 }
 
-/// Run by elan-gc-$num.exe to delete LEANPKG_HOME
+/// Run by elan-gc-$num.exe to delete ELAN_HOME
 #[cfg(windows)]
 pub fn complete_windows_uninstall() -> Result<()> {
     use std::ffi::OsStr;
@@ -952,9 +876,9 @@ pub fn complete_windows_uninstall() -> Result<()> {
 
     try!(wait_for_parent());
 
-    // Now that the parent has exited there are hopefully no more files open in LEANPKG_HOME
-    let ref leanpkg_home = try!(utils::leanpkg_home());
-    try!(utils::remove_dir("leanpkg_home", leanpkg_home, &|_| ()));
+    // Now that the parent has exited there are hopefully no more files open in ELAN_HOME
+    let ref elan_home = try!(utils::elan_home());
+    try!(utils::remove_dir("elan_home", elan_home, &|_| ()));
 
     // Now, run a *system* binary to inherit the DELETE_ON_CLOSE
     // handle to *this* process, then exit. The OS will delete the gc
@@ -1086,7 +1010,7 @@ fn get_add_path_methods() -> Vec<PathUpdateMethod> {
 }
 
 fn shell_export_string() -> Result<String> {
-    let path = format!("{}/bin", try!(canonical_leanpkg_home()));
+    let path = format!("{}/bin", try!(canonical_elan_home()));
     // The path is *prepended* in case there are system-installed
     // lean's that need to be overridden.
     Ok(format!(r#"export PATH="{}:$PATH""#, path))
@@ -1131,7 +1055,7 @@ fn do_add_to_path(methods: &[PathUpdateMethod]) -> Result<()> {
         return Ok(());
     };
 
-    let mut new_path = try!(utils::leanpkg_home()).join("bin").to_string_lossy().to_string();
+    let mut new_path = try!(utils::elan_home()).join("bin").to_string_lossy().to_string();
     if old_path.contains(&new_path) {
         return Ok(());
     }
@@ -1241,7 +1165,7 @@ fn do_remove_from_path(methods: &[PathUpdateMethod]) -> Result<()> {
         return Ok(());
     };
 
-    let ref path_str = try!(utils::leanpkg_home()).join("bin").to_string_lossy().to_string();
+    let ref path_str = try!(utils::elan_home()).join("bin").to_string_lossy().to_string();
     let idx = if let Some(i) = old_path.find(path_str) {
         i
     } else {
@@ -1315,7 +1239,7 @@ fn do_remove_from_path(methods: &[PathUpdateMethod]) -> Result<()> {
     Ok(())
 }
 
-/// Self update downloads elan-init to `LEANPKG_HOME`/bin/elan-init
+/// Self update downloads elan-init to `ELAN_HOME`/bin/elan-init
 /// and runs it.
 ///
 /// It does a few things to accomodate self-delete problems on windows:
@@ -1328,7 +1252,7 @@ fn do_remove_from_path(methods: &[PathUpdateMethod]) -> Result<()> {
 ///
 /// Because it's again difficult for elan-init to delete itself
 /// (and on windows this process will not be running to do it),
-/// elan-init is stored in `LEANPKG_HOME`/bin, and then deleted next
+/// elan-init is stored in `ELAN_HOME`/bin, and then deleted next
 /// time elan runs.
 pub fn update() -> Result<()> {
     if NEVER_SELF_UPDATE {
@@ -1379,12 +1303,12 @@ fn parse_new_elan_version(version: String) -> String {
 pub fn prepare_update() -> Result<Option<PathBuf>> {
     use toml;
 
-    let ref leanpkg_home = try!(utils::leanpkg_home());
-    let ref elan_path = leanpkg_home.join(&format!("bin/elan{}", EXE_SUFFIX));
-    let ref setup_path = leanpkg_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
+    let ref elan_home = try!(utils::elan_home());
+    let ref elan_path = elan_home.join(&format!("bin/elan{}", EXE_SUFFIX));
+    let ref setup_path = elan_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
 
     if !elan_path.exists() {
-        return Err(ErrorKind::NotSelfInstalled(leanpkg_home.clone()).into());
+        return Err(ErrorKind::NotSelfInstalled(elan_home.clone()).into());
     }
 
     if setup_path.exists() {
@@ -1493,7 +1417,7 @@ pub fn run_update(setup_path: &Path) -> Result<()> {
 }
 
 /// This function is as the final step of a self-upgrade. It replaces
-/// `LEANPKG_HOME`/bin/elan with the running exe, and updates the the
+/// `ELAN_HOME`/bin/elan with the running exe, and updates the the
 /// links to it. On windows this will run *after* the original
 /// elan process exits.
 #[cfg(unix)]
@@ -1512,15 +1436,15 @@ pub fn self_replace() -> Result<()> {
 }
 
 pub fn cleanup_self_updater() -> Result<()> {
-    let leanpkg_home = try!(utils::leanpkg_home());
-    let ref setup = leanpkg_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
+    let elan_home = try!(utils::elan_home());
+    let ref setup = elan_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
 
     if setup.exists() {
         try!(utils::remove_file("setup", setup));
     }
 
     // Transitional
-    let ref old_setup = leanpkg_home.join(&format!("bin/multilean-setup{}", EXE_SUFFIX));
+    let ref old_setup = elan_home.join(&format!("bin/multilean-setup{}", EXE_SUFFIX));
 
     if old_setup.exists() {
         try!(utils::remove_file("setup", old_setup));

@@ -524,51 +524,14 @@ pub fn home_dir() -> Option<PathBuf> {
     ::std::env::home_dir()
 }
 
-pub fn leanpkg_home() -> Result<PathBuf> {
-    let env_var = env::var_os("LEANPKG_HOME");
-
-    let cwd = try!(env::current_dir().chain_err(|| ErrorKind::LeanpkgHome));
-    let leanpkg_home = env_var.clone().map(|home| {
-        cwd.join(home)
-    });
-    let user_home = home_dir().map(|p| p.join(".leanpkg"));
-    leanpkg_home.or(user_home).ok_or(ErrorKind::LeanpkgHome.into())
-}
-
-// Creates a ~/.elan folder and a ~/.multilean symlink
-pub fn create_elan_home() -> Result<()> {
-    // If there's an existing install, then try to upgrade
-    do_elan_home_upgrade();
-
-    // If ELAN_HOME is set then don't make any assumptions about where it's
-    // ok to put ~/.multilean
-    if env::var_os("ELAN_HOME").is_some() { return Ok(()) }
-
-    let home = elan_home_in_user_dir()?;
-    fs::create_dir_all(&home)
-        .chain_err(|| "unable to create ~/.elan")?;
-
-    Ok(())
-}
-
-fn dot_dir(name: &str) -> Option<PathBuf> {
-    home_dir().map(|p| p.join(name))
-}
-
-pub fn legacy_multilean_home() -> Result<PathBuf> {
-    dot_dir(".multilean").ok_or(ErrorKind::ElanHome.into())
-}
-
-pub fn elan_home_in_user_dir() -> Result<PathBuf> {
-    dot_dir(".elan").ok_or(ErrorKind::ElanHome.into())
-}
-
 pub fn elan_home() -> Result<PathBuf> {
+    let env_var = env::var_os("ELAN_HOME");
+
     let cwd = try!(env::current_dir().chain_err(|| ErrorKind::ElanHome));
-    let elan_home = env::var_os("ELAN_HOME").map(|home| {
+    let elan_home = env_var.clone().map(|home| {
         cwd.join(home)
     });
-    let user_home = dot_dir(".elan");
+    let user_home = home_dir().map(|p| p.join(".elan"));
     elan_home.or(user_home).ok_or(ErrorKind::ElanHome.into())
 }
 

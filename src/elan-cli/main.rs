@@ -73,9 +73,6 @@ fn run_elan() -> Result<()> {
     // bugs in elan.
     do_recursion_guard()?;
 
-    // Do various hacks to clean up past messes
-    do_compatibility_hacks();
-
     // The name of arg0 determines how the program is going to behave
     let arg0 = env::args().next().map(PathBuf::from);
     let name = arg0.as_ref()
@@ -86,8 +83,7 @@ fn run_elan() -> Result<()> {
         Some("elan") => {
             elan_mode::main()
         }
-        Some(n) if n.starts_with("multirust-setup")||
-                   n.starts_with("elan-setup") ||
+        Some(n) if n.starts_with("elan-setup") ||
                    n.starts_with("elan-init") => {
             // NB: The above check is only for the prefix of the file
             // name. Browsers rename duplicates to
@@ -99,24 +95,6 @@ fn run_elan() -> Result<()> {
             // This is the final uninstallation stage on windows where
             // elan deletes its own exe
             self_update::complete_windows_uninstall()
-        }
-        Some(n) if n.starts_with("multirust-") => {
-            // This is for compatibility with previous revisions of
-            // multirust-rs self-update, which expect multirust-rs to
-            // be available on the server, downloads it to
-            // ~/.multirust/tmp/multirust-$random, and execute it with
-            // `self install` as the arguments.  FIXME: Verify this
-            // works.
-            let opts = self_update::InstallOpts {
-                default_host_triple: TargetTriple::from_host_or_build().to_string(),
-                default_toolchain: "stable".to_string(),
-                no_modify_path: false,
-            };
-            if cfg!(windows) {
-                self_update::install(false, false, opts)
-            } else {
-                self_update::install(true, false, opts)
-            }
         }
         Some(_) => {
             proxy_mode::main()

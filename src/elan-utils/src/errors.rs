@@ -156,9 +156,6 @@ error_chain! {
             description("failed to set permissions")
             display("failed to set permissions for '{}'", path.display())
         }
-        LeanpkgHome {
-            description("couldn't find value of LEANPKG_HOME")
-        }
         ElanHome {
             description("couldn't find value of ELAN_HOME")
         }
