@@ -177,7 +177,7 @@ impl TelemetryAnalysis {
 
         for event in events {
             match *event {
-                TelemetryEvent::RustcRun{ duration_ms, ref exit_code, ref errors } => {
+                TelemetryEvent::LeanRun{ duration_ms, ref exit_code, ref errors } => {
                     self.rustc_statistics.rustc_execution_count += 1;
                     rustc_durations.push(duration_ms);
 

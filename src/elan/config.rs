@@ -42,7 +42,7 @@ pub struct Cfg {
     pub update_hash_dir: PathBuf,
     pub download_dir: PathBuf,
     pub temp_cfg: temp::Cfg,
-    pub gpg_key: Cow<'static, str>,
+    //pub gpg_key: Cow<'static, str>,
     pub env_override: Option<String>,
     pub dist_root_url: String,
     pub dist_root_server: String,
@@ -66,12 +66,12 @@ impl Cfg {
         let download_dir = elan_dir.join("downloads");
 
         // GPG key
-        let gpg_key = if let Some(path) = env::var_os("ELAN_GPG_KEY")
+        /*let gpg_key = ""; if let Some(path) = env::var_os("ELAN_GPG_KEY")
                                               .and_then(utils::if_not_empty) {
             Cow::Owned(try!(utils::read_file("public key", Path::new(&path))))
         } else {
             Cow::Borrowed(include_str!("lean-key.gpg.ascii"))
-        };
+        };*/
 
         // Environment override
         let env_override = env::var("ELAN_TOOLCHAIN")
@@ -109,7 +109,7 @@ impl Cfg {
             update_hash_dir: update_hash_dir,
             download_dir: download_dir,
             temp_cfg: temp_cfg,
-            gpg_key: gpg_key,
+            //gpg_key: gpg_key,
             notify_handler: notify_handler,
             env_override: env_override,
             dist_root_url: dist_root,

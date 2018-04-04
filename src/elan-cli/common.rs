@@ -369,7 +369,7 @@ pub fn list_overrides(cfg: &Cfg) -> Result<()> {
 
 
 pub fn version() -> &'static str {
-    concat!(env!("LEANPKG_PKG_VERSION"), include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt")))
+    concat!(env!("CARGO_PKG_VERSION"), include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt")))
 }
 
 

@@ -68,7 +68,7 @@ This will download and install Elan, a tool for managing different Lean versions
 packages you create or download. It will also install a default version of Lean and its package
 manager, leanpkg, for editing files not belonging to any package.
 
-It will add the `leanpkg`, `lean`, `elan` and other commands to
+It will add the `leanpkg`, `lean`, and `elan` commands to
 Elan's bin directory, located at:
 
     {elan_home_bin}
@@ -201,7 +201,7 @@ pub fn install(no_prompt: bool, verbose: bool,
                mut opts: InstallOpts) -> Result<()> {
 
     try!(do_pre_install_sanity_checks());
-    try!(check_existence_of_lean_or_leanpkg_in_path(no_prompt));
+    //try!(check_existence_of_lean_or_leanpkg_in_path(no_prompt));
     try!(do_anti_sudo_check(no_prompt));
 
     if !no_prompt {
@@ -674,6 +674,8 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
             return Ok(());
         }
     }
+
+    let read_dir_err = "failure reading directory";
 
     info!("removing leanpkg home");
 
@@ -1337,7 +1339,7 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
         .chain_err(|| "error creating temp directory"));
 
     // Get current version
-    let current_version = env!("LEANPKG_PKG_VERSION");
+    let current_version = env!("CARGO_PKG_VERSION");
 
     // Download available version
     info!("checking for self-updates");
