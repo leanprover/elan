@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 use std::io;
 use std::ops;
 use std::fmt::{self, Display};
-use rustup_utils::raw;
+use elan_utils::raw;
 
-use rustup_utils::notify::NotificationLevel;
+use elan_utils::notify::NotificationLevel;
 
 #[derive(Debug)]
 pub enum Error {

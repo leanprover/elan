@@ -1,4 +1,4 @@
-use rustup_utils::{utils};
+use elan_utils::{utils};
 use errors::*;
 use temp;
 use notifications::*;

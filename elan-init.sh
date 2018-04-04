@@ -10,21 +10,21 @@
 # except according to those terms.
 
 # This is just a little script that can be downloaded from the internet to
-# install rustup. It just does platform detection, downloads the installer
+# install elan. It just does platform detection, downloads the installer
 # and runs it.
 
 set -u
 
-RUSTUP_UPDATE_ROOT="https://static.rust-lang.org/rustup/dist"
+ELAN_UPDATE_ROOT="https://static.lean-lang.org/elan/dist"
 
 #XXX: If you change anything here, please make the same changes in setup_mode.rs
 usage() {
     cat 1>&2 <<EOF
-rustup-init 1.0.0 (408ed84 2017-02-11)
-The installer for rustup
+elan-init 1.0.0 (408ed84 2017-02-11)
+The installer for elan
 
 USAGE:
-    rustup-init [FLAGS] [OPTIONS]
+    elan-init [FLAGS] [OPTIONS]
 
 FLAGS:
     -v, --verbose           Enable verbose output
@@ -60,10 +60,10 @@ main() {
             ;;
     esac
 
-    local _url="$RUSTUP_UPDATE_ROOT/$_arch/rustup-init$_ext"
+    local _url="$ELAN_UPDATE_ROOT/$_arch/elan-init$_ext"
 
-    local _dir="$(mktemp -d 2>/dev/null || ensure mktemp -d -t rustup)"
-    local _file="$_dir/rustup-init$_ext"
+    local _dir="$(mktemp -d 2>/dev/null || ensure mktemp -d -t elan)"
+    local _file="$_dir/elan-init$_ext"
 
     local _ansi_escapes_are_valid=false
     if [ -t 2 ]; then
@@ -104,7 +104,7 @@ main() {
     ensure chmod u+x "$_file"
     if [ ! -x "$_file" ]; then
         printf '%s\n' "Cannot execute $_file (likely because of mounting /tmp as noexec)." 1>&2
-        printf '%s\n' "Please copy the file to a location where you can execute binaries and run ./rustup-init$_ext." 1>&2
+        printf '%s\n' "Please copy the file to a location where you can execute binaries and run ./elan-init$_ext." 1>&2
         exit 1
     fi
 
@@ -306,7 +306,7 @@ get_architecture() {
         fi
     fi
 
-    # Detect armv7 but without the CPU features Rust needs in that build,
+    # Detect armv7 but without the CPU features Lean needs in that build,
     # and fall back to arm.
     # See https://github.com/rust-lang-nursery/rustup.rs/issues/587.
     if [ $_ostype = "unknown-linux-gnueabihf" -a $_cputype = armv7 ]; then
@@ -322,7 +322,7 @@ get_architecture() {
 }
 
 say() {
-    echo "rustup: $1"
+    echo "elan: $1"
 }
 
 err() {

@@ -1,7 +1,7 @@
 #![recursion_limit = "1024"]
 
-extern crate rustup_dist;
-extern crate rustup_utils;
+extern crate elan_dist;
+extern crate elan_utils;
 #[macro_use]
 extern crate error_chain;
 extern crate url;
@@ -20,7 +20,7 @@ pub use errors::*;
 pub use notifications::*;
 pub use config::*;
 pub use toolchain::*;
-pub use rustup_utils::{utils, notify, toml_utils};
+pub use elan_utils::{utils, notify, toml_utils};
 
 mod errors;
 mod notifications;

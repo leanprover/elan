@@ -1,13 +1,9 @@
 [package]
 
-name = "rustup-utils"
+name = "elan-utils"
 version = "1.11.0"
-authors = [ "Diggory Blake <diggsey@googlemail.com>" ]
-description = "Utility functions for rustup"
-
-documentation = "http://rust-lang-nursery.github.io/rustup.rs/rustup_utils/index.html"
-homepage = "https://github.com/rust-lang-nursery/rustup.rs"
-repository = "https://github.com/rust-lang-nursery/rustup.rs"
+authors = [ "Sebastian Ullrich <sebasti@nullri.ch>" ]
+description = "Utility functions for elan"
 
 license = "MIT OR Apache-2.0"
 

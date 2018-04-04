@@ -3,7 +3,7 @@ param(
     [string] $Target
 )
 
-$manifest = cargo read-manifest --manifest-path ..\..\..\Cargo.toml | ConvertFrom-Json
+$manifest = leanpkg read-manifest --manifest-path ..\..\..\Leanpkg.toml | ConvertFrom-Json
 $version = $manifest.version.Split(".")
 $env:CFG_VER_MAJOR = $version[0]
 $env:CFG_VER_MINOR = $version[1]
@@ -22,4 +22,4 @@ foreach($file in Get-ChildItem *.wxs) {
 }
 
 # ICE57 wrongly complains about per-machine data in per-user install, because it doesn't know that INSTALLLOCATION is in per-user directory
-&"$($env:WIX)\bin\light.exe" -nologo -ext WixUIExtension -ext WixUtilExtension -out "target\rustup.msi" -sice:ICE57 $(Get-ChildItem target\*.wixobj)
+&"$($env:WIX)\bin\light.exe" -nologo -ext WixUIExtension -ext WixUtilExtension -out "target\elan.msi" -sice:ICE57 $(Get-ChildItem target\*.wixobj)

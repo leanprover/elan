@@ -2,7 +2,7 @@
 use temp;
 use errors::*;
 use notifications::*;
-use rustup_utils::{self, utils};
+use elan_utils::{self, utils};
 use prefix::InstallPrefix;
 use manifest::Component;
 use manifest::Manifest as ManifestV2;
@@ -15,12 +15,12 @@ use std::env;
 
 use regex::Regex;
 
-pub const DEFAULT_DIST_SERVER: &'static str = "https://static.rust-lang.org";
+pub const DEFAULT_DIST_SERVER: &'static str = "https://static.lean-lang.org";
 
 // Deprecated
-pub const DEFAULT_DIST_ROOT: &'static str = "https://static.rust-lang.org/dist";
+pub const DEFAULT_DIST_ROOT: &'static str = "https://static.lean-lang.org/dist";
 
-// A toolchain descriptor from rustup's perspective. These contain
+// A toolchain descriptor from elan's perspective. These contain
 // 'partial target triples', which allow toolchain names like
 // 'stable-msvc' to work. Partial target triples though are parsed
 // from a hardcoded set of known triples, whereas target triples
@@ -54,7 +54,7 @@ pub struct ToolchainDesc {
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct TargetTriple(String);
 
-// These lists contain the targets known to rustup, and used to build
+// These lists contain the targets known to elan, and used to build
 // the PartialTargetTriple.
 
 static LIST_ARCHS: &'static [&'static str] = &["i386",
@@ -106,7 +106,7 @@ impl TargetTriple {
     }
 
     pub fn from_build() -> Self {
-        if let Some(triple) = option_env!("RUSTUP_OVERRIDE_BUILD_TRIPLE") {
+        if let Some(triple) = option_env!("ELAN_OVERRIDE_BUILD_TRIPLE") {
             TargetTriple::from_str(triple)
         } else {
             TargetTriple::from_str(include_str!(concat!(env!("OUT_DIR"), "/target.txt")))
@@ -187,7 +187,7 @@ impl TargetTriple {
             host_triple.map(TargetTriple::from_str)
         }
 
-        if let Ok(triple) = env::var("RUSTUP_OVERRIDE_HOST_TRIPLE") {
+        if let Ok(triple) = env::var("ELAN_OVERRIDE_HOST_TRIPLE") {
             Some(TargetTriple(triple))
         } else {
             inner()
@@ -340,11 +340,11 @@ impl ToolchainDesc {
     }
 
     pub fn manifest_v1_url(&self, dist_root: &str) -> String {
-        let do_manifest_staging = env::var("RUSTUP_STAGED_MANIFEST").is_ok();
+        let do_manifest_staging = env::var("ELAN_STAGED_MANIFEST").is_ok();
         match (self.date.as_ref(), do_manifest_staging) {
-            (None, false) => format!("{}/channel-rust-{}", dist_root, self.channel),
-            (Some(date), false) => format!("{}/{}/channel-rust-{}", dist_root, date, self.channel),
-            (None, true) => format!("{}/staging/channel-rust-{}", dist_root, self.channel),
+            (None, false) => format!("{}/channel-lean-{}", dist_root, self.channel),
+            (Some(date), false) => format!("{}/{}/channel-lean-{}", dist_root, date, self.channel),
+            (None, true) => format!("{}/staging/channel-lean-{}", dist_root, self.channel),
             (Some(_), true) => panic!("not a real-world case"),
         }
     }
@@ -507,7 +507,7 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
     (download.notify_handler)(Notification::DownloadingManifest(&toolchain_str));
     match dl_v2_manifest(download, update_hash, toolchain) {
         Ok(Some((m, hash))) => {
-            (download.notify_handler)(Notification::DownloadedManifest(&m.date, m.get_rust_version().ok()));
+            (download.notify_handler)(Notification::DownloadedManifest(&m.date, m.get_lean_version().ok()));
             return match try!(manifestation.update(&m,
                                                    changes,
                                                    force_update,
@@ -518,7 +518,7 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
             }
         }
         Ok(None) => return Ok(None),
-        Err(Error(ErrorKind::Utils(::rustup_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
+        Err(Error(ErrorKind::Utils(::elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
             // Proceed to try v1 as a fallback
             (download.notify_handler)(Notification::DownloadingLegacyManifest);
         }
@@ -531,7 +531,7 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
     // If the v2 manifest is not found then try v1
     let manifest = match dl_v1_manifest(download, toolchain) {
         Ok(m) => m,
-        Err(Error(ErrorKind::Utils(rustup_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
+        Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
             return Err(format!("no release found for '{}'", toolchain.manifest_name()).into());
         }
         Err(e @ Error(ErrorKind::ChecksumFailed { .. }, _)) => {
@@ -550,9 +550,9 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
                                   download.notify_handler.clone()) {
         Ok(None) => Ok(None),
         Ok(Some(hash)) => Ok(Some(hash)),
-        e @ Err(Error(ErrorKind::Utils(rustup_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
+        e @ Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
             e.chain_err(|| {
-                format!("could not download nonexistent rust version `{}`",
+                format!("could not download nonexistent lean version `{}`",
                         toolchain_str)
             })
         }
@@ -597,7 +597,7 @@ fn dl_v1_manifest<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> R
     if !["nightly", "beta", "stable"].contains(&&*toolchain.channel) {
         // This is an explicit version. In v1 there was no manifest,
         // you just know the file to download, so synthesize one.
-        let installer_name = format!("{}/rust-{}-{}.tar.gz",
+        let installer_name = format!("{}/lean-{}-{}.tar.gz",
                                      root_url,
                                      toolchain.channel,
                                      toolchain.target);

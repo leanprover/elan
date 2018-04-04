@@ -1,4 +1,4 @@
-//! An interpreter for the rust-installer package format.  Responsible
+//! An interpreter for the lean-installer package format.  Responsible
 //! for installing from a directory or tarball to an installation
 //! prefix, represented by a `Components` instance.
 
@@ -10,7 +10,7 @@ use component::components::*;
 use component::transaction::*;
 
 use errors::*;
-use rustup_utils::utils;
+use elan_utils::utils;
 use temp;
 
 use std::path::{Path, PathBuf};
@@ -19,9 +19,9 @@ use std::fmt;
 use std::io::Read;
 use std::fs::File;
 
-/// The current metadata revision used by rust-installer
+/// The current metadata revision used by lean-installer
 pub const INSTALLER_VERSION: &'static str = "3";
-pub const VERSION_FILE: &'static str = "rust-installer-version";
+pub const VERSION_FILE: &'static str = "lean-installer-version";
 
 pub trait Package: fmt::Debug {
     fn contains(&self, component: &str, short_name: Option<&str>) -> bool;
@@ -120,7 +120,7 @@ impl Package for DirectoryPackage {
 // On Unix we need to set up the file permissions correctly so
 // binaries are executable and directories readable. This shouldn't be
 // necessary: the source files *should* have the right permissions,
-// but due to rust-lang/rust#25479 they don't.
+// but due to lean-lang/lean#25479 they don't.
 #[cfg(unix)]
 fn set_file_perms(dest_path: &Path, src_path: &Path) -> Result<()> {
     use std::fs::{self, Metadata};
@@ -173,7 +173,7 @@ impl<'a> TarPackage<'a> {
     pub fn new<R: Read>(stream: R, temp_cfg: &'a temp::Cfg) -> Result<Self> {
         let temp_dir = try!(temp_cfg.new_directory());
         let mut archive = tar::Archive::new(stream);
-        // The rust-installer packages unpack to a directory called
+        // The lean-installer packages unpack to a directory called
         // $pkgname-$version-$target. Skip that directory when
         // unpacking.
         try!(unpack_without_first_dir(&mut archive, &*temp_dir));

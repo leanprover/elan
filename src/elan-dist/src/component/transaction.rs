@@ -9,7 +9,7 @@
 //! FIXME: This uses ensure_dir_exists in some places but rollback
 //! does not remove any dirs created by it.
 
-use rustup_utils::utils;
+use elan_utils::utils;
 use temp;
 use prefix::InstallPrefix;
 use errors::*;

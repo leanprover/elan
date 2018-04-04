@@ -1,12 +1,12 @@
 use errors::*;
 use notifications::*;
-use rustup_dist;
-use rustup_dist::download::DownloadCfg;
-use rustup_utils::utils;
-use rustup_dist::prefix::InstallPrefix;
-use rustup_dist::dist::{ToolchainDesc};
-use rustup_dist::manifestation::{Manifestation, Changes};
-use rustup_dist::manifest::Component;
+use elan_dist;
+use elan_dist::download::DownloadCfg;
+use elan_utils::utils;
+use elan_dist::prefix::InstallPrefix;
+use elan_dist::dist::{ToolchainDesc};
+use elan_dist::manifestation::{Manifestation, Changes};
+use elan_dist::manifest::Component;
 use config::Cfg;
 use env_var;
 use install::{self, InstallMethod};
@@ -28,7 +28,7 @@ pub struct Toolchain<'a> {
     name: String,
     path: PathBuf,
     telemetry: telemetry::Telemetry,
-    dist_handler: Box<Fn(rustup_dist::Notification) + 'a>,
+    dist_handler: Box<Fn(elan_dist::Notification) + 'a>,
 }
 
 /// Used by the `list_component` function
@@ -53,7 +53,7 @@ impl<'a> Toolchain<'a> {
             cfg: cfg,
             name: resolved_name,
             path: path.clone(),
-            telemetry: Telemetry::new(cfg.rustup_dir.join("telemetry")),
+            telemetry: Telemetry::new(cfg.elan_dir.join("telemetry")),
             dist_handler: Box::new(move |n| {
                 (cfg.notify_handler)(n.into())
             })
@@ -223,7 +223,7 @@ impl<'a> Toolchain<'a> {
 
     fn ensure_custom(&self) -> Result<()> {
         if !self.is_custom() {
-            Err(ErrorKind::Dist(::rustup_dist::ErrorKind::InvalidCustomToolchainName(self.name.to_string())).into())
+            Err(ErrorKind::Dist(::elan_dist::ErrorKind::InvalidCustomToolchainName(self.name.to_string())).into())
         } else {
             Ok(())
         }
@@ -287,7 +287,7 @@ impl<'a> Toolchain<'a> {
         pathbuf.pop();
         pathbuf.push("bin");
         try!(utils::assert_is_directory(&pathbuf));
-        pathbuf.push(format!("rustc{}", EXE_SUFFIX));
+        pathbuf.push(format!("lean{}", EXE_SUFFIX));
         try!(utils::assert_is_file(&pathbuf));
 
         if link {
@@ -320,9 +320,9 @@ impl<'a> Toolchain<'a> {
         let path = if utils::is_file(&bin_path) {
             &bin_path
         } else {
-            let recursion_count = env::var("RUST_RECURSION_COUNT").ok()
+            let recursion_count = env::var("LEAN_RECURSION_COUNT").ok()
                 .and_then(|s| s.parse().ok()).unwrap_or(0);
-            if recursion_count > env_var::RUST_RECURSION_COUNT_MAX - 1 {
+            if recursion_count > env_var::LEAN_RECURSION_COUNT_MAX - 1 {
                 return Err(ErrorKind::BinaryNotFound(self.name.clone(),
                                                      binary.to_string_lossy()
                                                            .into())
@@ -336,11 +336,11 @@ impl<'a> Toolchain<'a> {
     }
 
     // Create a command as a fallback for another toolchain. This is used
-    // to give custom toolchains access to cargo
+    // to give custom toolchains access to leanpkg
     pub fn create_fallback_command<T: AsRef<OsStr>>(&self, binary: T,
                                                     primary_toolchain: &Toolchain) -> Result<Command> {
-        // With the hacks below this only works for cargo atm
-        assert!(binary.as_ref() == "cargo" || binary.as_ref() == "cargo.exe");
+        // With the hacks below this only works for leanpkg atm
+        assert!(binary.as_ref() == "leanpkg" || binary.as_ref() == "leanpkg.exe");
 
         if !self.exists() {
             return Err(ErrorKind::ToolchainNotInstalled(self.name.to_owned()).into());
@@ -349,25 +349,25 @@ impl<'a> Toolchain<'a> {
             return Err(ErrorKind::ToolchainNotInstalled(primary_toolchain.name.to_owned()).into());
         }
 
-        let src_file = self.path.join("bin").join(format!("cargo{}", EXE_SUFFIX));
+        let src_file = self.path.join("bin").join(format!("leanpkg{}", EXE_SUFFIX));
 
-        // MAJOR HACKS: Copy cargo.exe to its own directory on windows before
-        // running it. This is so that the fallback cargo, when it in turn runs
-        // rustc.exe, will run the rustc.exe out of the PATH environment
-        // variable, _not_ the rustc.exe sitting in the same directory as the
-        // fallback. See the `fallback_cargo_calls_correct_rustc` testcase and
+        // MAJOR HACKS: Copy leanpkg.exe to its own directory on windows before
+        // running it. This is so that the fallback leanpkg, when it in turn runs
+        // lean.exe, will run the lean.exe out of the PATH environment
+        // variable, _not_ the lean.exe sitting in the same directory as the
+        // fallback. See the `fallback_leanpkg_calls_correct_lean` testcase and
         // PR 812.
         //
         // On Windows, spawning a process will search the running application's
         // directory for the exe to spawn before searching PATH, and we don't want
-        // it to do that, because cargo's directory contains the _wrong_ rustc. See
+        // it to do that, because leanpkg's directory contains the _wrong_ lean. See
         // the documantation for the lpCommandLine argument of CreateProcess.
         let exe_path = if cfg!(windows) {
             use std::fs;
-            let fallback_dir = self.cfg.rustup_dir.join("fallback");
+            let fallback_dir = self.cfg.elan_dir.join("fallback");
             try!(fs::create_dir_all(&fallback_dir)
                  .chain_err(|| "unable to create dir to hold fallback exe"));
-            let fallback_file = fallback_dir.join("cargo.exe");
+            let fallback_file = fallback_dir.join("leanpkg.exe");
             if fallback_file.exists() {
                 try!(fs::remove_file(&fallback_file)
                      .chain_err(|| "unable to unlink old fallback exe"));
@@ -380,25 +380,25 @@ impl<'a> Toolchain<'a> {
         };
         let mut cmd = Command::new(exe_path);
         self.set_env(&mut cmd);
-        cmd.env("RUSTUP_TOOLCHAIN", &primary_toolchain.name);
+        cmd.env("ELAN_TOOLCHAIN", &primary_toolchain.name);
         Ok(cmd)
     }
 
     fn set_env(&self, cmd: &mut Command) {
         self.set_ldpath(cmd);
 
-        // Because rustup and cargo use slightly different
-        // definitions of cargo home (rustup doesn't read HOME on
-        // windows), we must set it here to ensure cargo and
-        // rustup agree.
-        if let Ok(cargo_home) = utils::cargo_home() {
-            cmd.env("CARGO_HOME", &cargo_home);
+        // Because elan and leanpkg use slightly different
+        // definitions of leanpkg home (elan doesn't read HOME on
+        // windows), we must set it here to ensure leanpkg and
+        // elan agree.
+        if let Ok(leanpkg_home) = utils::leanpkg_home() {
+            cmd.env("LEANPKG_HOME", &leanpkg_home);
         }
 
-        env_var::inc("RUST_RECURSION_COUNT", cmd);
+        env_var::inc("LEAN_RECURSION_COUNT", cmd);
 
-        cmd.env("RUSTUP_TOOLCHAIN", &self.name);
-        cmd.env("RUSTUP_HOME", &self.cfg.rustup_dir);
+        cmd.env("ELAN_TOOLCHAIN", &self.name);
+        cmd.env("ELAN_HOME", &self.cfg.elan_dir);
     }
 
     pub fn set_ldpath(&self, cmd: &mut Command) {
@@ -414,13 +414,13 @@ impl<'a> Toolchain<'a> {
         }
         env_var::prepend_path(sysenv::LOADER_PATH, vec![new_path.clone()], cmd);
 
-        // Prepend CARGO_HOME/bin to the PATH variable so that we're sure to run
-        // cargo/rustc via the proxy bins. There is no fallback case for if the
+        // Prepend LEANPKG_HOME/bin to the PATH variable so that we're sure to run
+        // leanpkg/lean via the proxy bins. There is no fallback case for if the
         // proxy bins don't exist. We'll just be running whatever happens to
         // be on the PATH.
         let mut path_entries = vec![];
-        if let Ok(cargo_home) = utils::cargo_home() {
-            path_entries.push(cargo_home.join("bin").to_path_buf());
+        if let Ok(leanpkg_home) = utils::leanpkg_home() {
+            path_entries.push(leanpkg_home.join("bin").to_path_buf());
         }
 
         if cfg!(target_os = "windows") {
@@ -433,7 +433,7 @@ impl<'a> Toolchain<'a> {
     pub fn doc_path(&self, relative: &str) -> Result<PathBuf> {
         try!(self.verify());
 
-        let parts = vec!["share", "doc", "rust", "html"];
+        let parts = vec!["share", "doc", "lean", "html"];
         let mut doc_dir = self.path.clone();
         for part in parts {
             doc_dir.push(part);
@@ -472,13 +472,13 @@ impl<'a> Toolchain<'a> {
         if let Some(manifest) = try!(manifestation.load_manifest()) {
             let config = try!(manifestation.read_config());
 
-            // Return all optional components of the "rust" package for the
+            // Return all optional components of the "lean" package for the
             // toolchain's target triple.
             let mut res = Vec::new();
 
-            let rust_pkg = manifest.packages.get("rust")
-                .expect("manifest should cantain a rust package");
-            let targ_pkg = rust_pkg.targets.get(&toolchain.target)
+            let lean_pkg = manifest.packages.get("lean")
+                .expect("manifest should cantain a lean package");
+            let targ_pkg = lean_pkg.targets.get(&toolchain.target)
                 .expect("installed manifest should have a known target");
 
             for component in &targ_pkg.components {
@@ -580,9 +580,9 @@ impl<'a> Toolchain<'a> {
         if let Some(manifest) = try!(manifestation.load_manifest()) {
 
             // Validate the component name
-            let rust_pkg = manifest.packages.get("rust")
-                .expect("manifest should cantain a rust package");
-            let targ_pkg = rust_pkg.targets.get(&toolchain.target)
+            let lean_pkg = manifest.packages.get("lean")
+                .expect("manifest should cantain a lean package");
+            let targ_pkg = lean_pkg.targets.get(&toolchain.target)
                 .expect("installed manifest should have a known target");
 
             if targ_pkg.components.contains(&component) {
@@ -629,9 +629,9 @@ impl<'a> Toolchain<'a> {
         if let Some(manifest) = try!(manifestation.load_manifest()) {
 
             // Validate the component name
-            let rust_pkg = manifest.packages.get("rust")
-                .expect("manifest should cantain a rust package");
-            let targ_pkg = rust_pkg.targets.get(&toolchain.target)
+            let lean_pkg = manifest.packages.get("lean")
+                .expect("manifest should cantain a lean package");
+            let targ_pkg = lean_pkg.targets.get(&toolchain.target)
                 .expect("installed manifest should have a known target");
 
             if targ_pkg.components.contains(&component) {

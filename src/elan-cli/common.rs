@@ -1,10 +1,10 @@
 //! Just a dumping ground for cli stuff
 
-use rustup::{self, Cfg, Notification, Toolchain, UpdateStatus};
-use rustup::telemetry_analysis::TelemetryAnalysis;
+use elan::{self, Cfg, Notification, Toolchain, UpdateStatus};
+use elan::telemetry_analysis::TelemetryAnalysis;
 use errors::*;
-use rustup_utils::utils;
-use rustup_utils::notify::NotificationLevel;
+use elan_utils::utils;
+use elan_utils::notify::NotificationLevel;
 use self_update;
 use std::io::{Write, BufRead, BufReader};
 use std::process::{Command, Stdio};
@@ -131,14 +131,14 @@ pub fn set_globals(verbose: bool) -> Result<Cfg> {
 }
 
 pub fn show_channel_update(cfg: &Cfg, name: &str,
-                           updated: rustup::Result<UpdateStatus>) -> Result<()> {
+                           updated: elan::Result<UpdateStatus>) -> Result<()> {
     show_channel_updates(cfg, vec![(name.to_string(), updated)])
 }
 
-fn show_channel_updates(cfg: &Cfg, toolchains: Vec<(String, rustup::Result<UpdateStatus>)>) -> Result<()> {
+fn show_channel_updates(cfg: &Cfg, toolchains: Vec<(String, elan::Result<UpdateStatus>)>) -> Result<()> {
     let data = toolchains.into_iter().map(|(name, result)| {
         let ref toolchain = cfg.get_toolchain(&name, false).expect("");
-        let version = rustc_version(toolchain);
+        let version = lean_version(toolchain);
 
         let banner;
         let color;
@@ -221,11 +221,11 @@ pub fn update_all_channels(cfg: &Cfg, self_update: bool, force_update: bool) -> 
     Ok(())
 }
 
-pub fn rustc_version(toolchain: &Toolchain) -> String {
+pub fn lean_version(toolchain: &Toolchain) -> String {
     if toolchain.exists() {
-        let rustc_path = toolchain.binary_file("rustc");
-        if utils::is_file(&rustc_path) {
-            let mut cmd = Command::new(&rustc_path);
+        let lean_path = toolchain.binary_file("lean");
+        if utils::is_file(&lean_path) {
+            let mut cmd = Command::new(&lean_path);
             cmd.arg("--version");
             cmd.stdin(Stdio::null());
             cmd.stdout(Stdio::piped());
@@ -234,7 +234,7 @@ pub fn rustc_version(toolchain: &Toolchain) -> String {
 
             // some toolchains are faulty with some combinations of platforms and
             // may fail to launch but also to timely terminate.
-            // (known cases include Rust 1.3.0 through 1.10.0 in recent macOS Sierra.)
+            // (known cases include Lean 1.3.0 through 1.10.0 in recent macOS Sierra.)
             // we guard against such cases by enforcing a reasonable timeout to read.
             let mut line1 = None;
             if let Ok(mut child) = cmd.spawn() {
@@ -251,7 +251,7 @@ pub fn rustc_version(toolchain: &Toolchain) -> String {
                     }
                     Ok(None) => {
                         let _ = child.kill();
-                        return String::from("(timeout reading rustc version)")
+                        return String::from("(timeout reading lean version)")
                     }
                     Ok(Some(_)) | Err(_) => {}
                 }
@@ -260,10 +260,10 @@ pub fn rustc_version(toolchain: &Toolchain) -> String {
             if let Some(line1) = line1 {
                 line1.to_owned()
             } else {
-                String::from("(error reading rustc version)")
+                String::from("(error reading lean version)")
             }
         } else {
-            String::from("(rustc does not exist)")
+            String::from("(lean does not exist)")
         }
     } else {
         String::from("(toolchain not installed)")
@@ -273,8 +273,8 @@ pub fn rustc_version(toolchain: &Toolchain) -> String {
 pub fn list_targets(toolchain: &Toolchain) -> Result<()> {
     let mut t = term2::stdout();
     for component in try!(toolchain.list_components()) {
-        if component.component.pkg == "rust-std" {
-            let target = component.component.target.as_ref().expect("rust-std should have a target");
+        if component.component.pkg == "lean-std" {
+            let target = component.component.target.as_ref().expect("lean-std should have a target");
             if component.required {
                 let _ = t.attr(term2::Attr::Bold);
                 let _ = writeln!(t, "{} (default)", target);
@@ -361,7 +361,7 @@ pub fn list_overrides(cfg: &Cfg) -> Result<()> {
         if any_not_exist {
             println!("");
             info!("you may remove overrides for non-existent directories with
-`rustup override unset --nonexistent`");
+`elan override unset --nonexistent`");
         }
     }
     Ok(())
@@ -369,7 +369,7 @@ pub fn list_overrides(cfg: &Cfg) -> Result<()> {
 
 
 pub fn version() -> &'static str {
-    concat!(env!("CARGO_PKG_VERSION"), include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt")))
+    concat!(env!("LEANPKG_PKG_VERSION"), include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt")))
 }
 
 
@@ -393,7 +393,7 @@ pub fn report_error(e: &Error) {
         use std::env;
         use std::ops::Deref;
 
-        if env::var("RUST_BACKTRACE").as_ref().map(Deref::deref) == Ok("1") {
+        if env::var("LEAN_BACKTRACE").as_ref().map(Deref::deref) == Ok("1") {
             return true;
         }
 

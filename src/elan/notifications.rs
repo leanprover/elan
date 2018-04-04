@@ -3,14 +3,14 @@ use std::fmt::{self, Display};
 
 use errors::*;
 
-use rustup_dist::{self, temp};
-use rustup_utils;
-use rustup_utils::notify::NotificationLevel;
+use elan_dist::{self, temp};
+use elan_utils;
+use elan_utils::notify::NotificationLevel;
 
 #[derive(Debug)]
 pub enum Notification<'a> {
-    Install(rustup_dist::Notification<'a>),
-    Utils(rustup_utils::Notification<'a>),
+    Install(elan_dist::Notification<'a>),
+    Utils(elan_utils::Notification<'a>),
     Temp(temp::Notification<'a>),
 
     SetDefaultToolchain(&'a str),
@@ -37,13 +37,13 @@ pub enum Notification<'a> {
     TelemetryCleanupError(&'a Error),
 }
 
-impl<'a> From<rustup_dist::Notification<'a>> for Notification<'a> {
-    fn from(n: rustup_dist::Notification<'a>) -> Notification<'a> {
+impl<'a> From<elan_dist::Notification<'a>> for Notification<'a> {
+    fn from(n: elan_dist::Notification<'a>) -> Notification<'a> {
         Notification::Install(n)
     }
 }
-impl<'a> From<rustup_utils::Notification<'a>> for Notification<'a> {
-    fn from(n: rustup_utils::Notification<'a>) -> Notification<'a> {
+impl<'a> From<elan_utils::Notification<'a>> for Notification<'a> {
+    fn from(n: elan_utils::Notification<'a>) -> Notification<'a> {
         Notification::Utils(n)
     }
 }

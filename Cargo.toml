@@ -1,17 +1,9 @@
 [package]
 
-name = "rustup"
-version = "1.11.0"
-authors = [ "Diggory Blake <diggsey@googlemail.com>" ]
+name = "elan"
+version = "0.1.0"
+authors = [ "Sebastian Ullrich <sebasti@nullri.ch>" ]
 description = "Manage multiple rust installations with ease"
-
-documentation = "http://rust-lang-nursery.github.io/rustup.rs/rustup/index.html"
-homepage = "https://github.com/rust-lang-nursery/rustup.rs"
-repository = "https://github.com/rust-lang-nursery/rustup.rs"
-
-readme = "README.md"
-
-keywords = ["rustup", "multirust", "install", "proxy"]
 
 license = "MIT OR Apache-2.0"
 
@@ -31,8 +23,8 @@ no-self-update = []
 msi-installed = []
 
 [dependencies]
-rustup-dist = { path = "src/rustup-dist" }
-rustup-utils = { path = "src/rustup-utils" }
+elan-dist = { path = "src/elan-dist" }
+elan-utils = { path = "src/elan-utils" }
 download = { path = "src/download" }
 clap = "2.18.0"
 error-chain = "0.11"
@@ -61,19 +53,15 @@ winapi = { version = "0.3", features = ["jobapi", "jobapi2", "processthreadsapi"
 winreg = "0.5.0"
 gcc = "0.3.50"
 
-[dev-dependencies]
-rustup-mock = { path = "src/rustup-mock", version = "1.1.0" }
-lazy_static = "1.0.0"
-
 [workspace]
-members = ["src/rustup-win-installer"]
+members = ["src/elan-win-installer"]
 
 [lib]
-name = "rustup"
-path = "src/rustup/lib.rs"
+name = "elan"
+path = "src/elan/lib.rs"
 test = false # no unit tests
 
 [[bin]]
-name = "rustup-init"
-path = "src/rustup-cli/main.rs"
+name = "elan-init"
+path = "src/elan-cli/main.rs"
 test = false # no unit tests

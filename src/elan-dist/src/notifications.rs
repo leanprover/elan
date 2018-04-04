@@ -1,15 +1,15 @@
 use std::path::Path;
 use std::fmt::{self, Display};
 use temp;
-use rustup_utils;
-use rustup_utils::notify::{NotificationLevel};
+use elan_utils;
+use elan_utils::notify::{NotificationLevel};
 use manifest::Component;
 use dist::TargetTriple;
 use errors::*;
 
 #[derive(Debug)]
 pub enum Notification<'a> {
-    Utils(rustup_utils::Notification<'a>),
+    Utils(elan_utils::Notification<'a>),
     Temp(temp::Notification<'a>),
 
     Extracting(&'a Path, &'a Path),
@@ -33,8 +33,8 @@ pub enum Notification<'a> {
     ManifestChecksumFailedHack,
 }
 
-impl<'a> From<rustup_utils::Notification<'a>> for Notification<'a> {
-    fn from(n: rustup_utils::Notification<'a>) -> Notification<'a> {
+impl<'a> From<elan_utils::Notification<'a>> for Notification<'a> {
+    fn from(n: elan_utils::Notification<'a>) -> Notification<'a> {
         Notification::Utils(n)
     }
 }
@@ -117,8 +117,8 @@ impl<'a> Display for Notification<'a> {
                 }
             }
             DownloadingManifest(t) => write!(f, "syncing channel updates for '{}'", t),
-            DownloadedManifest(date, Some(version)) => write!(f, "latest update on {}, rust version {}", date, version),
-            DownloadedManifest(date, None) => write!(f, "latest update on {}, no rust version", date),
+            DownloadedManifest(date, Some(version)) => write!(f, "latest update on {}, lean version {}", date, version),
+            DownloadedManifest(date, None) => write!(f, "latest update on {}, no lean version", date),
             DownloadingLegacyManifest => write!(f, "manifest not found. trying legacy manifest"),
             ManifestChecksumFailedHack => write!(f, "update not yet available, sorry! try again later"),
         }

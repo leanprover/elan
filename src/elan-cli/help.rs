@@ -1,17 +1,17 @@
-pub static RUSTUP_HELP: &'static str =
+pub static ELAN_HELP: &'static str =
 r"DISCUSSION:
-    rustup installs The Rust Programming Language from the official
+    elan installs The Lean Programming Language from the official
     release channels, enabling you to easily switch between stable,
     beta, and nightly compilers and keep them updated. It makes
     cross-compiling simpler with binary builds of the standard library
     for common platforms.
 
-    If you are new to Rust consider running `rustup doc --book` to
-    learn Rust.";
+    If you are new to Lean consider running `elan doc --book` to
+    learn Lean.";
 
 pub static SHOW_HELP: &'static str =
 r"DISCUSSION:
-    Shows the name of the active toolchain and the version of `rustc`.
+    Shows the name of the active toolchain and the version of `lean`.
 
     If the active toolchain has installed support for additional
     compilation targets, then they are listed as well.
@@ -23,16 +23,16 @@ pub static UPDATE_HELP: &'static str =
 r"DISCUSSION:
     With no toolchain specified, the `update` command updates each of
     the installed toolchains from the official release channels, then
-    updates rustup itself.
+    updates elan itself.
 
     If given a toolchain argument then `update` updates that
-    toolchain, the same as `rustup toolchain install`.";
+    toolchain, the same as `elan toolchain install`.";
 
 pub static INSTALL_HELP: &'static str =
 r"DISCUSSION:
-    Installs a specific rust toolchain.
+    Installs a specific lean toolchain.
 
-    The 'install' command is an alias for 'rustup update <toolchain>'.";
+    The 'install' command is an alias for 'elan update <toolchain>'.";
 
 pub static DEFAULT_HELP: &'static str =
 r"DISCUSSION:
@@ -41,10 +41,10 @@ r"DISCUSSION:
 
 pub static TOOLCHAIN_HELP: &'static str =
 r"DISCUSSION:
-    Many `rustup` commands deal with *toolchains*, a single
-    installation of the Rust compiler. `rustup` supports multiple
+    Many `elan` commands deal with *toolchains*, a single
+    installation of the Lean compiler. `elan` supports multiple
     types of toolchains. The most basic track the official release
-    channels: 'stable', 'beta' and 'nightly'; but `rustup` can also
+    channels: 'stable', 'beta' and 'nightly'; but `elan` can also
     install toolchains from the official archives, for alternate host
     platforms, and from local builds.
 
@@ -66,16 +66,16 @@ r"DISCUSSION:
     or for installing the [MSVC-based toolchain] on Windows. For
     example:
 
-        $ rustup toolchain install stable-x86_64-pc-windows-msvc
+        $ elan toolchain install stable-x86_64-pc-windows-msvc
 
     For convenience, elements of the target triple that are omitted
     will be inferred, so the above could be written:
 
-        $ rustup default stable-msvc
+        $ elan default stable-msvc
 
-    rustup can also manage symlinked local toolchain builds, which are
-    often used to for developing Rust itself. For more information see
-    `rustup toolchain help link`.";
+    elan can also manage symlinked local toolchain builds, which are
+    often used to for developing Lean itself. For more information see
+    `elan toolchain help link`.";
 
 pub static TOOLCHAIN_LINK_HELP: &'static str =
 r"DISCUSSION:
@@ -87,36 +87,36 @@ r"DISCUSSION:
 
     'path' specifies the directory where the binaries and libraries for
     the custom toolchain can be found. For example, when used for
-    development of Rust itself, toolchains can be linked directly out of
+    development of Lean itself, toolchains can be linked directly out of
     the build directory. After building, you can test out different
     compiler versions as follows:
 
-        $ rustup toolchain link latest-stage1 build/x86_64-unknown-linux-gnu/stage1
-        $ rustup override set latest-stage1
+        $ elan toolchain link latest-stage1 build/x86_64-unknown-linux-gnu/stage1
+        $ elan override set latest-stage1
 
     If you now compile a crate in the current directory, the custom
     toolchain 'latest-stage1' will be used.";
 
 pub static OVERRIDE_HELP: &'static str =
 r"DISCUSSION:
-    Overrides configure rustup to use a specific toolchain when
+    Overrides configure elan to use a specific toolchain when
     running in a specific directory.
 
-    Directories can be assigned their own Rust toolchain with `rustup
-    override`. When a directory has an override then any time `rustc`
-    or `cargo` is run inside that directory, or one of its child
+    Directories can be assigned their own Lean toolchain with `elan
+    override`. When a directory has an override then any time `lean`
+    or `leanpkg` is run inside that directory, or one of its child
     directories, the override toolchain will be invoked.
 
     To pin to a specific nightly:
 
-        $ rustup override set nightly-2014-12-18
+        $ elan override set nightly-2014-12-18
 
     Or a specific stable release:
 
-        $ rustup override set 1.0.0
+        $ elan override set 1.0.0
 
-    To see the active toolchain use `rustup show`. To remove the
-    override and use the default toolchain again, `rustup override
+    To see the active toolchain use `elan show`. To remove the
+    override and use the default toolchain again, `elan override
     unset`.";
 
 pub static OVERRIDE_UNSET_HELP: &'static str =
@@ -131,17 +131,17 @@ pub static RUN_HELP: &'static str =
 r"DISCUSSION:
     Configures an environment to use the given toolchain and then runs
     the specified program. The command may be any program, not just
-    rustc or cargo. This can be used for testing arbitrary toolchains
+    lean or leanpkg. This can be used for testing arbitrary toolchains
     without setting an override.
 
-    Commands explicitly proxied by `rustup` (such as `rustc` and
-    `cargo`) also have a shorthand for this available. The toolchain
+    Commands explicitly proxied by `elan` (such as `lean` and
+    `leanpkg`) also have a shorthand for this available. The toolchain
     can be set by using `+toolchain` as the first argument. These are
     equivalent:
 
-        $ cargo +nightly build
+        $ leanpkg +nightly build
 
-        $ rustup run nightly cargo build";
+        $ elan run nightly leanpkg build";
 
 pub static DOC_HELP: &'static str =
 r"DISCUSSION:
@@ -153,7 +153,7 @@ r"DISCUSSION:
 
 pub static COMPLETIONS_HELP: &'static str =
 r"DISCUSSION:
-    One can generate a completion script for `rustup` that is
+    One can generate a completion script for `elan` that is
     compatible with a given shell. The script is output on `stdout`
     allowing one to re-direct the output to the file of their
     choosing. Where you place the file will depend on which shell, and
@@ -169,7 +169,7 @@ r"DISCUSSION:
     Completion files are commonly stored in `/etc/bash_completion.d/`.
     Run the command:
 
-        $ rustup completions bash > /etc/bash_completion.d/rustup.bash-completion
+        $ elan completions bash > /etc/bash_completion.d/elan.bash-completion
 
     This installs the completion script. You may have to log out and
     log back in to your shell session for the changes to take affect.
@@ -179,14 +179,14 @@ r"DISCUSSION:
     Homebrew stores bash completion files within the Homebrew directory.
     With the `bash-completion` brew formula installed, run the command:
 
-        $ rustup completions bash > $(brew --prefix)/etc/bash_completion.d/rustup.bash-completion
+        $ elan completions bash > $(brew --prefix)/etc/bash_completion.d/elan.bash-completion
 
     FISH:
 
     Fish completion files are commonly stored in
     `$HOME/.config/fish/completions`. Run the command:
 
-        $ rustup completions fish > ~/.config/fish/completions/rustup.fish
+        $ elan completions fish > ~/.config/fish/completions/elan.fish
 
     This installs the completion script. You may have to log out and
     log back in to your shell session for the changes to take affect.
@@ -213,7 +213,7 @@ r"DISCUSSION:
     Now you can install the completions script using the following
     command:
 
-        $ rustup completions zsh > ~/.zfunc/_rustup
+        $ elan completions zsh > ~/.zfunc/_elan
 
     You must then either log out and log back in, or simply run
 
@@ -251,9 +251,9 @@ r"DISCUSSION:
     into a separate file and source it inside our profile. To save the
     completions into our profile simply use
 
-        PS C:\> rustup completions powershell >> %USERPROFILE%\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1";
+        PS C:\> elan completions powershell >> %USERPROFILE%\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1";
 
 pub static TOOLCHAIN_ARG_HELP: &'static str =
     "Toolchain name, such as 'stable', 'nightly', \
-     or '1.8.0'. For more information see `rustup \
+     or '1.8.0'. For more information see `elan \
      help toolchain`";

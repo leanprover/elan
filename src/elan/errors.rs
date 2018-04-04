@@ -1,12 +1,12 @@
-use rustup_dist::{self, temp};
-use rustup_utils;
-use rustup_dist::manifest::Component;
+use elan_dist::{self, temp};
+use elan_utils;
+use elan_dist::manifest::Component;
 use toml;
 
 error_chain! {
     links {
-        Dist(rustup_dist::Error, rustup_dist::ErrorKind);
-        Utils(rustup_utils::Error, rustup_utils::ErrorKind);
+        Dist(elan_dist::Error, elan_dist::ErrorKind);
+        Utils(elan_utils::Error, elan_utils::ErrorKind);
     }
 
     foreign_links {
@@ -31,7 +31,7 @@ error_chain! {
             display("toolchain '{}' does not have the binary `{}`", t, bin)
         }
         NeedMetadataUpgrade {
-            description("rustup's metadata is out of date. run `rustup self upgrade-data`")
+            description("elan's metadata is out of date. run `elan self upgrade-data`")
         }
         UpgradeIoError {
             description("I/O error during upgrade")

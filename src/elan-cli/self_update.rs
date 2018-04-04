@@ -1,39 +1,39 @@
 //! Self-installation and updating
 //!
-//! This is the installer at the heart of Rust. If it breaks
-//! everything breaks. It is conceptually very simple, as rustup is
+//! This is the installer at the heart of Lean. If it breaks
+//! everything breaks. It is conceptually very simple, as elan is
 //! distributed as a single binary, and installation mostly requires
 //! copying it into place. There are some tricky bits though, mostly
 //! because of workarounds to self-delete an exe on Windows.
 //!
-//! During install (as `rustup-init`):
+//! During install (as `elan-init`):
 //!
-//! * copy the self exe to $CARGO_HOME/bin
-//! * hardlink rustc, etc to *that*
+//! * copy the self exe to $LEANPKG_HOME/bin
+//! * hardlink lean, etc to *that*
 //! * update the PATH in a system-specific way
-//! * run the equivalent of `rustup default stable`
+//! * run the equivalent of `elan default stable`
 //!
-//! During upgrade (`rustup self upgrade`):
+//! During upgrade (`elan self upgrade`):
 //!
-//! * download rustup-init to $CARGO_HOME/bin/rustup-init
-//! * run rustu-init with appropriate flags to indicate
+//! * download elan-init to $LEANPKG_HOME/bin/elan-init
+//! * run leanu-init with appropriate flags to indicate
 //!   this is a self-upgrade
-//! * rustup-init copies bins and hardlinks into place. On windows
+//! * elan-init copies bins and hardlinks into place. On windows
 //!   this happens *after* the upgrade command exits successfully.
 //!
-//! During uninstall (`rustup self uninstall`):
+//! During uninstall (`elan self uninstall`):
 //!
-//! * Delete `$RUSTUP_HOME`.
-//! * Delete everything in `$CARGO_HOME`, including
-//!   the rustup binary and its hardlinks
+//! * Delete `$ELAN_HOME`.
+//! * Delete everything in `$LEANPKG_HOME`, including
+//!   the elan binary and its hardlinks
 //!
 //! Deleting the running binary during uninstall is tricky
 //! and racy on Windows.
 
 use common::{self, Confirm};
 use errors::*;
-use rustup_dist::dist;
-use rustup_utils::utils;
+use elan_dist::dist;
+use elan_utils::utils;
 use same_file::Handle;
 use std::env;
 use std::env::consts::EXE_SUFFIX;
@@ -62,22 +62,22 @@ macro_rules! pre_install_msg_template {
     ($platform_msg: expr) => {
 concat!(
 r"
-# Welcome to Rust!
+# Welcome to Lean!
 
-This will download and install the official compiler for the Rust
-programming language, and its package manager, Cargo.
+This will download and install the official compiler for the Lean
+programming language, and its package manager, Leanpkg.
 
-It will add the `cargo`, `rustc`, `rustup` and other commands to
-Cargo's bin directory, located at:
+It will add the `leanpkg`, `lean`, `elan` and other commands to
+Leanpkg's bin directory, located at:
 
-    {cargo_home_bin}
+    {leanpkg_home_bin}
 
 ",
 $platform_msg
 ,
 r#"
 
-You can uninstall at any time with `rustup self uninstall` and
+You can uninstall at any time with `elan self uninstall` and
 these changes will be reverted.
 "#
     )};
@@ -111,22 +111,22 @@ but will not be added automatically."
 
 macro_rules! post_install_msg_unix {
     () => {
-r"# Rust is installed now. Great!
+r"# Lean is installed now. Great!
 
-To get started you need Cargo's bin directory ({cargo_home}/bin) in your `PATH`
+To get started you need Leanpkg's bin directory ({leanpkg_home}/bin) in your `PATH`
 environment variable. Next time you log in this will be done
 automatically.
 
-To configure your current shell run `source {cargo_home}/env`
+To configure your current shell run `source {leanpkg_home}/env`
 "
     };
 }
 
 macro_rules! post_install_msg_win {
     () => {
-r"# Rust is installed now. Great!
+r"# Lean is installed now. Great!
 
-To get started you need Cargo's bin directory ({cargo_home}\bin) in your `PATH`
+To get started you need Leanpkg's bin directory ({leanpkg_home}\bin) in your `PATH`
 environment variable. Future applications will automatically have the
 correct environment, but you may need to restart your current shell.
 "
@@ -135,21 +135,21 @@ correct environment, but you may need to restart your current shell.
 
 macro_rules! post_install_msg_unix_no_modify_path {
     () => {
-r"# Rust is installed now. Great!
+r"# Lean is installed now. Great!
 
-To get started you need Cargo's bin directory ({cargo_home}/bin) in your `PATH`
+To get started you need Leanpkg's bin directory ({leanpkg_home}/bin) in your `PATH`
 environment variable.
 
-To configure your current shell run `source {cargo_home}/env`
+To configure your current shell run `source {leanpkg_home}/env`
 "
     };
 }
 
 macro_rules! post_install_msg_win_no_modify_path {
     () => {
-r"# Rust is installed now. Great!
+r"# Lean is installed now. Great!
 
-To get started you need Cargo's bin directory ({cargo_home}\bin) in your `PATH`
+To get started you need Leanpkg's bin directory ({leanpkg_home}\bin) in your `PATH`
 environment variable. This has not been done automatically.
 "
     };
@@ -157,62 +157,38 @@ environment variable. This has not been done automatically.
 
 macro_rules! pre_uninstall_msg {
     () => {
-r"# Thanks for hacking in Rust!
+r"# Thanks for hacking in Lean!
 
-This will uninstall all Rust toolchains and data, and remove
-`{cargo_home}/bin` from your `PATH` environment variable.
+This will uninstall all Lean toolchains and data, and remove
+`{leanpkg_home}/bin` from your `PATH` environment variable.
 
 "
     }
 }
 
-static MSVC_MESSAGE: &'static str =
-r#"# Rust Visual C++ prerequisites
-
-Rust requires the Microsoft C++ build tools for Visual Studio 2013 or
-later, but they don't seem to be installed.
-
-The easiest way to acquire the build tools is by installing Microsoft
-Visual C++ Build Tools 2015 which provides just the Visual C++ build
-tools:
-
-    http://landinghub.visualstudio.com/visual-cpp-build-tools
-
-Alternately, you can install Visual Studio 2015 or Visual
-Studio 2013 and during install select the "C++ tools":
-
-    https://www.visualstudio.com/downloads/
-
-_Install the C++ build tools before proceeding_.
-
-If you will be targeting the GNU ABI or otherwise know what you are
-doing then it is fine to continue installation without the build
-tools, but otherwise, install the C++ build tools before proceeding.
-"#;
-
 static TOOLS: &'static [&'static str]
-    = &["rustc", "rustdoc", "cargo", "rust-lldb", "rust-gdb", "rls"];
+    = &["lean", "leanpkg"];
 
-// Tools which are commonly installed by Cargo as well as rustup. We take a bit
+// Tools which are commonly installed by Leanpkg as well as elan. We take a bit
 // more care with these to ensure we don't overwrite the user's previous
 // installation.
-static DUP_TOOLS: &'static [&'static str] = &["rustfmt", "cargo-fmt"];
+static DUP_TOOLS: &'static [&'static str] = &[];
 
 static UPDATE_ROOT: &'static str
-    = "https://static.rust-lang.org/rustup";
+    = "https://static.lean-lang.org/elan";
 
-/// `CARGO_HOME` suitable for display, possibly with $HOME
+/// `LEANPKG_HOME` suitable for display, possibly with $HOME
 /// substituted for the directory prefix
-fn canonical_cargo_home() -> Result<String> {
-    let path = try!(utils::cargo_home());
+fn canonical_leanpkg_home() -> Result<String> {
+    let path = try!(utils::leanpkg_home());
     let mut path_str = path.to_string_lossy().to_string();
 
-    let default_cargo_home = utils::home_dir().unwrap_or(PathBuf::from(".")).join(".cargo");
-    if default_cargo_home == path {
+    let default_leanpkg_home = utils::home_dir().unwrap_or(PathBuf::from(".")).join(".leanpkg");
+    if default_leanpkg_home == path {
         if cfg!(unix) {
-            path_str = String::from("$HOME/.cargo");
+            path_str = String::from("$HOME/.leanpkg");
         } else {
-            path_str = String::from(r"%USERPROFILE%\.cargo");
+            path_str = String::from(r"%USERPROFILE%\.leanpkg");
         }
     }
 
@@ -220,13 +196,13 @@ fn canonical_cargo_home() -> Result<String> {
 }
 
 /// Installing is a simple matter of coping the running binary to
-/// `CARGO_HOME`/bin, hardlinking the various Rust tools to it,
-/// and adding `CARGO_HOME`/bin to PATH.
+/// `LEANPKG_HOME`/bin, hardlinking the various Lean tools to it,
+/// and adding `LEANPKG_HOME`/bin to PATH.
 pub fn install(no_prompt: bool, verbose: bool,
                mut opts: InstallOpts) -> Result<()> {
 
     try!(do_pre_install_sanity_checks());
-    try!(check_existence_of_rustc_or_cargo_in_path(no_prompt));
+    try!(check_existence_of_lean_or_leanpkg_in_path(no_prompt));
     try!(do_anti_sudo_check(no_prompt));
 
     if !try!(do_msvc_check(&opts)) {
@@ -269,14 +245,14 @@ pub fn install(no_prompt: bool, verbose: bool,
         if !opts.no_modify_path {
             try!(do_add_to_path(&get_add_path_methods()));
         }
-        // Create ~/.rustup and a compatibility ~/.multirust symlink.
+        // Create ~/.elan and a compatibility ~/.multilean symlink.
         // FIXME: Someday we can stop setting up the symlink, and when
-        // we do that we can stop creating ~/.rustup as well.
-        try!(utils::create_rustup_home());
-        try!(maybe_install_rust(&opts.default_toolchain, &opts.default_host_triple, verbose));
+        // we do that we can stop creating ~/.elan as well.
+        try!(utils::create_elan_home());
+        try!(maybe_install_lean(&opts.default_toolchain, &opts.default_host_triple, verbose));
 
         if cfg!(unix) {
-            let ref env_file = try!(utils::cargo_home()).join("env");
+            let ref env_file = try!(utils::leanpkg_home()).join("env");
             let ref env_str = format!(
                 "{}\n",
                 try!(shell_export_string()));
@@ -305,22 +281,22 @@ pub fn install(no_prompt: bool, verbose: bool,
 
     // More helpful advice, skip if -y
     if !no_prompt {
-        let cargo_home = try!(canonical_cargo_home());
+        let leanpkg_home = try!(canonical_leanpkg_home());
         let msg = if !opts.no_modify_path {
             if cfg!(unix) {
                 format!(post_install_msg_unix!(),
-                         cargo_home = cargo_home)
+                         leanpkg_home = leanpkg_home)
             } else {
                 format!(post_install_msg_win!(),
-                        cargo_home = cargo_home)
+                        leanpkg_home = leanpkg_home)
             }
         } else {
             if cfg!(unix) {
                 format!(post_install_msg_unix_no_modify_path!(),
-                         cargo_home = cargo_home)
+                         leanpkg_home = leanpkg_home)
             } else {
                 format!(post_install_msg_win_no_modify_path!(),
-                        cargo_home = cargo_home)
+                        leanpkg_home = leanpkg_home)
             }
         };
         term2::stdout().md(msg);
@@ -338,21 +314,21 @@ pub fn install(no_prompt: bool, verbose: bool,
     Ok(())
 }
 
-fn rustc_or_cargo_exists_in_path() -> Result<()> {
-    // Ignore rustc and cargo if present in $HOME/.cargo/bin or a few other directories
+fn lean_or_leanpkg_exists_in_path() -> Result<()> {
+    // Ignore lean and leanpkg if present in $HOME/.leanpkg/bin or a few other directories
     fn ignore_paths(path: &PathBuf) -> bool {
-        !path.components().any(|c| c == Component::Normal(".cargo".as_ref())) &&
-            !path.components().any(|c| c == Component::Normal(".multirust".as_ref()))
+        !path.components().any(|c| c == Component::Normal(".leanpkg".as_ref())) &&
+            !path.components().any(|c| c == Component::Normal(".multilean".as_ref()))
     }
 
     if let Some(paths) = env::var_os("PATH") {
         let paths = env::split_paths(&paths).filter(ignore_paths);
 
         for path in paths {
-            let rustc = path.join(format!("rustc{}", EXE_SUFFIX));
-            let cargo = path.join(format!("cargo{}", EXE_SUFFIX));
+            let lean = path.join(format!("lean{}", EXE_SUFFIX));
+            let leanpkg = path.join(format!("leanpkg{}", EXE_SUFFIX));
 
-            if rustc.exists() || cargo.exists() {
+            if lean.exists() || leanpkg.exists() {
                 return Err(path.to_str().unwrap().into());
             }
         }
@@ -360,53 +336,53 @@ fn rustc_or_cargo_exists_in_path() -> Result<()> {
     Ok(())
 }
 
-fn check_existence_of_rustc_or_cargo_in_path(no_prompt: bool) -> Result<()> {
+fn check_existence_of_lean_or_leanpkg_in_path(no_prompt: bool) -> Result<()> {
     // Only the test runner should set this
-    let skip_check = env::var_os("RUSTUP_INIT_SKIP_PATH_CHECK");
+    let skip_check = env::var_os("ELAN_INIT_SKIP_PATH_CHECK");
 
     // Ignore this check if called with no prompt (-y) or if the environment variable is set
     if no_prompt || skip_check == Some("yes".into()) {
         return Ok(());
     }
 
-    if let Err(path) = rustc_or_cargo_exists_in_path() {
-        err!("it looks like you have an existing installation of Rust at:");
+    if let Err(path) = lean_or_leanpkg_exists_in_path() {
+        err!("it looks like you have an existing installation of Lean at:");
         err!("{}", path);
-        err!("rustup cannot be installed alongside Rust. Please uninstall first");
+        err!("elan cannot be installed alongside Lean. Please uninstall first");
         err!("if this is what you want, restart the installation with `-y'");
-        Err("cannot install while Rust is installed".into())
+        Err("cannot install while Lean is installed".into())
     } else {
         Ok(())
     }
 }
 
 fn do_pre_install_sanity_checks() -> Result<()> {
-    let multirust_manifest_path
-        = PathBuf::from("/usr/local/lib/rustlib/manifest-multirust");
-    let rustc_manifest_path
-        = PathBuf::from("/usr/local/lib/rustlib/manifest-rustc");
+    let multilean_manifest_path
+        = PathBuf::from("/usr/local/lib/leanlib/manifest-multilean");
+    let lean_manifest_path
+        = PathBuf::from("/usr/local/lib/leanlib/manifest-lean");
     let uninstaller_path
-        = PathBuf::from("/usr/local/lib/rustlib/uninstall.sh");
-    let multirust_meta_path
-        = env::home_dir().map(|d| d.join(".multirust"));
-    let multirust_version_path
-        = multirust_meta_path.as_ref().map(|p| p.join("version"));
-    let rustup_sh_path
-        = env::home_dir().map(|d| d.join(".rustup"));
-    let rustup_sh_version_path = rustup_sh_path.as_ref().map(|p| p.join("rustup-version"));
+        = PathBuf::from("/usr/local/lib/leanlib/uninstall.sh");
+    let multilean_meta_path
+        = env::home_dir().map(|d| d.join(".multilean"));
+    let multilean_version_path
+        = multilean_meta_path.as_ref().map(|p| p.join("version"));
+    let elan_sh_path
+        = env::home_dir().map(|d| d.join(".elan"));
+    let elan_sh_version_path = elan_sh_path.as_ref().map(|p| p.join("elan-version"));
 
-    let multirust_exists =
-        multirust_manifest_path.exists() && uninstaller_path.exists();
-    let rustc_exists =
-        rustc_manifest_path.exists() && uninstaller_path.exists();
-    let rustup_sh_exists =
-        rustup_sh_version_path.map(|p| p.exists()) == Some(true);
-    let old_multirust_meta_exists = if let Some(ref multirust_version_path) = multirust_version_path {
-        multirust_version_path.exists() && {
-            let version = utils::read_file("old-multirust", multirust_version_path);
+    let multilean_exists =
+        multilean_manifest_path.exists() && uninstaller_path.exists();
+    let lean_exists =
+        lean_manifest_path.exists() && uninstaller_path.exists();
+    let elan_sh_exists =
+        elan_sh_version_path.map(|p| p.exists()) == Some(true);
+    let old_multilean_meta_exists = if let Some(ref multilean_version_path) = multilean_version_path {
+        multilean_version_path.exists() && {
+            let version = utils::read_file("old-multilean", multilean_version_path);
             let version = version.unwrap_or(String::new());
             let version = version.parse().unwrap_or(0);
-            let cutoff_version = 12; // First rustup version
+            let cutoff_version = 12; // First elan version
 
             version < cutoff_version
         }
@@ -414,43 +390,43 @@ fn do_pre_install_sanity_checks() -> Result<()> {
         false
     };
 
-    match (multirust_exists, old_multirust_meta_exists) {
+    match (multilean_exists, old_multilean_meta_exists) {
         (true, false) => {
-            warn!("it looks like you have an existing installation of multirust");
-            warn!("rustup cannot be installed alongside multirust");
-            warn!("run `{}` as root to uninstall multirust before installing rustup", uninstaller_path.display());
-            return Err("cannot install while multirust is installed".into());
+            warn!("it looks like you have an existing installation of multilean");
+            warn!("elan cannot be installed alongside multilean");
+            warn!("run `{}` as root to uninstall multilean before installing elan", uninstaller_path.display());
+            return Err("cannot install while multilean is installed".into());
         }
         (false, true) => {
-            warn!("it looks like you have existing multirust metadata");
-            warn!("rustup cannot be installed alongside multirust");
-            warn!("delete `{}` before installing rustup", multirust_meta_path.expect("").display());
-            return Err("cannot install while multirust is installed".into());
+            warn!("it looks like you have existing multilean metadata");
+            warn!("elan cannot be installed alongside multilean");
+            warn!("delete `{}` before installing elan", multilean_meta_path.expect("").display());
+            return Err("cannot install while multilean is installed".into());
         }
         (true, true) => {
-            warn!("it looks like you have an existing installation of multirust");
-            warn!("rustup cannot be installed alongside multirust");
-            warn!("run `{}` as root and delete `{}` before installing rustup", uninstaller_path.display(), multirust_meta_path.expect("").display());
-            return Err("cannot install while multirust is installed".into());
+            warn!("it looks like you have an existing installation of multilean");
+            warn!("elan cannot be installed alongside multilean");
+            warn!("run `{}` as root and delete `{}` before installing elan", uninstaller_path.display(), multilean_meta_path.expect("").display());
+            return Err("cannot install while multilean is installed".into());
         }
         (false, false) => ()
     }
 
-    if rustc_exists {
-        warn!("it looks like you have an existing installation of Rust");
-        warn!("rustup cannot be installed alongside Rust. Please uninstall first");
-        warn!("run `{}` as root to uninstall Rust", uninstaller_path.display());
-        return Err("cannot install while Rust is installed".into());
+    if lean_exists {
+        warn!("it looks like you have an existing installation of Lean");
+        warn!("elan cannot be installed alongside Lean. Please uninstall first");
+        warn!("run `{}` as root to uninstall Lean", uninstaller_path.display());
+        return Err("cannot install while Lean is installed".into());
     }
 
-    if rustup_sh_exists {
-        warn!("it looks like you have existing rustup.sh metadata");
-        warn!("rustup cannot be installed while rustup.sh metadata exists");
-        warn!("delete `{}` to remove rustup.sh", rustup_sh_path.expect("").display());
-        warn!("or, if you already rustup installed, you can run");
-        warn!("`rustup self update` and `rustup toolchain list` to upgrade");
+    if elan_sh_exists {
+        warn!("it looks like you have existing elan.sh metadata");
+        warn!("elan cannot be installed while elan.sh metadata exists");
+        warn!("delete `{}` to remove elan.sh", elan_sh_path.expect("").display());
+        warn!("or, if you already elan installed, you can run");
+        warn!("`elan self update` and `elan toolchain list` to upgrade");
         warn!("your directory structure");
-        return Err("cannot install while rustup.sh is installed".into());
+        return Err("cannot install while elan.sh is installed".into());
     }
 
     Ok(())
@@ -472,7 +448,7 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
         use std::ptr;
 
         // test runner should set this, nothing else
-        if env::var("RUSTUP_INIT_SKIP_SUDO_CHECK").as_ref().map(Deref::deref).ok() == Some("yes") {
+        if env::var("ELAN_INIT_SKIP_SUDO_CHECK").as_ref().map(Deref::deref).ok() == Some("yes") {
             return false;
         }
         let mut buf = [0u8; 1024];
@@ -517,7 +493,7 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
 #[cfg(windows)]
 fn do_msvc_check(opts: &InstallOpts) -> Result<bool> {
     // Test suite skips this since it's env dependent
-    if env::var("RUSTUP_INIT_SKIP_MSVC_CHECK").is_ok() {
+    if env::var("ELAN_INIT_SKIP_MSVC_CHECK").is_ok() {
         return Ok(true);
     }
 
@@ -537,8 +513,8 @@ fn do_msvc_check(_opts: &InstallOpts) -> Result<bool> {
 }
 
 fn pre_install_msg(no_modify_path: bool) -> Result<String> {
-    let cargo_home = try!(utils::cargo_home());
-    let cargo_home_bin = cargo_home.join("bin");
+    let leanpkg_home = try!(utils::leanpkg_home());
+    let leanpkg_home_bin = leanpkg_home.join("bin");
 
     if !no_modify_path {
         if cfg!(unix) {
@@ -555,16 +531,16 @@ fn pre_install_msg(no_modify_path: bool) -> Result<String> {
             let rcfiles = rcfiles.into_iter().map(|f| format!("    {}", f)).collect::<Vec<_>>();
             let rcfiles = rcfiles.join("\n");
             Ok(format!(pre_install_msg_unix!(),
-                       cargo_home_bin = cargo_home_bin.display(),
+                       leanpkg_home_bin = leanpkg_home_bin.display(),
                        plural = plural,
                        rcfiles = rcfiles))
         } else {
             Ok(format!(pre_install_msg_win!(),
-                       cargo_home_bin = cargo_home_bin.display()))
+                       leanpkg_home_bin = leanpkg_home_bin.display()))
         }
     } else {
         Ok(format!(pre_install_msg_no_modify_path!(),
-                   cargo_home_bin = cargo_home_bin.display()))
+                   leanpkg_home_bin = leanpkg_home_bin.display()))
     }
 }
 
@@ -606,78 +582,46 @@ fn customize_install(mut opts: InstallOpts) -> Result<InstallOpts> {
     Ok(opts)
 }
 
-// Before rustup-rs installed bins to $CARGO_HOME/bin it installed
-// them to $RUSTUP_HOME/bin. If those bins continue to exist after
-// upgrade and are on the $PATH, it would cause major confusion. This
-// method silently deletes them.
-fn cleanup_legacy() -> Result<()> {
-    let legacy_bin_dir = try!(legacy_multirust_home_dir()).join("bin");
-
-    for tool in TOOLS.iter().cloned().chain(vec!["multirust", "rustup"]) {
-        let ref file = legacy_bin_dir.join(&format!("{}{}", tool, EXE_SUFFIX));
-        if file.exists() {
-            try!(utils::remove_file("legacy-bin", file));
-        }
-    }
-
-    return Ok(());
-
-    #[cfg(unix)]
-    fn legacy_multirust_home_dir() -> Result<PathBuf> {
-        Ok(try!(utils::legacy_multirust_home()))
-    }
-
-    #[cfg(windows)]
-    fn legacy_multirust_home_dir() -> Result<PathBuf> {
-        use rustup_utils::raw::windows::{
-            get_special_folder, FOLDERID_LocalAppData
-        };
-
-        // FIXME: This looks bogus. Where is the .multirust dir?
-        Ok(get_special_folder(&FOLDERID_LocalAppData).unwrap_or(PathBuf::from(".")))
-    }
-}
-
 fn install_bins() -> Result<()> {
-    let ref bin_path = try!(utils::cargo_home()).join("bin");
+    let ref bin_path = try!(utils::leanpkg_home()).join("bin");
     let ref this_exe_path = try!(utils::current_exe());
-    let ref rustup_path = bin_path.join(&format!("rustup{}", EXE_SUFFIX));
+    let ref elan_path = bin_path.join(&format!("elan{}", EXE_SUFFIX));
 
     try!(utils::ensure_dir_exists("bin", bin_path, &|_| {}));
     // NB: Even on Linux we can't just copy the new binary over the (running)
     // old binary; we must unlink it first.
-    if rustup_path.exists() {
-        try!(utils::remove_file("rustup-bin", rustup_path));
+    if elan_path.exists() {
+        try!(utils::remove_file("elan-bin", elan_path));
     }
-    try!(utils::copy_file(this_exe_path, rustup_path));
-    try!(utils::make_executable(rustup_path));
+    try!(utils::copy_file(this_exe_path, elan_path));
+    try!(utils::make_executable(elan_path));
     install_proxies()
 }
 
 pub fn install_proxies() -> Result<()> {
-    let ref bin_path = try!(utils::cargo_home()).join("bin");
-    let ref rustup_path = bin_path.join(&format!("rustup{}", EXE_SUFFIX));
+    let ref bin_path = try!(utils::leanpkg_home()).join("bin");
+    let ref elan_path = bin_path.join(&format!("elan{}", EXE_SUFFIX));
 
-    let rustup = Handle::from_path(rustup_path)?;
+    let elan = Handle::from_path(elan_path)?;
 
     let mut tool_handles = Vec::new();
     let mut link_afterwards = Vec::new();
 
-    // Try to hardlink all the Rust exes to the rustup exe. Some systems,
+    // Try to hardlink all the Lean exes to the elan exe. Some systems,
     // like Android, does not support hardlinks, so we fallback to symlinks.
     //
     // Note that this function may not be running in the context of a fresh
     // self update but rather as part of a normal update to fill in missing
-    // proxies. In that case our process may actually have the `rustup.exe`
+    // proxies. In that case our process may actually have the `elan.exe`
     // file open, and on systems like Windows that means that you can't
     // even remove other hard links to the same file. Basically if we have
-    // `rustup.exe` open and running and `cargo.exe` is a hard link to that
-    // file, we can't remove `cargo.exe`.
+    // `elan.exe` open and running and `leanpkg.exe` is a hard link to that
+    // file, we can't remove `leanpkg.exe`.
     //
     // To avoid unnecessary errors from being returned here we use the
     // `same-file` crate and its `Handle` type to avoid clobbering hard links
     // that are already valid. If a hard link already points to the
-    // `rustup.exe` file then we leave it alone and move to the next one.
+    // `elan.exe` file then we leave it alone and move to the next one.
     //
     // As yet one final caveat, when we're looking at handles for files we can't
     // actually delete files (they'll say they're deleted but they won't
@@ -688,7 +632,7 @@ pub fn install_proxies() -> Result<()> {
         let tool_path = bin_path.join(&format!("{}{}", tool, EXE_SUFFIX));
         if let Ok(handle) = Handle::from_path(&tool_path) {
             tool_handles.push(handle);
-            if rustup == *tool_handles.last().unwrap() {
+            if elan == *tool_handles.last().unwrap() {
                 continue
             }
         }
@@ -700,7 +644,7 @@ pub fn install_proxies() -> Result<()> {
         if let Ok(handle) = Handle::from_path(tool_path) {
             // Like above, don't clobber anything that's already hardlinked to
             // avoid extraneous errors from being returned.
-            if rustup == handle {
+            if elan == handle {
                 continue
             }
 
@@ -708,32 +652,32 @@ pub fn install_proxies() -> Result<()> {
             // preexisting tools we found, then we're going to assume that it
             // was preinstalled and actually pointing to a totally different
             // binary. This is intended for cases where historically users
-            // rand `cargo install rustfmt` and so they had custom `rustfmt`
-            // and `cargo-fmt` executables lying around, but we as rustup have
+            // rand `leanpkg install leanfmt` and so they had custom `leanfmt`
+            // and `leanpkg-fmt` executables lying around, but we as elan have
             // since started managing these tools.
             //
-            // If the file is managed by rustup it should be equivalent to some
+            // If the file is managed by elan it should be equivalent to some
             // previous file, and if it's not equivalent to anything then it's
             // pretty likely that it needs to be dealt with manually.
             if tool_handles.iter().all(|h| *h != handle) {
-                warn!("tool `{}` is already installed, remove it from `{}`, then run `rustup update` \
-                       to have rustup manage this tool.",
+                warn!("tool `{}` is already installed, remove it from `{}`, then run `elan update` \
+                       to have elan manage this tool.",
                       tool, bin_path.to_string_lossy());
                 continue
             }
         }
-        try!(utils::hard_or_symlink_file(rustup_path, tool_path));
+        try!(utils::hard_or_symlink_file(elan_path, tool_path));
     }
 
     drop(tool_handles);
     for path in link_afterwards {
-        try!(utils::hard_or_symlink_file(rustup_path, &path));
+        try!(utils::hard_or_symlink_file(elan_path, &path));
     }
 
     Ok(())
 }
 
-fn maybe_install_rust(toolchain_str: &str, default_host_triple: &str, verbose: bool) -> Result<()> {
+fn maybe_install_lean(toolchain_str: &str, default_host_triple: &str, verbose: bool) -> Result<()> {
     let ref cfg = try!(common::set_globals(verbose));
 
     // If there is already an install, then `toolchain_str` may not be
@@ -752,7 +696,7 @@ fn maybe_install_rust(toolchain_str: &str, default_host_triple: &str, verbose: b
         println!("");
         try!(common::show_channel_update(cfg, toolchain_str, Ok(status)));
     } else {
-        info!("updating existing rustup installation");
+        info!("updating existing elan installation");
         println!("");
     }
 
@@ -761,8 +705,8 @@ fn maybe_install_rust(toolchain_str: &str, default_host_triple: &str, verbose: b
 
 pub fn uninstall(no_prompt: bool) -> Result<()> {
     if NEVER_SELF_UPDATE {
-        err!("self-uninstall is disabled for this build of rustup");
-        err!("you should probably use your system package manager to uninstall rustup");
+        err!("self-uninstall is disabled for this build of elan");
+        err!("you should probably use your system package manager to uninstall elan");
         process::exit(1);
     }
 
@@ -778,16 +722,16 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
         process::exit(0);
     }
 
-    let ref cargo_home = try!(utils::cargo_home());
+    let ref leanpkg_home = try!(utils::leanpkg_home());
 
-    if !cargo_home.join(&format!("bin/rustup{}", EXE_SUFFIX)).exists() {
-        return Err(ErrorKind::NotSelfInstalled(cargo_home.clone()).into());
+    if !leanpkg_home.join(&format!("bin/elan{}", EXE_SUFFIX)).exists() {
+        return Err(ErrorKind::NotSelfInstalled(leanpkg_home.clone()).into());
     }
 
     if !no_prompt {
         println!("");
         let ref msg = format!(pre_uninstall_msg!(),
-                              cargo_home = try!(canonical_cargo_home()));
+                              leanpkg_home = try!(canonical_leanpkg_home()));
         term2::stdout().md(msg);
         if !try!(common::confirm("\nContinue? (y/N)", false)) {
             info!("aborting uninstallation");
@@ -795,63 +739,63 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
         }
     }
 
-    info!("removing rustup home");
+    info!("removing elan home");
 
-    try!(utils::delete_legacy_multirust_symlink());
+    try!(utils::delete_legacy_multilean_symlink());
 
-    // Delete RUSTUP_HOME
-    let ref rustup_dir = try!(utils::rustup_home());
-    if rustup_dir.exists() {
-        try!(utils::remove_dir("rustup_home", rustup_dir, &|_| {}));
+    // Delete ELAN_HOME
+    let ref elan_dir = try!(utils::elan_home());
+    if elan_dir.exists() {
+        try!(utils::remove_dir("elan_home", elan_dir, &|_| {}));
     }
 
     let read_dir_err = "failure reading directory";
 
-    info!("removing cargo home");
+    info!("removing leanpkg home");
 
-    // Remove CARGO_HOME/bin from PATH
+    // Remove LEANPKG_HOME/bin from PATH
     let ref remove_path_methods = try!(get_remove_path_methods());
     try!(do_remove_from_path(remove_path_methods));
 
-    // Delete everything in CARGO_HOME *except* the rustup bin
+    // Delete everything in LEANPKG_HOME *except* the elan bin
 
     // First everything except the bin directory
-    for dirent in try!(fs::read_dir(cargo_home).chain_err(|| read_dir_err)) {
+    for dirent in try!(fs::read_dir(leanpkg_home).chain_err(|| read_dir_err)) {
         let dirent = try!(dirent.chain_err(|| read_dir_err));
         if dirent.file_name().to_str() != Some("bin") {
             if dirent.path().is_dir() {
-                try!(utils::remove_dir("cargo_home", &dirent.path(), &|_| {}));
+                try!(utils::remove_dir("leanpkg_home", &dirent.path(), &|_| {}));
             } else {
-                try!(utils::remove_file("cargo_home", &dirent.path()));
+                try!(utils::remove_file("leanpkg_home", &dirent.path()));
             }
         }
     }
 
-    // Then everything in bin except rustup and tools. These can't be unlinked
+    // Then everything in bin except elan and tools. These can't be unlinked
     // until this process exits (on windows).
     let tools = TOOLS.iter().chain(DUP_TOOLS.iter()).map(|t| format!("{}{}", t, EXE_SUFFIX));
-    let tools: Vec<_> = tools.chain(vec![format!("rustup{}", EXE_SUFFIX)]).collect();
-    for dirent in try!(fs::read_dir(&cargo_home.join("bin")).chain_err(|| read_dir_err)) {
+    let tools: Vec<_> = tools.chain(vec![format!("elan{}", EXE_SUFFIX)]).collect();
+    for dirent in try!(fs::read_dir(&leanpkg_home.join("bin")).chain_err(|| read_dir_err)) {
         let dirent = try!(dirent.chain_err(|| read_dir_err));
         let name = dirent.file_name();
         let file_is_tool = name.to_str().map(|n| tools.iter().any(|t| *t == n));
         if file_is_tool == Some(false) {
             if dirent.path().is_dir() {
-                try!(utils::remove_dir("cargo_home", &dirent.path(), &|_| {}));
+                try!(utils::remove_dir("leanpkg_home", &dirent.path(), &|_| {}));
             } else {
-                try!(utils::remove_file("cargo_home", &dirent.path()));
+                try!(utils::remove_file("leanpkg_home", &dirent.path()));
             }
         }
     }
 
-    info!("removing rustup binaries");
+    info!("removing elan binaries");
 
-    // Delete rustup. This is tricky because this is *probably*
+    // Delete elan. This is tricky because this is *probably*
     // the running executable and on Windows can't be unlinked until
     // the process exits.
-    try!(delete_rustup_and_cargo_home());
+    try!(delete_elan_and_leanpkg_home());
 
-    info!("rustup is uninstalled");
+    info!("elan is uninstalled");
 
     process::exit(0);
 }
@@ -867,7 +811,7 @@ fn get_msi_product_code() -> Result<String> {
     use winreg::enums::{HKEY_CURRENT_USER, KEY_READ};
 
     let root = RegKey::predef(HKEY_CURRENT_USER);
-    let environment = root.open_subkey_with_flags("SOFTWARE\\rustup", KEY_READ);
+    let environment = root.open_subkey_with_flags("SOFTWARE\\elan", KEY_READ);
 
     match environment {
         Ok(env) => {
@@ -887,29 +831,29 @@ fn get_msi_product_code() -> Result<String> {
 }
 
 #[cfg(unix)]
-fn delete_rustup_and_cargo_home() -> Result<()> {
-    let ref cargo_home = try!(utils::cargo_home());
-    try!(utils::remove_dir("cargo_home", cargo_home, &|_| ()));
+fn delete_elan_and_leanpkg_home() -> Result<()> {
+    let ref leanpkg_home = try!(utils::leanpkg_home());
+    try!(utils::remove_dir("leanpkg_home", leanpkg_home, &|_| ()));
 
     Ok(())
 }
 
 // The last step of uninstallation is to delete *this binary*,
-// rustup.exe and the CARGO_HOME that contains it. On Unix, this
+// elan.exe and the LEANPKG_HOME that contains it. On Unix, this
 // works fine. On Windows you can't delete files while they are open,
 // like when they are running.
 //
 // Here's what we're going to do:
-// - Copy rustup to a temporary file in
-//   CARGO_HOME/../rustup-gc-$random.exe.
+// - Copy elan to a temporary file in
+//   LEANPKG_HOME/../elan-gc-$random.exe.
 // - Open the gc exe with the FILE_FLAG_DELETE_ON_CLOSE and
 //   FILE_SHARE_DELETE flags. This is going to be the last
 //   file to remove, and the OS is going to do it for us.
 //   This file is opened as inheritable so that subsequent
 //   processes created with the option to inherit handles
 //   will also keep them open.
-// - Run the gc exe, which waits for the original rustup
-//   process to close, then deletes CARGO_HOME. This process
+// - Run the gc exe, which waits for the original elan
+//   process to close, then deletes LEANPKG_HOME. This process
 //   has inherited a FILE_FLAG_DELETE_ON_CLOSE handle to itself.
 // - Finally, spawn yet another system binary with the inherit handles
 //   flag, so *it* inherits the FILE_FLAG_DELETE_ON_CLOSE handle to
@@ -925,24 +869,24 @@ fn delete_rustup_and_cargo_home() -> Result<()> {
 // .. augmented with this SO answer
 // http://stackoverflow.com/questions/10319526/understanding-a-self-deleting-program-in-c
 #[cfg(windows)]
-fn delete_rustup_and_cargo_home() -> Result<()> {
+fn delete_elan_and_leanpkg_home() -> Result<()> {
     use rand;
     use scopeguard;
     use std::thread;
     use std::time::Duration;
 
-    // CARGO_HOME, hopefully empty except for bin/rustup.exe
-    let ref cargo_home = try!(utils::cargo_home());
-    // The rustup.exe bin
-    let ref rustup_path = cargo_home.join(&format!("bin/rustup{}", EXE_SUFFIX));
+    // LEANPKG_HOME, hopefully empty except for bin/elan.exe
+    let ref leanpkg_home = try!(utils::leanpkg_home());
+    // The elan.exe bin
+    let ref elan_path = leanpkg_home.join(&format!("bin/elan{}", EXE_SUFFIX));
 
-    // The directory containing CARGO_HOME
-    let work_path = cargo_home.parent().expect("CARGO_HOME doesn't have a parent?");
+    // The directory containing LEANPKG_HOME
+    let work_path = leanpkg_home.parent().expect("LEANPKG_HOME doesn't have a parent?");
 
     // Generate a unique name for the files we're about to move out
-    // of CARGO_HOME.
+    // of LEANPKG_HOME.
     let numbah: u32 = rand::random();
-    let gc_exe = work_path.join(&format!("rustup-gc-{:x}.exe", numbah));
+    let gc_exe = work_path.join(&format!("elan-gc-{:x}.exe", numbah));
 
     use winapi::um::fileapi::{CreateFileW, OPEN_EXISTING};
     use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
@@ -956,8 +900,8 @@ fn delete_rustup_and_cargo_home() -> Result<()> {
     use std::mem;
 
     unsafe {
-        // Copy rustup (probably this process's exe) to the gc exe
-        try!(utils::copy_file(rustup_path, &gc_exe));
+        // Copy elan (probably this process's exe) to the gc exe
+        try!(utils::copy_file(elan_path, &gc_exe));
 
         let mut gc_exe_win: Vec<_> = gc_exe.as_os_str().encode_wide().collect();
         gc_exe_win.push(0);
@@ -1000,7 +944,7 @@ fn delete_rustup_and_cargo_home() -> Result<()> {
     Ok(())
 }
 
-/// Run by rustup-gc-$num.exe to delete CARGO_HOME
+/// Run by elan-gc-$num.exe to delete LEANPKG_HOME
 #[cfg(windows)]
 pub fn complete_windows_uninstall() -> Result<()> {
     use std::ffi::OsStr;
@@ -1008,9 +952,9 @@ pub fn complete_windows_uninstall() -> Result<()> {
 
     try!(wait_for_parent());
 
-    // Now that the parent has exited there are hopefully no more files open in CARGO_HOME
-    let ref cargo_home = try!(utils::cargo_home());
-    try!(utils::remove_dir("cargo_home", cargo_home, &|_| ()));
+    // Now that the parent has exited there are hopefully no more files open in LEANPKG_HOME
+    let ref leanpkg_home = try!(utils::leanpkg_home());
+    try!(utils::remove_dir("leanpkg_home", leanpkg_home, &|_| ()));
 
     // Now, run a *system* binary to inherit the DELETE_ON_CLOSE
     // handle to *this* process, then exit. The OS will delete the gc
@@ -1142,9 +1086,9 @@ fn get_add_path_methods() -> Vec<PathUpdateMethod> {
 }
 
 fn shell_export_string() -> Result<String> {
-    let path = format!("{}/bin", try!(canonical_cargo_home()));
+    let path = format!("{}/bin", try!(canonical_leanpkg_home()));
     // The path is *prepended* in case there are system-installed
-    // rustc's that need to be overridden.
+    // lean's that need to be overridden.
     Ok(format!(r#"export PATH="{}:$PATH""#, path))
 }
 
@@ -1187,7 +1131,7 @@ fn do_add_to_path(methods: &[PathUpdateMethod]) -> Result<()> {
         return Ok(());
     };
 
-    let mut new_path = try!(utils::cargo_home()).join("bin").to_string_lossy().to_string();
+    let mut new_path = try!(utils::leanpkg_home()).join("bin").to_string_lossy().to_string();
     if old_path.contains(&new_path) {
         return Ok(());
     }
@@ -1297,7 +1241,7 @@ fn do_remove_from_path(methods: &[PathUpdateMethod]) -> Result<()> {
         return Ok(());
     };
 
-    let ref path_str = try!(utils::cargo_home()).join("bin").to_string_lossy().to_string();
+    let ref path_str = try!(utils::leanpkg_home()).join("bin").to_string_lossy().to_string();
     let idx = if let Some(i) = old_path.find(path_str) {
         i
     } else {
@@ -1371,38 +1315,38 @@ fn do_remove_from_path(methods: &[PathUpdateMethod]) -> Result<()> {
     Ok(())
 }
 
-/// Self update downloads rustup-init to `CARGO_HOME`/bin/rustup-init
+/// Self update downloads elan-init to `LEANPKG_HOME`/bin/elan-init
 /// and runs it.
 ///
 /// It does a few things to accomodate self-delete problems on windows:
 ///
-/// rustup-init is run in two stages, first with `--self-upgrade`,
+/// elan-init is run in two stages, first with `--self-upgrade`,
 /// which displays update messages and asks for confirmations, etc;
-/// then with `--self-replace`, which replaces the rustup binary and
+/// then with `--self-replace`, which replaces the elan binary and
 /// hardlinks. The last step is done without waiting for confirmation
 /// on windows so that the running exe can be deleted.
 ///
-/// Because it's again difficult for rustup-init to delete itself
+/// Because it's again difficult for elan-init to delete itself
 /// (and on windows this process will not be running to do it),
-/// rustup-init is stored in `CARGO_HOME`/bin, and then deleted next
-/// time rustup runs.
+/// elan-init is stored in `LEANPKG_HOME`/bin, and then deleted next
+/// time elan runs.
 pub fn update() -> Result<()> {
     if NEVER_SELF_UPDATE {
-        err!("self-update is disabled for this build of rustup");
-        err!("you should probably use your system package manager to update rustup");
+        err!("self-update is disabled for this build of elan");
+        err!("you should probably use your system package manager to update elan");
         process::exit(1);
     }
     let setup_path = try!(prepare_update());
     if let Some(ref p) = setup_path {
-        let version = match get_new_rustup_version(p) {
-            Some(new_version) => parse_new_rustup_version(new_version),
+        let version = match get_new_elan_version(p) {
+            Some(new_version) => parse_new_elan_version(new_version),
             None => {
-                err!("failed to get rustup version");
+                err!("failed to get elan version");
                 process::exit(1);
             }
         };
 
-        info!("rustup updated successfully to {}", version);
+        info!("elan updated successfully to {}", version);
         try!(run_update(p));
     } else {
         // Try again in case we emitted "tool `{}` is already installed" last time.
@@ -1412,7 +1356,7 @@ pub fn update() -> Result<()> {
     Ok(())
 }
 
-fn get_new_rustup_version(path: &Path) -> Option<String> {
+fn get_new_elan_version(path: &Path) -> Option<String> {
     match Command::new(path).arg("--version").output() {
         Err(_) => None,
         Ok(output) => match String::from_utf8(output.stdout) {
@@ -1422,7 +1366,7 @@ fn get_new_rustup_version(path: &Path) -> Option<String> {
     }
 }
 
-fn parse_new_rustup_version(version: String) -> String {
+fn parse_new_elan_version(version: String) -> String {
     let re = Regex::new(r"\d+.\d+.\d+[0-9a-zA-Z-]*").unwrap();
     let capture = re.captures(&version);
     let matched_version = match capture {
@@ -1435,12 +1379,12 @@ fn parse_new_rustup_version(version: String) -> String {
 pub fn prepare_update() -> Result<Option<PathBuf>> {
     use toml;
 
-    let ref cargo_home = try!(utils::cargo_home());
-    let ref rustup_path = cargo_home.join(&format!("bin/rustup{}", EXE_SUFFIX));
-    let ref setup_path = cargo_home.join(&format!("bin/rustup-init{}", EXE_SUFFIX));
+    let ref leanpkg_home = try!(utils::leanpkg_home());
+    let ref elan_path = leanpkg_home.join(&format!("bin/elan{}", EXE_SUFFIX));
+    let ref setup_path = leanpkg_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
 
-    if !rustup_path.exists() {
-        return Err(ErrorKind::NotSelfInstalled(cargo_home.clone()).into());
+    if !elan_path.exists() {
+        return Err(ErrorKind::NotSelfInstalled(leanpkg_home.clone()).into());
     }
 
     if setup_path.exists() {
@@ -1455,21 +1399,21 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
         // This ensures that we update to a version thats appropriate for users
         // and also works around if the website messed up the detection.
         // If someone really wants to use another version, he still can enforce
-        // that using the environment variable RUSTUP_OVERRIDE_HOST_TRIPLE.
+        // that using the environment variable ELAN_OVERRIDE_HOST_TRIPLE.
 
         dist::TargetTriple::from_host().unwrap_or(build_triple)
     } else {
         build_triple
     };
 
-    let update_root = env::var("RUSTUP_UPDATE_ROOT")
+    let update_root = env::var("ELAN_UPDATE_ROOT")
         .unwrap_or(String::from(UPDATE_ROOT));
 
-    let tempdir = try!(TempDir::new("rustup-update")
+    let tempdir = try!(TempDir::new("elan-update")
         .chain_err(|| "error creating temp directory"));
 
     // Get current version
-    let current_version = env!("CARGO_PKG_VERSION");
+    let current_version = env!("LEANPKG_PKG_VERSION");
 
     // Download available version
     info!("checking for self-updates");
@@ -1477,20 +1421,20 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
     let release_file_url = try!(utils::parse_url(&release_file_url));
     let release_file = tempdir.path().join("release-stable.toml");
     try!(utils::download_file(&release_file_url, &release_file, None, &|_| ()));
-    let release_toml_str = try!(utils::read_file("rustup release", &release_file));
+    let release_toml_str = try!(utils::read_file("elan release", &release_file));
     let release_toml: toml::Value = try!(toml::from_str(&release_toml_str)
-                            .map_err(|_| Error::from("unable to parse rustup release file")));
+                            .map_err(|_| Error::from("unable to parse elan release file")));
     let schema = try!(release_toml.get("schema-version")
-                      .ok_or(Error::from("no schema key in rustup release file")));
+                      .ok_or(Error::from("no schema key in elan release file")));
     let schema = try!(schema.as_str()
-                      .ok_or(Error::from("invalid schema key in rustup release file")));
+                      .ok_or(Error::from("invalid schema key in elan release file")));
     let available_version = try!(release_toml.get("version")
-                                 .ok_or(Error::from("no version key in rustup release file")));
+                                 .ok_or(Error::from("no version key in elan release file")));
     let available_version = try!(available_version.as_str()
-                                 .ok_or(Error::from("invalid version key in rustup release file")));
+                                 .ok_or(Error::from("invalid version key in elan release file")));
 
     if schema != "1" {
-        return Err(Error::from(&*format!("unknown schema version '{}' in rustup release file", schema)));
+        return Err(Error::from(&*format!("unknown schema version '{}' in elan release file", schema)));
     }
 
     // If up-to-date
@@ -1499,7 +1443,7 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
     }
 
     // Get download URL
-    let url = format!("{}/archive/{}/{}/rustup-init{}", update_root,
+    let url = format!("{}/archive/{}/{}/elan-init{}", update_root,
                       available_version, triple, EXE_SUFFIX);
 
     // Get download path
@@ -1518,7 +1462,7 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
     Ok(Some(setup_path.to_owned()))
 }
 
-/// Tell the upgrader to replace the rustup bins, then delete
+/// Tell the upgrader to replace the elan bins, then delete
 /// itself. Like with uninstallation, on Windows we're going to
 /// have to jump through hoops to make everything work right.
 ///
@@ -1533,7 +1477,7 @@ pub fn run_update(setup_path: &Path) -> Result<()> {
         .status().chain_err(|| "unable to run updater"));
 
     if !status.success() {
-        return Err("self-updated failed to replace rustup executable".into());
+        return Err("self-updated failed to replace elan executable".into());
     }
 
     process::exit(0);
@@ -1549,9 +1493,9 @@ pub fn run_update(setup_path: &Path) -> Result<()> {
 }
 
 /// This function is as the final step of a self-upgrade. It replaces
-/// `CARGO_HOME`/bin/rustup with the running exe, and updates the the
+/// `LEANPKG_HOME`/bin/elan with the running exe, and updates the the
 /// links to it. On windows this will run *after* the original
-/// rustup process exits.
+/// elan process exits.
 #[cfg(unix)]
 pub fn self_replace() -> Result<()> {
     try!(install_bins());
@@ -1568,15 +1512,15 @@ pub fn self_replace() -> Result<()> {
 }
 
 pub fn cleanup_self_updater() -> Result<()> {
-    let cargo_home = try!(utils::cargo_home());
-    let ref setup = cargo_home.join(&format!("bin/rustup-init{}", EXE_SUFFIX));
+    let leanpkg_home = try!(utils::leanpkg_home());
+    let ref setup = leanpkg_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
 
     if setup.exists() {
         try!(utils::remove_file("setup", setup));
     }
 
     // Transitional
-    let ref old_setup = cargo_home.join(&format!("bin/multirust-setup{}", EXE_SUFFIX));
+    let ref old_setup = leanpkg_home.join(&format!("bin/multilean-setup{}", EXE_SUFFIX));
 
     if old_setup.exists() {
         try!(utils::remove_file("setup", old_setup));

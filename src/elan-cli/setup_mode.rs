@@ -2,7 +2,7 @@ use std::env;
 use self_update::{self, InstallOpts};
 use errors::*;
 use clap::{App, Arg, AppSettings};
-use rustup_dist::dist::TargetTriple;
+use elan_dist::dist::TargetTriple;
 use common;
 
 pub fn main() -> Result<()> {
@@ -13,10 +13,10 @@ pub fn main() -> Result<()> {
     if arg1 == Some("--self-replace") {
         return self_update::self_replace();
     }
-    // XXX: If you change anything here, please make the same changes in rustup-init.sh
-    let cli = App::new("rustup-init")
+    // XXX: If you change anything here, please make the same changes in elan-init.sh
+    let cli = App::new("elan-init")
         .version(common::version())
-        .about("The installer for rustup")
+        .about("The installer for elan")
         .setting(AppSettings::DeriveDisplayOrder)
         .arg(Arg::with_name("verbose")
              .short("v")

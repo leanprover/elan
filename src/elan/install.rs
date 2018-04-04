@@ -1,13 +1,13 @@
 //! Installation and upgrade of both distribution-managed and local
 //! toolchains
 
-use rustup_dist::{Notification};
-use rustup_dist::prefix::InstallPrefix;
-use rustup_utils::utils;
-use rustup_dist::temp;
-use rustup_dist::dist;
-use rustup_dist::download::DownloadCfg;
-use rustup_dist::component::{Components, TarGzPackage, Transaction, Package};
+use elan_dist::{Notification};
+use elan_dist::prefix::InstallPrefix;
+use elan_utils::utils;
+use elan_dist::temp;
+use elan_dist::dist;
+use elan_dist::download::DownloadCfg;
+use elan_dist::component::{Components, TarGzPackage, Transaction, Package};
 use errors::Result;
 use std::path::Path;
 

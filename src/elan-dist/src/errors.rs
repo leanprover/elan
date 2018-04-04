@@ -2,12 +2,12 @@ use std::path::PathBuf;
 use std::io::{self, Write};
 use temp;
 use toml;
-use rustup_utils;
+use elan_utils;
 use manifest::Component;
 
 error_chain! {
     links {
-        Utils(rustup_utils::Error, rustup_utils::ErrorKind);
+        Utils(elan_utils::Error, elan_utils::ErrorKind);
     }
 
     foreign_links {

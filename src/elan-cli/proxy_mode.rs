@@ -1,8 +1,8 @@
 use common::set_globals;
-use rustup::{Cfg};
+use elan::{Cfg};
 use errors::*;
-use rustup_utils::utils;
-use rustup::command::run_command_for_dir;
+use elan_utils::utils;
+use elan::command::run_command_for_dir;
 use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;

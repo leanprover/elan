@@ -2,10 +2,10 @@ use std::collections::VecDeque;
 use std::fmt;
 use term;
 use time::precise_time_s;
-use rustup::Notification;
-use rustup_dist::Notification as In;
-use rustup_utils::Notification as Un;
-use rustup_utils::tty;
+use elan::Notification;
+use elan_dist::Notification as In;
+use elan_utils::Notification as Un;
+use elan_utils::tty;
 
 /// Keep track of this many past download amounts
 const DOWNLOAD_TRACK_COUNT: usize = 5;

@@ -5,8 +5,8 @@ pub fn stderr_isatty() -> bool {
     unsafe { libc::isatty(libc::STDERR_FILENO) != 0 }
 }
 
-// FIXME: Unfortunately this doesn't detect msys terminals so rustup
-// is always colorless there (just like rustc and cargo).
+// FIXME: Unfortunately this doesn't detect msys terminals so elan
+// is always colorless there (just like lean and leanpkg).
 #[cfg(windows)]
 pub fn stderr_isatty() -> bool {
     type DWORD = u32;

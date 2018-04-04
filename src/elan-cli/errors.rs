@@ -3,15 +3,15 @@
 use std::io;
 use std::path::PathBuf;
 
-use rustup;
-use rustup_dist::{self, temp};
-use rustup_utils;
+use elan;
+use elan_dist::{self, temp};
+use elan_utils;
 
 error_chain! {
     links {
-        Rustup(rustup::Error, rustup::ErrorKind);
-        Dist(rustup_dist::Error, rustup_dist::ErrorKind);
-        Utils(rustup_utils::Error, rustup_utils::ErrorKind);
+        Elan(elan::Error, elan::ErrorKind);
+        Dist(elan_dist::Error, elan_dist::ErrorKind);
+        Utils(elan_utils::Error, elan_utils::ErrorKind);
     }
 
     foreign_links {
@@ -34,8 +34,8 @@ error_chain! {
             description("couldn't determine self executable name")
         }
         NotSelfInstalled(p: PathBuf) {
-            description("rustup is not installed")
-            display("rustup is not installed at '{}'", p.display())
+            description("elan is not installed")
+            display("elan is not installed at '{}'", p.display())
         }
         WindowsUninstallMadness {
             description("failure during windows uninstall")

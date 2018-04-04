@@ -1,11 +1,11 @@
 use clap::{App, Arg, ArgGroup, AppSettings, SubCommand, ArgMatches, Shell};
 use common;
-use rustup::{Cfg, Toolchain, command};
-use rustup::settings::TelemetryMode;
+use elan::{Cfg, Toolchain, command};
+use elan::settings::TelemetryMode;
 use errors::*;
-use rustup_dist::manifest::Component;
-use rustup_dist::dist::{TargetTriple, PartialToolchainDesc, PartialTargetTriple};
-use rustup_utils::utils;
+use elan_dist::manifest::Component;
+use elan_dist::dist::{TargetTriple, PartialToolchainDesc, PartialTargetTriple};
+use elan_utils::utils;
 use self_update;
 use std::path::Path;
 use std::process::Command;
@@ -94,7 +94,7 @@ pub fn main() -> Result<()> {
         }
         ("completions", Some(c)) => {
             if let Some(shell) = c.value_of("shell") {
-                cli().gen_completions_to("rustup", shell.parse::<Shell>().unwrap(), &mut io::stdout());
+                cli().gen_completions_to("elan", shell.parse::<Shell>().unwrap(), &mut io::stdout());
             }
         }
         (_, _) => unreachable!(),
@@ -104,10 +104,10 @@ pub fn main() -> Result<()> {
 }
 
 pub fn cli() -> App<'static, 'static> {
-    let mut app = App::new("rustup")
+    let mut app = App::new("elan")
         .version(common::version())
-        .about("The Rust toolchain installer")
-        .after_help(RUSTUP_HELP)
+        .about("The Lean toolchain installer")
+        .after_help(ELAN_HELP)
         .setting(AppSettings::VersionlessSubcommands)
         .setting(AppSettings::DeriveDisplayOrder)
         .setting(AppSettings::SubcommandRequiredElseHelp)
@@ -119,7 +119,7 @@ pub fn cli() -> App<'static, 'static> {
             .about("Show the active and installed toolchains")
             .after_help(SHOW_HELP))
         .subcommand(SubCommand::with_name("install")
-            .about("Update Rust toolchains")
+            .about("Update Lean toolchains")
             .after_help(INSTALL_HELP)
             .setting(AppSettings::Hidden) // synonym for 'toolchain install'
             .arg(Arg::with_name("toolchain")
@@ -127,21 +127,21 @@ pub fn cli() -> App<'static, 'static> {
                 .required(true)
                 .multiple(true)))
         .subcommand(SubCommand::with_name("uninstall")
-            .about("Uninstall Rust toolchains")
+            .about("Uninstall Lean toolchains")
             .setting(AppSettings::Hidden) // synonym for 'toolchain uninstall'
             .arg(Arg::with_name("toolchain")
                 .help(TOOLCHAIN_ARG_HELP)
                 .required(true)
                 .multiple(true)))
         .subcommand(SubCommand::with_name("update")
-            .about("Update Rust toolchains and rustup")
+            .about("Update Lean toolchains and elan")
             .after_help(UPDATE_HELP)
             .arg(Arg::with_name("toolchain")
                 .help(TOOLCHAIN_ARG_HELP)
                 .required(false)
                 .multiple(true))
             .arg(Arg::with_name("no-self-update")
-                .help("Don't perform self update when running the `rustup` command")
+                .help("Don't perform self update when running the `elan` command")
                 .long("no-self-update")
                 .takes_value(false)
                 .hidden(true))
@@ -197,7 +197,7 @@ pub fn cli() -> App<'static, 'static> {
                     .long("toolchain")
                     .takes_value(true)))
             .subcommand(SubCommand::with_name("add")
-                .about("Add a target to a Rust toolchain")
+                .about("Add a target to a Lean toolchain")
                 .alias("install")
                 .arg(Arg::with_name("target")
                     .required(true)
@@ -207,7 +207,7 @@ pub fn cli() -> App<'static, 'static> {
                     .long("toolchain")
                     .takes_value(true)))
             .subcommand(SubCommand::with_name("remove")
-                .about("Remove a target from a Rust toolchain")
+                .about("Remove a target from a Lean toolchain")
                 .alias("uninstall")
                 .arg(Arg::with_name("target")
                     .required(true)
@@ -228,7 +228,7 @@ pub fn cli() -> App<'static, 'static> {
                     .long("toolchain")
                     .takes_value(true)))
             .subcommand(SubCommand::with_name("add")
-                .about("Add a component to a Rust toolchain")
+                .about("Add a component to a Lean toolchain")
                 .arg(Arg::with_name("component")
                     .required(true)
                     .multiple(true))
@@ -240,7 +240,7 @@ pub fn cli() -> App<'static, 'static> {
                     .long("target")
                     .takes_value(true)))
             .subcommand(SubCommand::with_name("remove")
-                .about("Remove a component from a Rust toolchain")
+                .about("Remove a component from a Lean toolchain")
                 .arg(Arg::with_name("component")
                     .required(true)
                     .multiple(true))
@@ -293,7 +293,7 @@ pub fn cli() -> App<'static, 'static> {
             .about("Display which binary will be run for a given command")
             .arg(Arg::with_name("command")
                 .required(true)))
-        .subcommand(SubCommand::with_name("doc")
+        /*.subcommand(SubCommand::with_name("doc")
             .alias("docs")
             .about("Open the documentation for the current toolchain")
             .after_help(DOC_HELP)
@@ -304,7 +304,7 @@ pub fn cli() -> App<'static, 'static> {
                  .long("std")
                  .help("Standard library API documentation"))
             .group(ArgGroup::with_name("page")
-                 .args(&["book", "std"])));
+                 .args(&["book", "std"])))*/;
     
     if cfg!(not(target_os = "windows")) {
         app = app
@@ -319,32 +319,32 @@ pub fn cli() -> App<'static, 'static> {
     }
     
     app.subcommand(SubCommand::with_name("self")
-        .about("Modify the rustup installation")
+        .about("Modify the elan installation")
         .setting(AppSettings::VersionlessSubcommands)
         .setting(AppSettings::DeriveDisplayOrder)
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(SubCommand::with_name("update")
-            .about("Download and install updates to rustup"))
+            .about("Download and install updates to elan"))
         .subcommand(SubCommand::with_name("uninstall")
-            .about("Uninstall rustup.")
+            .about("Uninstall elan.")
             .arg(Arg::with_name("no-prompt")
                     .short("y")))
         .subcommand(SubCommand::with_name("upgrade-data")
             .about("Upgrade the internal data format.")))
     .subcommand(SubCommand::with_name("telemetry")
-        .about("rustup telemetry commands")
+        .about("elan telemetry commands")
         .setting(AppSettings::Hidden)
         .setting(AppSettings::VersionlessSubcommands)
         .setting(AppSettings::DeriveDisplayOrder)
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(SubCommand::with_name("enable")
-                        .about("Enable rustup telemetry"))
+                        .about("Enable elan telemetry"))
         .subcommand(SubCommand::with_name("disable")
-                        .about("Disable rustup telemetry"))
+                        .about("Disable elan telemetry"))
         .subcommand(SubCommand::with_name("analyze")
                         .about("Analyze stored telemetry")))
     .subcommand(SubCommand::with_name("set")
-        .about("Alter rustup settings")
+        .about("Alter elan settings")
         .setting(AppSettings::SubcommandRequiredElseHelp)
         .subcommand(SubCommand::with_name("default-host")
             .about("The triple used to identify toolchains when not specified")
@@ -532,7 +532,7 @@ fn show(cfg: &Cfg) -> Result<()> {
             match t.list_components() {
                 Ok(cs_vec) => cs_vec
                     .into_iter()
-                    .filter(|c| c.component.pkg == "rust-std")
+                    .filter(|c| c.component.pkg == "lean-std")
                     .filter(|c| c.installed)
                     .collect(),
                 Err(_) => vec![]
@@ -573,7 +573,7 @@ fn show(cfg: &Cfg) -> Result<()> {
             print_header("installed targets for active toolchain");
         }
         for t in active_targets {
-            println!("{}", t.component.target.as_ref().expect("rust-std should have a target"));
+            println!("{}", t.component.target.as_ref().expect("lean-std should have a target"));
         }
         if show_headers { println!("") };
     }
@@ -586,11 +586,11 @@ fn show(cfg: &Cfg) -> Result<()> {
                 match atc {
                     Some((ref toolchain, Some(ref reason))) => {
                         println!("{} ({})", toolchain.name(), reason);
-                        println!("{}", common::rustc_version(toolchain));
+                        println!("{}", common::lean_version(toolchain));
                     }
                     Some((ref toolchain, None)) => {
                         println!("{} (default)", toolchain.name());
-                        println!("{}", common::rustc_version(toolchain));
+                        println!("{}", common::lean_version(toolchain));
                     }
                     None => {
                         println!("no active toolchain");
@@ -632,7 +632,7 @@ fn target_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 
     for target in m.values_of("target").expect("") {
         let new_component = Component {
-            pkg: "rust-std".to_string(),
+            pkg: "lean-std".to_string(),
             target: Some(TargetTriple::from_str(target)),
         };
 
@@ -647,7 +647,7 @@ fn target_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 
     for target in m.values_of("target").expect("") {
         let new_component = Component {
-            pkg: "rust-std".to_string(),
+            pkg: "lean-std".to_string(),
             target: Some(TargetTriple::from_str(target)),
         };
 

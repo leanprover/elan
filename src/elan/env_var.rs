@@ -2,7 +2,7 @@ use std::env;
 use std::path::PathBuf;
 use std::process::Command;
 
-pub const RUST_RECURSION_COUNT_MAX: u32 = 5;
+pub const LEAN_RECURSION_COUNT_MAX: u32 = 5;
 
 #[allow(unused)]
 pub fn append_path(name: &str, value: Vec<PathBuf>, cmd: &mut Command) {

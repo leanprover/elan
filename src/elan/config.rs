@@ -8,8 +8,8 @@ use std::sync::Arc;
 
 use errors::*;
 use notifications::*;
-use rustup_dist::{temp, dist};
-use rustup_utils::utils;
+use elan_dist::{temp, dist};
+use elan_utils::utils;
 use toolchain::{Toolchain, UpdateStatus};
 use telemetry_analysis::*;
 use settings::{TelemetryMode, SettingsFile, Settings, DEFAULT_METADATA_VERSION};
@@ -24,7 +24,7 @@ pub enum OverrideReason {
 impl Display for OverrideReason {
     fn fmt(&self, f: &mut fmt::Formatter) -> ::std::result::Result<(), fmt::Error> {
         match *self {
-            OverrideReason::Environment => write!(f, "environment override by RUSTUP_TOOLCHAIN"),
+            OverrideReason::Environment => write!(f, "environment override by ELAN_TOOLCHAIN"),
             OverrideReason::OverrideDB(ref path) => {
                 write!(f, "directory override for '{}'", path.display())
             }
@@ -36,7 +36,7 @@ impl Display for OverrideReason {
 }
 
 pub struct Cfg {
-    pub rustup_dir: PathBuf,
+    pub elan_dir: PathBuf,
     pub settings_file: SettingsFile,
     pub toolchains_dir: PathBuf,
     pub update_hash_dir: PathBuf,
@@ -51,40 +51,40 @@ pub struct Cfg {
 
 impl Cfg {
     pub fn from_env(notify_handler: Arc<Fn(Notification)>) -> Result<Self> {
-        // Set up the rustup home directory
-        let rustup_dir = try!(utils::rustup_home());
+        // Set up the elan home directory
+        let elan_dir = try!(utils::elan_home());
 
-        try!(utils::ensure_dir_exists("home", &rustup_dir,
+        try!(utils::ensure_dir_exists("home", &elan_dir,
                                       &|n| notify_handler(n.into())));
 
-        let settings_file = SettingsFile::new(rustup_dir.join("settings.toml"));
+        let settings_file = SettingsFile::new(elan_dir.join("settings.toml"));
         // Convert from old settings format if necessary
-        try!(settings_file.maybe_upgrade_from_legacy(&rustup_dir));
+        try!(settings_file.maybe_upgrade_from_legacy(&elan_dir));
 
-        let toolchains_dir = rustup_dir.join("toolchains");
-        let update_hash_dir = rustup_dir.join("update-hashes");
-        let download_dir = rustup_dir.join("downloads");
+        let toolchains_dir = elan_dir.join("toolchains");
+        let update_hash_dir = elan_dir.join("update-hashes");
+        let download_dir = elan_dir.join("downloads");
 
         // GPG key
-        let gpg_key = if let Some(path) = env::var_os("RUSTUP_GPG_KEY")
+        let gpg_key = if let Some(path) = env::var_os("ELAN_GPG_KEY")
                                               .and_then(utils::if_not_empty) {
             Cow::Owned(try!(utils::read_file("public key", Path::new(&path))))
         } else {
-            Cow::Borrowed(include_str!("rust-key.gpg.ascii"))
+            Cow::Borrowed(include_str!("lean-key.gpg.ascii"))
         };
 
         // Environment override
-        let env_override = env::var("RUSTUP_TOOLCHAIN")
+        let env_override = env::var("ELAN_TOOLCHAIN")
                                .ok()
                                .and_then(utils::if_not_empty);
 
-        let dist_root_server = match env::var("RUSTUP_DIST_SERVER") {
+        let dist_root_server = match env::var("ELAN_DIST_SERVER") {
             Ok(ref s) if !s.is_empty() => {
                 s.clone()
             }
             _ => {
                 // For backward compatibility
-                env::var("RUSTUP_DIST_ROOT")
+                env::var("ELAN_DIST_ROOT")
                     .ok()
                     .and_then(utils::if_not_empty)
                     .map_or(Cow::Borrowed(dist::DEFAULT_DIST_ROOT), Cow::Owned)
@@ -95,7 +95,7 @@ impl Cfg {
         };
 
         let notify_clone = notify_handler.clone();
-        let temp_cfg = temp::Cfg::new(rustup_dir.join("tmp"),
+        let temp_cfg = temp::Cfg::new(elan_dir.join("tmp"),
                                       dist_root_server.as_str(),
                                       Box::new(move |n| {
                                           (notify_clone)(n.into())
@@ -103,7 +103,7 @@ impl Cfg {
         let dist_root = dist_root_server.clone() + "/dist";
 
         Ok(Cfg {
-            rustup_dir: rustup_dir,
+            elan_dir: elan_dir,
             settings_file: settings_file,
             toolchains_dir: toolchains_dir,
             update_hash_dir: update_hash_dir,
@@ -203,8 +203,8 @@ impl Cfg {
     }
 
     pub fn delete_data(&self) -> Result<()> {
-        if utils::path_exists(&self.rustup_dir) {
-            Ok(try!(utils::remove_dir("home", &self.rustup_dir,
+        if utils::path_exists(&self.elan_dir) {
+            Ok(try!(utils::remove_dir("home", &self.elan_dir,
                                       &|n| (self.notify_handler)(n.into()))))
         } else {
             Ok(())
@@ -227,13 +227,13 @@ impl Cfg {
     pub fn find_override(&self, path: &Path) -> Result<Option<(Toolchain, OverrideReason)>> {
         let mut override_ = None;
 
-        // First check RUSTUP_TOOLCHAIN
+        // First check ELAN_TOOLCHAIN
         if let Some(ref name) = self.env_override {
             override_ = Some((name.to_string(), OverrideReason::Environment));
         }
 
         // Then walk up the directory tree from 'path' looking for either the
-        // directory in override database, or a `rust-toolchain` file.
+        // directory in override database, or a `lean-toolchain` file.
         if override_.is_none() {
             self.settings_file.with(|s| {
                 override_ = self.find_override_from_dir_walk(path, s)?;
@@ -249,7 +249,7 @@ impl Cfg {
 
             let reason_err = match reason {
                 OverrideReason::Environment => {
-                    format!("the RUSTUP_TOOLCHAIN environment variable specifies an uninstalled toolchain")
+                    format!("the ELAN_TOOLCHAIN environment variable specifies an uninstalled toolchain")
                 }
                 OverrideReason::OverrideDB(ref path) => {
                     format!("the directory override for '{}' specifies an uninstalled toolchain", path.display())
@@ -298,8 +298,8 @@ impl Cfg {
                 return Ok(Some((name, reason)));
             }
 
-            // Then look for 'rust-toolchain'
-            let toolchain_file = d.join("rust-toolchain");
+            // Then look for 'lean-toolchain'
+            let toolchain_file = d.join("lean-toolchain");
             if let Ok(s) = utils::read_file("toolchain file", &toolchain_file) {
                 if let Some(s) = s.lines().next() {
                     let toolchain_name = s.trim();
@@ -381,7 +381,7 @@ impl Cfg {
     }
 
     pub fn check_metadata_version(&self) -> Result<()> {
-        try!(utils::assert_is_directory(&self.rustup_dir));
+        try!(utils::assert_is_directory(&self.elan_dir));
 
         self.settings_file.with(|s| {
             (self.notify_handler)(Notification::ReadMetadataVersion(&s.version));
@@ -401,7 +401,7 @@ impl Cfg {
     pub fn create_command_for_dir(&self, path: &Path, binary: &str) -> Result<Command> {
         let (ref toolchain, _) = try!(self.toolchain_for_dir(path));
 
-        if let Some(cmd) = try!(self.maybe_do_cargo_fallback(toolchain, binary)) {
+        if let Some(cmd) = try!(self.maybe_do_leanpkg_fallback(toolchain, binary)) {
             Ok(cmd)
         } else {
             toolchain.create_command(binary)
@@ -415,35 +415,35 @@ impl Cfg {
             try!(toolchain.install_from_dist(false));
         }
 
-        if let Some(cmd) = try!(self.maybe_do_cargo_fallback(toolchain, binary)) {
+        if let Some(cmd) = try!(self.maybe_do_leanpkg_fallback(toolchain, binary)) {
             Ok(cmd)
         } else {
             toolchain.create_command(binary)
         }
     }
 
-    // Custom toolchains don't have cargo, so here we detect that situation and
-    // try to find a different cargo.
-    fn maybe_do_cargo_fallback(&self, toolchain: &Toolchain, binary: &str) -> Result<Option<Command>> {
+    // Custom toolchains don't have leanpkg, so here we detect that situation and
+    // try to find a different leanpkg.
+    fn maybe_do_leanpkg_fallback(&self, toolchain: &Toolchain, binary: &str) -> Result<Option<Command>> {
         if !toolchain.is_custom() {
             return Ok(None);
         }
 
-        if binary != "cargo" && binary != "cargo.exe" {
+        if binary != "leanpkg" && binary != "leanpkg.exe" {
             return Ok(None);
         }
 
-        let cargo_path = toolchain.path().join("bin/cargo");
-        let cargo_exe_path = toolchain.path().join("bin/cargo.exe");
+        let leanpkg_path = toolchain.path().join("bin/leanpkg");
+        let leanpkg_exe_path = toolchain.path().join("bin/leanpkg.exe");
 
-        if cargo_path.exists() || cargo_exe_path.exists() {
+        if leanpkg_path.exists() || leanpkg_exe_path.exists() {
             return Ok(None);
         }
 
         for fallback in &["nightly", "beta", "stable"] {
             let fallback = try!(self.get_toolchain(fallback, false));
             if fallback.exists() {
-                let cmd = try!(fallback.create_fallback_command("cargo", toolchain));
+                let cmd = try!(fallback.create_fallback_command("leanpkg", toolchain));
                 return Ok(Some(cmd));
             }
         }
@@ -496,7 +496,7 @@ impl Cfg {
             Ok(())
         }));
 
-        let _ = utils::ensure_dir_exists("telemetry", &self.rustup_dir.join("telemetry"),
+        let _ = utils::ensure_dir_exists("telemetry", &self.elan_dir.join("telemetry"),
                                          &|_| ());
 
         (self.notify_handler)(Notification::SetTelemetry("on"));
@@ -523,7 +523,7 @@ impl Cfg {
     }
 
     pub fn analyze_telemetry(&self) -> Result<TelemetryAnalysis> {
-        let mut t = TelemetryAnalysis::new(self.rustup_dir.join("telemetry"));
+        let mut t = TelemetryAnalysis::new(self.elan_dir.join("telemetry"));
 
         let events = try!(t.import_telemery());
         try!(t.analyze_telemetry_events(&events));

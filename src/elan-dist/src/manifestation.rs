@@ -1,4 +1,4 @@
-//! Maintains a Rust installation by installing individual Rust
+//! Maintains a Lean installation by installing individual Lean
 //! platform components from a distribution server.
 
 use config::Config;
@@ -8,13 +8,13 @@ use component::{Components, Transaction, TarGzPackage, TarXzPackage, Package};
 use temp;
 use errors::*;
 use notifications::*;
-use rustup_utils::utils;
+use elan_utils::utils;
 use download::{DownloadCfg, File};
 use prefix::InstallPrefix;
 use std::path::Path;
 
-pub const DIST_MANIFEST: &'static str = "multirust-channel-manifest.toml";
-pub const CONFIG_FILE: &'static str = "multirust-config.toml";
+pub const DIST_MANIFEST: &'static str = "multilean-channel-manifest.toml";
+pub const CONFIG_FILE: &'static str = "multilean-config.toml";
 
 enum Format {
     Gz,
@@ -41,15 +41,15 @@ impl Changes {
         }
     }
 
-    fn check_invariants(&self, rust_target_package: &TargetedPackage, config: &Option<Config>) {
+    fn check_invariants(&self, lean_target_package: &TargetedPackage, config: &Option<Config>) {
         for component_to_add in &self.add_extensions {
-            assert!(rust_target_package.extensions.contains(component_to_add),
+            assert!(lean_target_package.extensions.contains(component_to_add),
                     "package must contain extension to add");
             assert!(!self.remove_extensions.contains(component_to_add),
                     "can't both add and remove extensions");
         }
         for component_to_remove in &self.remove_extensions {
-            assert!(rust_target_package.extensions.contains(component_to_remove),
+            assert!(lean_target_package.extensions.contains(component_to_remove),
                     "package must contain extension to remove");
             let config = config.as_ref().expect("removing extension on fresh install?");
             assert!(config.components.contains(component_to_remove),
@@ -65,7 +65,7 @@ impl Manifestation {
     /// Open the install prefix for updates from a distribution
     /// channel.  The install prefix directory does not need to exist;
     /// it will be created as needed. If there's an existing install
-    /// then the rust-install installation format will be verified. A
+    /// then the lean-install installation format will be verified. A
     /// bad installer version is the only reason this will fail.
     pub fn open(prefix: InstallPrefix, triple: TargetTriple) -> Result<Self> {
         // TODO: validate the triple with the existing install as well
@@ -79,7 +79,7 @@ impl Manifestation {
     /// Install or update from a given channel manifest, while
     /// selecting extension components to add or remove.
     ///
-    /// `update` takes a manifest describing a release of Rust (which
+    /// `update` takes a manifest describing a release of Lean (which
     /// may be either a freshly-downloaded one, or the same one used
     /// for the previous install), as well as lists off extension
     /// components to add and remove.
@@ -88,9 +88,9 @@ impl Manifestation {
     /// to uninstall to bring the installation up to date.  It
     /// downloads the components' packages. Then in a Transaction
     /// uninstalls old packages and installs new packages, writes the
-    /// distribution manifest to "rustlib/rustup-dist.toml" and a
+    /// distribution manifest to "leanlib/elan-dist.toml" and a
     /// configuration containing the component name-target pairs to
-    /// "rustlib/rustup-config.toml".
+    /// "leanlib/elan-config.toml".
     pub fn update(
         &self,
         new_manifest: &Manifest,
@@ -192,7 +192,7 @@ impl Manifestation {
                 }
             };
 
-            // For historical reasons, the rust-installer component
+            // For historical reasons, the lean-installer component
             // names are not the same as the dist manifest component
             // names. Some are just the component name some are the
             // component name plus the target triple.
@@ -218,9 +218,9 @@ impl Manifestation {
         // Write configuration.
         //
         // NB: This configuration is mostly for keeping track of the name/target pairs
-        // that identify installed components. The rust-installer metadata maintained by
+        // that identify installed components. The lean-installer metadata maintained by
         // `Components` *also* tracks what is installed, but it only tracks names, not
-        // name/target. Needs to be fixed in rust-installer.
+        // name/target. Needs to be fixed in lean-installer.
         let mut config = Config::new();
         config.components = update.final_component_list;
         let ref config_str = config.stringify();
@@ -258,7 +258,7 @@ impl Manifestation {
 
     fn uninstall_component<'a>(&self, component: &Component, mut tx: Transaction<'a>,
                                notify_handler: &Fn(Notification)) -> Result<Transaction<'a>> {
-        // For historical reasons, the rust-installer component
+        // For historical reasons, the lean-installer component
         // names are not the same as the dist manifest component
         // names. Some are just the component name some are the
         // component name plus the target triple.
@@ -319,7 +319,7 @@ impl Manifestation {
         // Only replace once. The cost is inexpensive.
         let url = url.unwrap().replace(DEFAULT_DIST_SERVER, temp_cfg.dist_server.as_str());
 
-        notify_handler(Notification::DownloadingComponent("rust",
+        notify_handler(Notification::DownloadingComponent("lean",
                                                           &self.target_triple,
                                                           Some(&self.target_triple)));
 
@@ -340,7 +340,7 @@ impl Manifestation {
 
         let prefix = self.installation.prefix();
 
-        notify_handler(Notification::InstallingComponent("rust",
+        notify_handler(Notification::InstallingComponent("lean",
                                                          &self.target_triple,
                                                          Some(&self.target_triple)));
 
@@ -407,10 +407,10 @@ impl Update {
         let config = try!(manifestation.read_config());
 
         // The package to install.
-        let rust_package = try!(new_manifest.get_package("rust"));
-        let rust_target_package = try!(rust_package.get_target(Some(&manifestation.target_triple)));
+        let lean_package = try!(new_manifest.get_package("lean"));
+        let lean_target_package = try!(lean_package.get_target(Some(&manifestation.target_triple)));
 
-        changes.check_invariants(rust_target_package, &config);
+        changes.check_invariants(lean_target_package, &config);
 
         // The list of components already installed, empty if a new install
         let starting_list = config.as_ref().map(|c| c.components.clone()).unwrap_or(Vec::new());
@@ -427,7 +427,7 @@ impl Update {
         // installed extensions.
         result.build_final_component_list(
             &starting_list,
-            rust_target_package,
+            lean_target_package,
             new_manifest,
             &changes,
         );
@@ -470,13 +470,13 @@ impl Update {
     fn build_final_component_list(
         &mut self,
         starting_list: &[Component],
-        rust_target_package: &TargetedPackage,
+        lean_target_package: &TargetedPackage,
         new_manifest: &Manifest,
         changes: &Changes
     ) {
         // Add components required by the package, according to the
         // manifest
-        for required_component in &rust_target_package.components {
+        for required_component in &lean_target_package.components {
             self.final_component_list.push(required_component.clone());
         }
 
@@ -502,8 +502,8 @@ impl Update {
                 } else {
                     let is_already_included = self.final_component_list.contains(existing_component);
                     if !is_already_included {
-                        let component_is_present = rust_target_package.extensions.contains(existing_component)
-                            || rust_target_package.components.contains(existing_component);
+                        let component_is_present = lean_target_package.extensions.contains(existing_component)
+                            || lean_target_package.components.contains(existing_component);
 
                         if component_is_present {
                             self.final_component_list.push(existing_component.clone());
@@ -521,7 +521,7 @@ impl Update {
     }
 
     fn missing_essential_components(&self, target_triple: &TargetTriple) -> Result<()> {
-        let missing_essential_components = ["rustc", "cargo"]
+        let missing_essential_components = ["lean", "leanpkg"]
             .iter()
             .filter_map(|pkg| if self.final_component_list.iter().any(|c| &c.pkg == pkg) {
                 None

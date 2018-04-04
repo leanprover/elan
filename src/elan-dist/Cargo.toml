@@ -1,14 +1,10 @@
 [package]
 
-name = "rustup-dist"
+name = "elan-dist"
 version = "1.11.0"
-authors = [ "Diggory Blake <diggsey@googlemail.com>" ]
-description = "Installation from a Rust distribution server"
+authors = [ "Sebastian Ullrich <sebasti@nullri.ch>" ]
+description = "Installation from a Lean distribution server"
 build = "build.rs"
-
-documentation = "http://rust-lang-nursery.github.io/rustup.rs/rustup_dist/index.html"
-homepage = "https://github.com/rust-lang-nursery/rustup.rs"
-repository = "https://github.com/rust-lang-nursery/rustup.rs"
 
 license = "MIT OR Apache-2.0"
 
@@ -24,12 +20,8 @@ walkdir = "2.0"
 toml = "0.4"
 sha2 = "0.7.0"
 remove_dir_all = "0.3"
-rustup-utils = { path = "../rustup-utils" }
+elan-utils = { path = "../elan-utils" }
 error-chain = "0.11"
-
-[dev-dependencies]
-rustup-mock = { path = "../rustup-mock" }
-tempdir = "0.3.4"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3", features = ["handleapi", "sysinfoapi", "tlhelp32", "winnt"] }
@@ -39,5 +31,5 @@ winreg = "0.5"
 libc = "0.2.0"
 
 [lib]
-name = "rustup_dist"
+name = "elan_dist"
 

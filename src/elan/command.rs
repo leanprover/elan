@@ -9,7 +9,7 @@ use tempfile::tempfile;
 use Cfg;
 use errors::*;
 use notifications::*;
-use rustup_utils;
+use elan_utils;
 use telemetry::{Telemetry, TelemetryEvent};
 
 
@@ -17,14 +17,14 @@ pub fn run_command_for_dir<S: AsRef<OsStr>>(cmd: Command,
                                             arg0: &str,
                                             args: &[S],
                                             cfg: &Cfg) -> Result<()> {
-    if (arg0 == "rustc" || arg0 == "rustc.exe") && try!(cfg.telemetry_enabled()) {
-        return telemetry_rustc(cmd, arg0, args, cfg);
+    if (arg0 == "lean" || arg0 == "lean.exe") && try!(cfg.telemetry_enabled()) {
+        return telemetry_lean(cmd, arg0, args, cfg);
     }
 
     exec_command_for_dir_without_telemetry(cmd, arg0, args)
 }
 
-fn telemetry_rustc<S: AsRef<OsStr>>(mut cmd: Command,
+fn telemetry_lean<S: AsRef<OsStr>>(mut cmd: Command,
                                     arg0: &str,
                                     args: &[S], cfg: &Cfg) -> Result<()> {
     #[cfg(unix)]
@@ -71,7 +71,7 @@ fn telemetry_rustc<S: AsRef<OsStr>>(mut cmd: Command,
 
     let ms = (duration.as_secs() as u64 * 1000) + (duration.subsec_nanos() as u64 / 1000 / 1000);
 
-    let t = Telemetry::new(cfg.rustup_dir.join("telemetry"));
+    let t = Telemetry::new(cfg.elan_dir.join("telemetry"));
 
     match status {
         Ok(status) => {
@@ -105,7 +105,7 @@ fn telemetry_rustc<S: AsRef<OsStr>>(mut cmd: Command,
 
             let e = if errors.is_empty() { None } else { Some(errors) };
 
-            let te = TelemetryEvent::RustcRun { duration_ms: ms,
+            let te = TelemetryEvent::LeanRun { duration_ms: ms,
                                                 exit_code: exit_code,
                                                 errors: e };
 
@@ -117,7 +117,7 @@ fn telemetry_rustc<S: AsRef<OsStr>>(mut cmd: Command,
         },
         Err(e) => {
             let exit_code = e.raw_os_error().unwrap_or(1);
-            let te = TelemetryEvent::RustcRun { duration_ms: ms,
+            let te = TelemetryEvent::LeanRun { duration_ms: ms,
                                                 exit_code: exit_code,
                                                 errors: None };
 
@@ -125,7 +125,7 @@ fn telemetry_rustc<S: AsRef<OsStr>>(mut cmd: Command,
                 (cfg.notify_handler)(Notification::TelemetryCleanupError(&xe));
             });
 
-            Err(e).chain_err(|| rustup_utils::ErrorKind::RunningCommand {
+            Err(e).chain_err(|| elan_utils::ErrorKind::RunningCommand {
                 name: OsStr::new(arg0).to_owned(),
             })
         },
@@ -141,7 +141,7 @@ fn exec_command_for_dir_without_telemetry<S: AsRef<OsStr>>(
     // when and why this is needed.
     cmd.stdin(process::Stdio::inherit());
 
-    return exec(&mut cmd).chain_err(|| rustup_utils::ErrorKind::RunningCommand {
+    return exec(&mut cmd).chain_err(|| elan_utils::ErrorKind::RunningCommand {
         name: OsStr::new(arg0).to_owned(),
     });
 

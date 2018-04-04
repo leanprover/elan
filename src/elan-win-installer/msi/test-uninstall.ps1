@@ -1,10 +1,10 @@
-# Uninstall currently installed version of rustup. Does the same thing as `rustup self uninstall`.
+# Uninstall currently installed version of elan. Does the same thing as `elan self uninstall`.
 
-$key = 'HKCU:\SOFTWARE\rustup'
+$key = 'HKCU:\SOFTWARE\elan'
 $productCode = (Get-ItemProperty -Path $key -Name InstalledProductCode).InstalledProductCode
 
-# No need to set CARGO_HOME, because the installation directory is stored in the registry
-$OLD_RUSTUP_HOME = $env:RUSTUP_HOME
-$env:RUSTUP_HOME = "$env:USERPROFILE\.rustup-test"
+# No need to set LEANPKG_HOME, because the installation directory is stored in the registry
+$OLD_ELAN_HOME = $env:ELAN_HOME
+$env:ELAN_HOME = "$env:USERPROFILE\.elan-test"
 msiexec /x "$productCode" /L*V "target\Uninstall.log"
-$env:RUSTUP_HOME = $OLD_RUSTUP_HOME
+$env:ELAN_HOME = $OLD_ELAN_HOME

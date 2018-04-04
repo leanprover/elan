@@ -1,6 +1,6 @@
 use errors::*;
 use time;
-use rustup_utils::{raw, utils};
+use elan_utils::{raw, utils};
 use serde_json;
 
 use std::fs;
@@ -8,7 +8,7 @@ use std::path::PathBuf;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum TelemetryEvent {
-    RustcRun { duration_ms: u64, exit_code: i32, errors: Option<Vec<String>> },
+    LeanRun { duration_ms: u64, exit_code: i32, errors: Option<Vec<String>> },
     ToolchainUpdate { toolchain: String, success: bool } ,
     TargetAdd { toolchain: String, target: String, success: bool },
 }

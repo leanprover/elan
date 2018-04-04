@@ -1,6 +1,6 @@
 use toml;
 
-use rustup_utils::toml_utils::*;
+use elan_utils::toml_utils::*;
 use errors::*;
 use super::manifest::Component;
 

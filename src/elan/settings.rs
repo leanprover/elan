@@ -65,9 +65,9 @@ impl SettingsFile {
         try!(self.write_settings());
         Ok(result)
     }
-    pub fn maybe_upgrade_from_legacy(&self, multirust_dir: &Path) -> Result<()> {
+    pub fn maybe_upgrade_from_legacy(&self, multilean_dir: &Path) -> Result<()> {
         // Data locations
-        let legacy_version_file = multirust_dir.join("version");
+        let legacy_version_file = multilean_dir.join("version");
         if utils::is_file(&legacy_version_file) {
             fn split_override<T: FromStr>(s: &str, separator: char) -> Option<(T, T)> {
                 s.find(separator).and_then(|index| {
@@ -78,9 +78,9 @@ impl SettingsFile {
                 })
             }
 
-            let override_db = multirust_dir.join("overrides");
-            let default_file = multirust_dir.join("default");
-            let telemetry_file = multirust_dir.join("telemetry-on");
+            let override_db = multilean_dir.join("overrides");
+            let default_file = multilean_dir.join("default");
+            let telemetry_file = multilean_dir.join("telemetry-on");
             // Legacy upgrade
             try!(self.with_mut(|s| {
                 s.version = try!(utils::read_file("version", &legacy_version_file))

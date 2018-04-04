@@ -7,7 +7,7 @@ extern crate toml;
 extern crate flate2;
 extern crate tar;
 extern crate url;
-extern crate rustup_utils;
+extern crate elan_utils;
 #[macro_use]
 extern crate error_chain;
 extern crate sha2;

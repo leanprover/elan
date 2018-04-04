@@ -2,12 +2,12 @@
 
 //! Job management (mostly for windows)
 //!
-//! Most of the time when you're running cargo you expect Ctrl-C to actually
+//! Most of the time when you're running leanpkg you expect Ctrl-C to actually
 //! terminate the entire tree of processes in play, not just the one at the top
 //! (cago). This currently works "by default" on Unix platforms because Ctrl-C
 //! actually sends a signal to the *process group* rather than the parent
 //! process, so everything will get torn down. On Windows, however, this does
-//! not happen and Ctrl-C just kills cargo.
+//! not happen and Ctrl-C just kills leanpkg.
 //!
 //! To achieve the same semantics on Windows we use Job Objects to ensure that
 //! all processes die at the same time. Job objects have a mode of operation
@@ -61,7 +61,7 @@ mod imp {
         // intentionally. Job objects are "relatively new" in Windows,
         // particularly the ability to support nested job objects. Older
         // Windows installs don't support this ability. We probably don't want
-        // to force Cargo to abort in this situation or force others to *not*
+        // to force Leanpkg to abort in this situation or force others to *not*
         // use job objects, so we instead just ignore errors and assume that
         // we're otherwise part of someone else's job object in this case.
 

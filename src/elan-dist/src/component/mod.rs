@@ -1,4 +1,4 @@
-/// An interpreter for the rust-installer [1] installation format.
+/// An interpreter for the lean-installer [1] installation format.
 ///
 /// https://github.com/rust-lang/rust-installer
 

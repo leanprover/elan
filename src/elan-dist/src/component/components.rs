@@ -2,7 +2,7 @@
 /// `Components` and `DirectoryPackage` are the two sides of the
 /// installation / uninstallation process.
 
-use rustup_utils::utils;
+use elan_utils::utils;
 use prefix::InstallPrefix;
 use errors::*;
 
@@ -114,7 +114,7 @@ impl<'a> ComponentBuilder<'a> {
         let mut file = try!(self.tx.add_file(&self.name, path));
         for part in self.parts {
             // FIXME: This writes relative paths to the component manifest,
-            // but rust-installer writes absolute paths.
+            // but lean-installer writes absolute paths.
             try!(utils::write_line("component", &mut file, &abs_path, &part.encode()));
         }
 

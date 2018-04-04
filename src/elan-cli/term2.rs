@@ -4,7 +4,7 @@
 
 use std::io;
 use term;
-use rustup_utils::tty;
+use elan_utils::tty;
 use markdown::{Block, Span, ListItem};
 use markdown::tokenize;
 

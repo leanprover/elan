@@ -1,18 +1,18 @@
-//! Rust distribution v2 manifests.
+//! Lean distribution v2 manifests.
 //!
 //! This manifest describes the distributable artifacts for a single
-//! release of Rust. They are toml files, typically downloaded from
-//! e.g. static.rust-lang.org/dist/channel-rust-nightly.toml. They
+//! release of Lean. They are toml files, typically downloaded from
+//! e.g. static.lean-lang.org/dist/channel-lean-nightly.toml. They
 //! describe where to download, for all platforms, each component of
 //! the a release, and their relationships to each other.
 //!
-//! Installers use this info to customize Rust installations.
+//! Installers use this info to customize Lean installations.
 //!
-//! See tests/channel-rust-nightly-example.toml for an example.
+//! See tests/channel-lean-nightly-example.toml for an example.
 
 use errors::*;
 use toml;
-use rustup_utils::toml_utils::*;
+use elan_utils::toml_utils::*;
 
 use std::collections::HashMap;
 use dist::TargetTriple;
@@ -148,8 +148,8 @@ impl Manifest {
             || format!("package not found: '{}'", name).into())
     }
 
-    pub fn get_rust_version(&self) -> Result<&str> {
-        self.get_package("rust").map(|p| &*p.version)
+    pub fn get_lean_version(&self) -> Result<&str> {
+        self.get_package("lean").map(|p| &*p.version)
     }
 
     fn validate_targeted_package(&self, tpkg: &TargetedPackage) -> Result<()> {
