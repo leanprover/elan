@@ -506,11 +506,9 @@ fn current_install_opts(opts: &InstallOpts) -> String {
     format!(
         r"Current installation options:
 
-- ` `default host triple: `{}`
 - `   `default toolchain: `{}`
 - modify PATH variable: `{}`
 ",
-        opts.default_host_triple,
         opts.default_toolchain,
         if !opts.no_modify_path { "yes" } else { "no" }
     )
