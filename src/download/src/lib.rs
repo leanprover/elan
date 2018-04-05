@@ -163,6 +163,9 @@ pub mod curl {
                 let _ = handle.resume_from(0);
             }
 
+            // necessary for accessing Github API
+            handle.useragent("elan");
+
             // Take at most 30s to connect
             try!(handle.connect_timeout(Duration::new(30, 0)).chain_err(|| "failed to set connect timeout"));
 

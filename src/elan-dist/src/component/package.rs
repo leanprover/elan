@@ -10,7 +10,6 @@ use component::components::*;
 use component::transaction::*;
 
 use errors::*;
-use elan_utils::utils;
 use temp;
 
 use std::path::{Path, PathBuf};
@@ -42,24 +41,11 @@ pub struct DirectoryPackage {
 
 impl DirectoryPackage {
     pub fn new(path: PathBuf) -> Result<Self> {
-        try!(validate_installer_version(&path));
-
-        let content = try!(utils::read_file("package components", &path.join("components")));
-        let components = content.lines().map(|l| l.to_owned()).collect();
+        let components = vec!["lean".to_string()].into_iter().collect();
         Ok(DirectoryPackage {
             path: path,
             components: components,
         })
-    }
-}
-
-fn validate_installer_version(path: &Path) -> Result<()> {
-    let file = try!(utils::read_file("installer version", &path.join(VERSION_FILE)));
-    let v = file.trim();
-    if v == INSTALLER_VERSION {
-        Ok(())
-    } else {
-        Err(ErrorKind::BadInstallerVersion(v.to_owned()).into())
     }
 }
 
@@ -75,37 +61,14 @@ impl Package for DirectoryPackage {
     fn install<'a>(&self,
                    target: &Components,
                    name: &str,
-                   short_name: Option<&str>,
+                   _short_name: Option<&str>,
                    tx: Transaction<'a>)
                    -> Result<Transaction<'a>> {
-        let actual_name = if self.components.contains(name) {
-            name
-        } else if let Some(n) = short_name {
-            n
-        } else {
-            name
-        };
+        assert_eq!(name, "lean");
 
-        let root = self.path.join(actual_name);
-
-        let manifest = try!(utils::read_file("package manifest", &root.join("manifest.in")));
         let mut builder = target.add(name, tx);
 
-        for l in manifest.lines() {
-            let part = try!(ComponentPart::decode(l)
-                            .ok_or_else(|| ErrorKind::CorruptComponent(name.to_owned())));
-
-            let path = part.1;
-            let src_path = root.join(&path);
-
-            match &*part.0 {
-                "file" => try!(builder.copy_file(path.clone(), &src_path)),
-                "dir" => try!(builder.copy_dir(path.clone(), &src_path)),
-                _ => return Err(ErrorKind::CorruptComponent(name.to_owned()).into()),
-            }
-
-            try!(set_file_perms(&target.prefix().path().join(path), &src_path));
-        }
+        try!(builder.copy_dir(PathBuf::from("."), &self.path));
 
         let tx = try!(builder.finish());
 
@@ -115,55 +78,6 @@ impl Package for DirectoryPackage {
     fn components(&self) -> Vec<String> {
         self.components.iter().cloned().collect()
     }
-}
-
-// On Unix we need to set up the file permissions correctly so
-// binaries are executable and directories readable. This shouldn't be
-// necessary: the source files *should* have the right permissions,
-// but due to lean-lang/lean#25479 they don't.
-#[cfg(unix)]
-fn set_file_perms(dest_path: &Path, src_path: &Path) -> Result<()> {
-    use std::fs::{self, Metadata};
-    use std::os::unix::fs::PermissionsExt;
-    use walkdir::WalkDir;
-
-    // Compute whether this entry needs the X bit
-    fn needs_x(meta: &Metadata) -> bool {
-        meta.is_dir() || // Directories need it
-        meta.permissions().mode() & 0o700 == 0o700 // If it is rwx for the user, it gets the X bit
-    }
-
-    // By convention, anything in the bin/ directory of the package is a binary
-    let is_bin = if let Some(p) = src_path.parent() {
-        p.ends_with("bin")
-    } else {
-        false
-    };
-
-    let is_dir = utils::is_directory(dest_path);
-
-    if is_dir {
-        // Walk the directory setting everything
-        for entry in WalkDir::new(dest_path) {
-            let entry = try!(entry.chain_err(|| ErrorKind::ComponentDirPermissionsFailed));
-            let meta = try!(entry.metadata().chain_err(|| ErrorKind::ComponentDirPermissionsFailed));
-            let mut perm = meta.permissions();
-            perm.set_mode(if needs_x(&meta) { 0o755 } else { 0o644 });
-            try!(fs::set_permissions(entry.path(), perm).chain_err(|| ErrorKind::ComponentFilePermissionsFailed));
-        }
-    } else {
-        let meta = try!(fs::metadata(dest_path).chain_err(|| ErrorKind::ComponentFilePermissionsFailed));
-        let mut perm = meta.permissions();
-        perm.set_mode(if is_bin || needs_x(&meta) { 0o755 } else { 0o644 });
-        try!(fs::set_permissions(dest_path, perm).chain_err(|| ErrorKind::ComponentFilePermissionsFailed));
-    }
-
-    Ok(())
-}
-
-#[cfg(windows)]
-fn set_file_perms(_dest_path: &Path, _src_path: &Path) -> Result<()> {
-    Ok(())
 }
 
 #[derive(Debug)]

@@ -1,10 +1,9 @@
-use clap::{App, Arg, ArgGroup, AppSettings, SubCommand, ArgMatches, Shell};
+use clap::{App, Arg, AppSettings, SubCommand, ArgMatches, Shell};
 use common;
 use elan::{Cfg, Toolchain, command};
 use elan::settings::TelemetryMode;
 use errors::*;
-use elan_dist::manifest::Component;
-use elan_dist::dist::{TargetTriple, PartialToolchainDesc, PartialTargetTriple};
+use elan_dist::dist::{PartialToolchainDesc, PartialTargetTriple};
 use elan_utils::utils;
 use self_update;
 use std::path::Path;
@@ -22,12 +21,6 @@ pub fn main() -> Result<()> {
     let verbose = matches.is_present("verbose");
     let ref cfg = try!(common::set_globals(verbose));
 
-    if try!(maybe_upgrade_data(cfg, matches)) {
-        return Ok(())
-    }
-
-    try!(cfg.check_metadata_version());
-
     match matches.subcommand() {
         ("show", Some(_)) => try!(show(cfg)),
         ("install", Some(m)) => try!(update(cfg, m)),
@@ -40,22 +33,6 @@ pub fn main() -> Result<()> {
                 ("list", Some(_)) => try!(common::list_toolchains(cfg)),
                 ("link", Some(m)) => try!(toolchain_link(cfg, m)),
                 ("uninstall", Some(m)) => try!(toolchain_remove(cfg, m)),
-                (_, _) => unreachable!(),
-            }
-        }
-        ("target", Some(c)) => {
-            match c.subcommand() {
-                ("list", Some(m)) => try!(target_list(cfg, m)),
-                ("add", Some(m)) => try!(target_add(cfg, m)),
-                ("remove", Some(m)) => try!(target_remove(cfg, m)),
-                (_, _) => unreachable!(),
-            }
-        }
-        ("component", Some(c)) => {
-            match c.subcommand() {
-                ("list", Some(m)) => try!(component_list(cfg, m)),
-                ("add", Some(m)) => try!(component_add(cfg, m)),
-                ("remove", Some(m)) => try!(component_remove(cfg, m)),
                 (_, _) => unreachable!(),
             }
         }
@@ -86,12 +63,12 @@ pub fn main() -> Result<()> {
                 (_, _) => unreachable!(),
             }
         }
-        ("set", Some(c)) => {
+        /*("set", Some(c)) => {
             match c.subcommand() {
                 ("default-host", Some(m)) => try!(set_default_host_triple(&cfg, m)),
                 (_, _) => unreachable!(),
             }
-        }
+        }*/
         ("completions", Some(c)) => {
             if let Some(shell) = c.value_of("shell") {
                 cli().gen_completions_to("elan", shell.parse::<Shell>().unwrap(), &mut io::stdout());
@@ -328,10 +305,8 @@ pub fn cli() -> App<'static, 'static> {
         .subcommand(SubCommand::with_name("uninstall")
             .about("Uninstall elan.")
             .arg(Arg::with_name("no-prompt")
-                    .short("y")))
-        .subcommand(SubCommand::with_name("upgrade-data")
-            .about("Upgrade the internal data format.")))
-    .subcommand(SubCommand::with_name("telemetry")
+                    .short("y"))))
+    /*.subcommand(SubCommand::with_name("telemetry")
         .about("elan telemetry commands")
         .setting(AppSettings::Hidden)
         .setting(AppSettings::VersionlessSubcommands)
@@ -342,35 +317,13 @@ pub fn cli() -> App<'static, 'static> {
         .subcommand(SubCommand::with_name("disable")
                         .about("Disable elan telemetry"))
         .subcommand(SubCommand::with_name("analyze")
-                        .about("Analyze stored telemetry")))
-    .subcommand(SubCommand::with_name("set")
-        .about("Alter elan settings")
-        .setting(AppSettings::SubcommandRequiredElseHelp)
-        .subcommand(SubCommand::with_name("default-host")
-            .about("The triple used to identify toolchains when not specified")
-            .arg(Arg::with_name("host_triple")
-                .required(true))))
+                        .about("Analyze stored telemetry")))*/
     .subcommand(SubCommand::with_name("completions")
         .about("Generate completion scripts for your shell")
         .after_help(COMPLETIONS_HELP)
         .setting(AppSettings::ArgRequiredElseHelp)
         .arg(Arg::with_name("shell")
             .possible_values(&Shell::variants())))
-}
-
-fn maybe_upgrade_data(cfg: &Cfg, m: &ArgMatches) -> Result<bool> {
-    match m.subcommand() {
-        ("self", Some(c)) => {
-            match c.subcommand() {
-                ("upgrade-data", Some(_)) => {
-                    try!(cfg.upgrade_data());
-                    Ok(true)
-                }
-                _ => Ok(false),
-            }
-        }
-        _ => Ok(false)
-    }
 }
 
 fn update_bare_triple_check(cfg: &Cfg, name: &str) -> Result<()> {
@@ -512,16 +465,6 @@ fn which(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 }
 
 fn show(cfg: &Cfg) -> Result<()> {
-    // Print host triple
-    {
-        let mut t = term2::stdout();
-        let _ = t.attr(term2::Attr::Bold);
-        let _ = write!(t, "Default host: ");
-        let _ = t.reset();
-        println!("{}", try!(cfg.get_default_host_triple()));
-        println!("");
-    }
-
     let ref cwd = try!(utils::current_dir());
     let installed_toolchains = try!(cfg.list_toolchains());
     let active_toolchain = cfg.find_override_toolchain_or_default(cwd);
@@ -616,84 +559,6 @@ fn show(cfg: &Cfg) -> Result<()> {
         let _ = writeln!(t, "{}", iter::repeat("-").take(s.len()).collect::<String>());
         let _ = writeln!(t, "");
         let _ = t.reset();
-    }
-
-    Ok(())
-}
-
-fn target_list(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let toolchain = try!(explicit_or_dir_toolchain(cfg, m));
-
-    common::list_targets(&toolchain)
-}
-
-fn target_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let toolchain = try!(explicit_or_dir_toolchain(cfg, m));
-
-    for target in m.values_of("target").expect("") {
-        let new_component = Component {
-            pkg: "lean-std".to_string(),
-            target: Some(TargetTriple::from_str(target)),
-        };
-
-        try!(toolchain.add_component(new_component));
-    }
-
-    Ok(())
-}
-
-fn target_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let toolchain = try!(explicit_or_dir_toolchain(cfg, m));
-
-    for target in m.values_of("target").expect("") {
-        let new_component = Component {
-            pkg: "lean-std".to_string(),
-            target: Some(TargetTriple::from_str(target)),
-        };
-
-        try!(toolchain.remove_component(new_component));
-    }
-
-    Ok(())
-}
-
-fn component_list(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let toolchain = try!(explicit_or_dir_toolchain(cfg, m));
-
-    common::list_components(&toolchain)
-}
-
-fn component_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let toolchain = try!(explicit_or_dir_toolchain(cfg, m));
-    let target = m.value_of("target").map(TargetTriple::from_str).or_else(|| {
-        toolchain.desc().as_ref().ok().map(|desc| desc.target.clone())
-    });
-
-    for component in m.values_of("component").expect("") {
-        let new_component = Component {
-            pkg: component.to_string(),
-            target: target.clone(),
-        };
-
-        try!(toolchain.add_component(new_component));
-    }
-
-    Ok(())
-}
-
-fn component_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let toolchain = try!(explicit_or_dir_toolchain(cfg, m));
-    let target = m.value_of("target").map(TargetTriple::from_str).or_else(|| {
-        toolchain.desc().as_ref().ok().map(|desc| desc.target.clone())
-    });
-
-    for component in m.values_of("component").expect("") {
-        let new_component = Component {
-            pkg: component.to_string(),
-            target: target.clone(),
-        };
-
-        try!(toolchain.remove_component(new_component));
     }
 
     Ok(())
@@ -831,9 +696,4 @@ fn set_telemetry(cfg: &Cfg, t: TelemetryMode) -> Result<()> {
 fn analyze_telemetry(cfg: &Cfg) -> Result<()> {
     let analysis = try!(cfg.analyze_telemetry());
     common::show_telemetry(analysis)
-}
-
-fn set_default_host_triple(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    try!(cfg.set_default_host_triple(m.value_of("host_triple").expect("")));
-    Ok(())
 }

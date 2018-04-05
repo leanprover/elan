@@ -158,6 +158,7 @@ pub fn download_file_with_resume(url: &Url,
     match download_file_(url, path, hasher, resume_from_partial, notify_handler) {
         Ok(_) => Ok(()),
         Err(e) => {
+            println!("{:?}", e);
             let is_client_error = match e.kind() {
                 &ErrorKind::Download(DEK::HttpStatus(400 ... 499)) => true,
                 &ErrorKind::Download(DEK::FileNotFound) => true,

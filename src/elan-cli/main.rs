@@ -58,7 +58,6 @@ mod help;
 use std::env;
 use std::path::PathBuf;
 use errors::*;
-use elan_dist::dist::TargetTriple;
 use elan::env_var::LEAN_RECURSION_COUNT_MAX;
 
 fn main() {

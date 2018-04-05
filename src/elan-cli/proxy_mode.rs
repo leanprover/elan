@@ -40,7 +40,6 @@ pub fn main() -> Result<()> {
     };
 
     let cfg = try!(set_globals(false));
-    try!(cfg.check_metadata_version());
     try!(direct_proxy(&cfg, arg0, toolchain, &cmd_args));
 
     Ok(())

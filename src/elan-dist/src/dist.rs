@@ -1,24 +1,20 @@
 
 use temp;
 use errors::*;
-use notifications::*;
 use elan_utils::{self, utils};
 use prefix::InstallPrefix;
 use manifest::Component;
-use manifest::Manifest as ManifestV2;
-use manifestation::{Manifestation, UpdateStatus, Changes};
+use manifestation::{Manifestation};
 use download::{DownloadCfg};
 
 use std::path::Path;
 use std::fmt;
 use std::env;
 
+use json;
 use regex::Regex;
 
 pub const DEFAULT_DIST_SERVER: &'static str = "https://static.lean-lang.org";
-
-// Deprecated
-pub const DEFAULT_DIST_ROOT: &'static str = "https://static.lean-lang.org/dist";
 
 // A toolchain descriptor from elan's perspective. These contain
 // 'partial target triples', which allow toolchain names like
@@ -27,7 +23,7 @@ pub const DEFAULT_DIST_ROOT: &'static str = "https://static.lean-lang.org/dist";
 // are nearly-arbitrary strings.
 #[derive(Debug, Clone)]
 pub struct PartialToolchainDesc {
-    // Either "nightly", "stable", "beta", or an explicit version number
+    // Either "nightly", "stable", or an explicit version number
     pub channel: String,
     pub date: Option<String>,
     pub target: PartialTargetTriple,
@@ -45,14 +41,14 @@ pub struct PartialTargetTriple {
 // such as naming their installation directory.
 #[derive(Debug, Clone)]
 pub struct ToolchainDesc {
-    // Either "nightly", "stable", "beta", or an explicit version number
+    // Either "nightly", "stable", or an explicit version number
     pub channel: String,
     pub date: Option<String>,
     pub target: TargetTriple,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct TargetTriple(String);
+pub struct TargetTriple(pub String);
 
 // These lists contain the targets known to elan, and used to build
 // the PartialTargetTriple.
@@ -240,7 +236,7 @@ impl PartialTargetTriple {
 impl PartialToolchainDesc {
     pub fn from_str(name: &str) -> Result<Self> {
         let channels =
-            ["nightly", "beta", "stable", r"\d{1}\.\d{1}\.\d{1}", r"\d{1}\.\d{2}\.\d{1}"];
+            ["nightly", "stable", r"\d{1}\.\d{1}\.\d{1}", r"\d{1}\.\d{2}\.\d{1}"];
 
         let pattern = format!(r"^({})(?:-(\d{{4}}-\d{{2}}-\d{{2}}))?(?:-(.*))?$",
                               channels.join("|"));
@@ -312,7 +308,7 @@ impl PartialToolchainDesc {
 impl ToolchainDesc {
     pub fn from_str(name: &str) -> Result<Self> {
         let channels =
-            ["nightly", "beta", "stable", r"\d{1}\.\d{1}\.\d{1}", r"\d{1}\.\d{2}\.\d{1}"];
+            ["nightly", "stable", r"\d{1}\.\d{1}\.\d{1}", r"\d{1}\.\d{2}\.\d{1}"];
 
         let pattern = format!(
             r"^({})(?:-(\d{{4}}-\d{{2}}-\d{{2}}))?-(.*)?$",
@@ -339,19 +335,20 @@ impl ToolchainDesc {
             .ok_or(ErrorKind::InvalidToolchainName(name.to_string()).into())
     }
 
-    pub fn manifest_v1_url(&self, dist_root: &str) -> String {
-        let do_manifest_staging = env::var("ELAN_STAGED_MANIFEST").is_ok();
-        match (self.date.as_ref(), do_manifest_staging) {
-            (None, false) => format!("{}/channel-lean-{}", dist_root, self.channel),
-            (Some(date), false) => format!("{}/{}/channel-lean-{}", dist_root, date, self.channel),
-            (None, true) => format!("{}/staging/channel-lean-{}", dist_root, self.channel),
-            (Some(_), true) => panic!("not a real-world case"),
+    pub fn manifest_v1_url(&self, _dist_root: &str) -> String {
+        match (self.channel.as_str(), self.date.as_ref()) {
+            ("stable", None) => "https://api.github.com/repos/leanprover/lean/releases/latest".to_string(),
+            // HACK: prereleases don't have "/latest"
+            ("nightly", None) => "https://api.github.com/repos/leanprover/lean-nightly/releases".to_string(),
+            ("nightly", Some(date)) =>
+                format!("https://api.github.com/repos/leanprover/lean-nightly/releases/tags/nightly-{}",
+                        date),
+            (version, None) => format!("https://api.github.com/repos/leanprover/lean/releases/tags/v{}",
+                                    version),
+            _ => panic!("wat"),
         }
     }
 
-    pub fn manifest_v2_url(&self, dist_root: &str) -> String {
-        format!("{}.toml", self.manifest_v1_url(dist_root))
-    }
     /// Either "$channel" or "channel-$date"
     pub fn manifest_name(&self) -> String {
         match self.date {
@@ -376,7 +373,7 @@ impl ToolchainDesc {
     }
 
     pub fn is_tracking(&self) -> bool {
-        let channels = ["nightly", "beta", "stable"];
+        let channels = ["nightly", "stable"];
         channels.iter().any(|x| *x == self.channel) && self.date.is_none()
     }
 }
@@ -490,45 +487,14 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
                              update_hash: Option<&Path>,
                              toolchain: &ToolchainDesc,
                              prefix: &InstallPrefix,
-                             add: &[Component],
-                             remove: &[Component],
-                             force_update: bool)
+                             _add: &[Component],
+                             _remove: &[Component],
+                             _force_update: bool)
                              -> Result<Option<String>> {
 
     let toolchain_str = toolchain.to_string();
     let manifestation = try!(Manifestation::open(prefix.clone(), toolchain.target.clone()));
 
-    let changes = Changes {
-        add_extensions: add.to_owned(),
-        remove_extensions: remove.to_owned(),
-    };
-
-    // TODO: Add a notification about which manifest version is going to be used
-    (download.notify_handler)(Notification::DownloadingManifest(&toolchain_str));
-    match dl_v2_manifest(download, update_hash, toolchain) {
-        Ok(Some((m, hash))) => {
-            (download.notify_handler)(Notification::DownloadedManifest(&m.date, m.get_lean_version().ok()));
-            return match try!(manifestation.update(&m,
-                                                   changes,
-                                                   force_update,
-                                                   &download,
-                                                   download.notify_handler.clone())) {
-                UpdateStatus::Unchanged => Ok(None),
-                UpdateStatus::Changed => Ok(Some(hash)),
-            }
-        }
-        Ok(None) => return Ok(None),
-        Err(Error(ErrorKind::Utils(::elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
-            // Proceed to try v1 as a fallback
-            (download.notify_handler)(Notification::DownloadingLegacyManifest);
-        }
-        Err(Error(ErrorKind::ChecksumFailed { .. }, _)) => {
-            return Ok(None)
-        }
-        Err(e) => return Err(e),
-    }
-
-    // If the v2 manifest is not found then try v1
     let manifest = match dl_v1_manifest(download, toolchain) {
         Ok(m) => m,
         Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
@@ -560,55 +526,18 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
     }
 }
 
-fn dl_v2_manifest<'a>(download: DownloadCfg<'a>,
-                      update_hash: Option<&Path>,
-                      toolchain: &ToolchainDesc)
-                      -> Result<Option<(ManifestV2, String)>> {
-    let manifest_url = toolchain.manifest_v2_url(download.dist_root);
-    let manifest_dl_res = download.download_and_check(&manifest_url, update_hash, ".toml");
-
-    if let Ok(manifest_dl) = manifest_dl_res {
-        // Downloaded ok!
-        let (manifest_file, manifest_hash) = if let Some(m) = manifest_dl {
-            m
-        } else {
-            return Ok(None);
-        };
-        let manifest_str = try!(utils::read_file("manifest", &manifest_file));
-        let manifest = try!(ManifestV2::parse(&manifest_str));
-
-        Ok(Some((manifest, manifest_hash)))
-    } else {
-        match *manifest_dl_res.as_ref().unwrap_err().kind() {
-            // Checksum failed - issue warning to try again later
-            ErrorKind::ChecksumFailed { .. } => {
-                (download.notify_handler)(Notification::ManifestChecksumFailedHack)
-            }
-            _ => {}
-        }
-        Err(manifest_dl_res.unwrap_err())
-    }
-
-}
-
 fn dl_v1_manifest<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Result<Vec<String>> {
-    let root_url = toolchain.package_dir(download.dist_root);
-
-    if !["nightly", "beta", "stable"].contains(&&*toolchain.channel) {
-        // This is an explicit version. In v1 there was no manifest,
-        // you just know the file to download, so synthesize one.
-        let installer_name = format!("{}/lean-{}-{}.tar.gz",
-                                     root_url,
-                                     toolchain.channel,
-                                     toolchain.target);
-        return Ok(vec![installer_name]);
-    }
-
     let manifest_url = toolchain.manifest_v1_url(download.dist_root);
     let manifest_dl = try!(download.download_and_check(&manifest_url, None, ""));
     let (manifest_file, _) = manifest_dl.unwrap();
     let manifest_str = try!(utils::read_file("manifest", &manifest_file));
-    let urls = manifest_str.lines().map(|s| format!("{}/{}", root_url, s)).collect();
+    let mut man_json = json::parse(&manifest_str).expect("failed to parse manifest");
+    if toolchain.channel == "nightly" && toolchain.date.is_none() {
+        // HACK: no "/latest" for prereleases
+        man_json = man_json[0].take();
+    };
+    let urls = man_json["assets"].members().map(|j|
+        j["browser_download_url"].as_str().unwrap().to_string()).collect();
 
     Ok(urls)
 }

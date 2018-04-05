@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::fs;
 use std::ops;
 
-const UPDATE_HASH_LEN: usize = 20;
+const _UPDATE_HASH_LEN: usize = 20;
 
 #[derive(Copy, Clone)]
 pub struct DownloadCfg<'a> {
@@ -100,7 +100,7 @@ impl<'a> DownloadCfg<'a> {
         Ok(())
     }
 
-    fn download_hash(&self, url: &str) -> Result<String> {
+    fn _download_hash(&self, url: &str) -> Result<String> {
         let hash_url = try!(utils::parse_url(&(url.to_owned() + ".sha256")));
         let hash_file = try!(self.temp_cfg.new_file());
 
@@ -117,11 +117,11 @@ impl<'a> DownloadCfg<'a> {
     /// and if they match, the download is skipped. 
     pub fn download_and_check(&self,
                                 url_str: &str,
-                                update_hash: Option<&Path>,
+                                _update_hash: Option<&Path>,
                                 ext: &str)
                                 -> Result<Option<(temp::File<'a>, String)>> {
-        let hash = try!(self.download_hash(url_str));
-        let partial_hash: String = hash.chars().take(UPDATE_HASH_LEN).collect();
+        /*let hash = try!(self.download_hash(url_str));
+        /let partial_hash: String = hash.chars().take(UPDATE_HASH_LEN).collect();
 
         if let Some(hash_file) = update_hash {
             
@@ -137,7 +137,7 @@ impl<'a> DownloadCfg<'a> {
             } else {
                 (self.notify_handler)(Notification::NoUpdateHash(hash_file));
             }
-        }
+        }*/
 
         let url = try!(utils::parse_url(url_str));
         let file = try!(self.temp_cfg.new_file_with_ext("", ext));
@@ -149,7 +149,7 @@ impl<'a> DownloadCfg<'a> {
                                 &|n| (self.notify_handler)(n.into())));
         let actual_hash = format!("{:x}", hasher.result());
 
-        if hash != actual_hash {
+        /*if hash != actual_hash {
             // Incorrect hash
             return Err(ErrorKind::ChecksumFailed {
                     url: url_str.to_owned(),
@@ -159,11 +159,11 @@ impl<'a> DownloadCfg<'a> {
                 .into());
         } else {
             (self.notify_handler)(Notification::ChecksumValid(url_str));
-        }
+        }*/
 
         // TODO: Check the signature of the file
 
-        Ok(Some((file, partial_hash)))
+        Ok(Some((file, actual_hash)))
     }
 }
 

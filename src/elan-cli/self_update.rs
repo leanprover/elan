@@ -296,7 +296,7 @@ pub fn install(no_prompt: bool, verbose: bool,
     Ok(())
 }
 
-fn lean_or_leanpkg_exists_in_path() -> Result<()> {
+fn _lean_or_leanpkg_exists_in_path() -> Result<()> {
     // Ignore lean and leanpkg if present in $HOME/.leanpkg/bin or a few other directories
     fn ignore_paths(path: &PathBuf) -> bool {
         !path.components().any(|c| c == Component::Normal(".leanpkg".as_ref())) &&
@@ -318,7 +318,7 @@ fn lean_or_leanpkg_exists_in_path() -> Result<()> {
     Ok(())
 }
 
-fn check_existence_of_lean_or_leanpkg_in_path(no_prompt: bool) -> Result<()> {
+fn _check_existence_of_lean_or_leanpkg_in_path(no_prompt: bool) -> Result<()> {
     // Only the test runner should set this
     let skip_check = env::var_os("ELAN_INIT_SKIP_PATH_CHECK");
 
@@ -327,7 +327,7 @@ fn check_existence_of_lean_or_leanpkg_in_path(no_prompt: bool) -> Result<()> {
         return Ok(());
     }
 
-    if let Err(path) = lean_or_leanpkg_exists_in_path() {
+    if let Err(path) = _lean_or_leanpkg_exists_in_path() {
         err!("it looks like you have an existing installation of Lean at:");
         err!("{}", path);
         err!("elan cannot be installed alongside Lean. Please uninstall first");

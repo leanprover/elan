@@ -306,12 +306,14 @@ impl Manifestation {
                      update_hash: Option<&Path>,
                      temp_cfg: &temp::Cfg,
                      notify_handler: &Fn(Notification)) -> Result<Option<String>> {
-        // If there's already a v2 installation then something has gone wrong
-        if try!(self.read_config()).is_some() {
-            return Err("the server unexpectedly provided an obsolete version of the distribution manifest".into());
-        }
-
-        let url = new_manifest.iter().find(|u| u.contains(&format!("{}{}", self.target_triple, ".tar.gz")));
+        let informal_target = match self.target_triple.0.as_str() {
+            "x86_64-unknown-linux-gnu" => Some("linux"),
+            "x86_64-apple-darwin" => Some("darwin"),
+            "x86_64-pc-windows" => Some("windows"),
+            _ => None,
+        };
+        let url = new_manifest.iter().find(|u|
+            informal_target.map(|t| u.contains(t)).unwrap_or(false));
         if url.is_none() {
             return Err(format!("binary package was not provided for '{}'",
                                self.target_triple.to_string()).into());

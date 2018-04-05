@@ -143,7 +143,7 @@ r"DISCUSSION:
 
         $ elan run nightly leanpkg build";
 
-pub static DOC_HELP: &'static str =
+pub static _DOC_HELP: &'static str =
 r"DISCUSSION:
     Opens the documentation for the currently active toolchain with
     the default browser.

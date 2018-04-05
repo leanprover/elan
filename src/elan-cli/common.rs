@@ -270,48 +270,6 @@ pub fn lean_version(toolchain: &Toolchain) -> String {
     }
 }
 
-pub fn list_targets(toolchain: &Toolchain) -> Result<()> {
-    let mut t = term2::stdout();
-    for component in try!(toolchain.list_components()) {
-        if component.component.pkg == "lean-std" {
-            let target = component.component.target.as_ref().expect("lean-std should have a target");
-            if component.required {
-                let _ = t.attr(term2::Attr::Bold);
-                let _ = writeln!(t, "{} (default)", target);
-                let _ = t.reset();
-            } else if component.installed {
-                let _ = t.attr(term2::Attr::Bold);
-                let _ = writeln!(t, "{} (installed)", target);
-                let _ = t.reset();
-            } else if component.available {
-                let _ = writeln!(t, "{}", target);
-            }
-        }
-    }
-
-    Ok(())
-}
-
-pub fn list_components(toolchain: &Toolchain) -> Result<()> {
-    let mut t = term2::stdout();
-    for component in try!(toolchain.list_components()) {
-        let name = component.component.name();
-        if component.required {
-            let _ = t.attr(term2::Attr::Bold);
-            let _ = writeln!(t, "{} (default)", name);
-            let _ = t.reset();
-        } else if component.installed {
-            let _ = t.attr(term2::Attr::Bold);
-            let _ = writeln!(t, "{} (installed)", name);
-            let _ = t.reset();
-        } else if component.available {
-            let _ = writeln!(t, "{}", name);
-        }
-    }
-
-    Ok(())
-}
-
 pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
     let toolchains = try!(cfg.list_toolchains());
 

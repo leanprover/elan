@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::borrow::Cow;
 use std::env;
 use std::io;
 use std::process::Command;
@@ -12,7 +11,7 @@ use elan_dist::{temp, dist};
 use elan_utils::utils;
 use toolchain::{Toolchain, UpdateStatus};
 use telemetry_analysis::*;
-use settings::{TelemetryMode, SettingsFile, Settings, DEFAULT_METADATA_VERSION};
+use settings::{TelemetryMode, SettingsFile, Settings};
 
 #[derive(Debug)]
 pub enum OverrideReason {
@@ -58,8 +57,6 @@ impl Cfg {
                                       &|n| notify_handler(n.into())));
 
         let settings_file = SettingsFile::new(elan_dir.join("settings.toml"));
-        // Convert from old settings format if necessary
-        try!(settings_file.maybe_upgrade_from_legacy(&elan_dir));
 
         let toolchains_dir = elan_dir.join("toolchains");
         let update_hash_dir = elan_dir.join("update-hashes");
@@ -78,21 +75,8 @@ impl Cfg {
                                .ok()
                                .and_then(utils::if_not_empty);
 
-        let dist_root_server = match env::var("ELAN_DIST_SERVER") {
-            Ok(ref s) if !s.is_empty() => {
-                s.clone()
-            }
-            _ => {
-                // For backward compatibility
-                env::var("ELAN_DIST_ROOT")
-                    .ok()
-                    .and_then(utils::if_not_empty)
-                    .map_or(Cow::Borrowed(dist::DEFAULT_DIST_ROOT), Cow::Owned)
-                    .as_ref()
-                    .trim_right_matches("/dist")
-                    .to_owned()
-            }
-        };
+        let dist_root_server = env::var("ELAN_DIST_SERVER")
+            .unwrap_or_else(|_| String::from(dist::DEFAULT_DIST_SERVER));
 
         let notify_clone = notify_handler.clone();
         let temp_cfg = temp::Cfg::new(elan_dir.join("tmp"),
@@ -158,56 +142,6 @@ impl Cfg {
             Ok(Some(toolchain.binary_file(binary)))
         } else {
             Ok(None)
-        }
-    }
-
-    pub fn upgrade_data(&self) -> Result<()> {
-
-        let current_version = try!(self.settings_file.with(|s| Ok(s.version.clone())));
-
-        if current_version == DEFAULT_METADATA_VERSION {
-            (self.notify_handler)
-                (Notification::MetadataUpgradeNotNeeded(&current_version));
-            return Ok(());
-        }
-
-        (self.notify_handler)
-            (Notification::UpgradingMetadata(&current_version, DEFAULT_METADATA_VERSION));
-
-        match &*current_version {
-            "2" => {
-                // The toolchain installation format changed. Just delete them all.
-                (self.notify_handler)(Notification::UpgradeRemovesToolchains);
-
-                let dirs = try!(utils::read_dir("toolchains", &self.toolchains_dir));
-                for dir in dirs {
-                    let dir = try!(dir.chain_err(|| ErrorKind::UpgradeIoError));
-                    try!(utils::remove_dir("toolchain", &dir.path(),
-                                           &|n| (self.notify_handler)(n.into())));
-                }
-
-                // Also delete the update hashes
-                let files = try!(utils::read_dir("update hashes", &self.update_hash_dir));
-                for file in files {
-                    let file = try!(file.chain_err(|| ErrorKind::UpgradeIoError));
-                    try!(utils::remove_file("update hash", &file.path()));
-                }
-
-                self.settings_file.with_mut(|s| {
-                    s.version = DEFAULT_METADATA_VERSION.to_owned();
-                    Ok(())
-                })
-            }
-            _ => Err(ErrorKind::UnknownMetadataVersion(current_version).into()),
-        }
-    }
-
-    pub fn delete_data(&self) -> Result<()> {
-        if utils::path_exists(&self.elan_dir) {
-            Ok(try!(utils::remove_dir("home", &self.elan_dir,
-                                      &|n| (self.notify_handler)(n.into()))))
-        } else {
-            Ok(())
         }
     }
 
@@ -380,19 +314,6 @@ impl Cfg {
         Ok(toolchains.collect())
     }
 
-    pub fn check_metadata_version(&self) -> Result<()> {
-        try!(utils::assert_is_directory(&self.elan_dir));
-
-        self.settings_file.with(|s| {
-            (self.notify_handler)(Notification::ReadMetadataVersion(&s.version));
-            if s.version == DEFAULT_METADATA_VERSION {
-                Ok(())
-            } else {
-                Err(ErrorKind::NeedMetadataUpgrade.into())
-            }
-        })
-    }
-
     pub fn toolchain_for_dir(&self, path: &Path) -> Result<(Toolchain, Option<OverrideReason>)> {
         self.find_override_toolchain_or_default(path)
             .and_then(|r| r.ok_or("no default toolchain configured".into()))
@@ -401,11 +322,7 @@ impl Cfg {
     pub fn create_command_for_dir(&self, path: &Path, binary: &str) -> Result<Command> {
         let (ref toolchain, _) = try!(self.toolchain_for_dir(path));
 
-        if let Some(cmd) = try!(self.maybe_do_leanpkg_fallback(toolchain, binary)) {
-            Ok(cmd)
-        } else {
-            toolchain.create_command(binary)
-        }
+        toolchain.create_command(binary)
     }
 
     pub fn create_command_for_toolchain(&self, toolchain: &str, install_if_missing: bool,
@@ -415,40 +332,7 @@ impl Cfg {
             try!(toolchain.install_from_dist(false));
         }
 
-        if let Some(cmd) = try!(self.maybe_do_leanpkg_fallback(toolchain, binary)) {
-            Ok(cmd)
-        } else {
-            toolchain.create_command(binary)
-        }
-    }
-
-    // Custom toolchains don't have leanpkg, so here we detect that situation and
-    // try to find a different leanpkg.
-    fn maybe_do_leanpkg_fallback(&self, toolchain: &Toolchain, binary: &str) -> Result<Option<Command>> {
-        if !toolchain.is_custom() {
-            return Ok(None);
-        }
-
-        if binary != "leanpkg" && binary != "leanpkg.exe" {
-            return Ok(None);
-        }
-
-        let leanpkg_path = toolchain.path().join("bin/leanpkg");
-        let leanpkg_exe_path = toolchain.path().join("bin/leanpkg.exe");
-
-        if leanpkg_path.exists() || leanpkg_exe_path.exists() {
-            return Ok(None);
-        }
-
-        for fallback in &["nightly", "beta", "stable"] {
-            let fallback = try!(self.get_toolchain(fallback, false));
-            if fallback.exists() {
-                let cmd = try!(fallback.create_fallback_command("leanpkg", toolchain));
-                return Ok(Some(cmd));
-            }
-        }
-
-        Ok(None)
+        toolchain.create_command(binary)
     }
 
     pub fn doc_path_for_dir(&self, path: &Path, relative: &str) -> Result<PathBuf> {
