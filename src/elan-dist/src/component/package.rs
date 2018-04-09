@@ -68,7 +68,14 @@ impl Package for DirectoryPackage {
 
         let mut builder = target.add(name, tx);
 
-        try!(builder.copy_dir(PathBuf::from("."), &self.path));
+        for entry in ::std::fs::read_dir(&self.path)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                builder.copy_dir(entry.path().strip_prefix(&self.path).unwrap().to_path_buf(), &self.path.join(entry.path()))?
+            } else {
+                builder.copy_file(entry.path().strip_prefix(&self.path).unwrap().to_path_buf(), &self.path.join(entry.path()))?
+            }
+        }
 
         let tx = try!(builder.finish());
 
