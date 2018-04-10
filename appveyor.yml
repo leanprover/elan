@@ -47,7 +47,8 @@ before_deploy:
 
 deploy:
   artifact: /.*\.zip/
-  auth_token: $GH_TOKEN
+  auth_token:
+    secure: p4wD/l3d9rMUbpM6+UDZ0VVxZXKCDKYGIrc+m79pELoy9P1bVSmsw5R/CNwDENKs
   description: ''
   on:
     RUST_VERSION: stable
