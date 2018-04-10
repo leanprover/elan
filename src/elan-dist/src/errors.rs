@@ -48,7 +48,7 @@ error_chain! {
             path: PathBuf,
         } {
             description("missing file in component")
-            display("failure removing component '{}', directory does not exist: '{:?}'",
+            display("failure removing component '{}', file does not exist: '{:?}'",
                     name,
                     path)
         }

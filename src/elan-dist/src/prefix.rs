@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-const REL_MANIFEST_DIR: &'static str = "lib/leanlib";
+const REL_MANIFEST_DIR: &'static str = ".";
 
 #[derive(Clone, Debug)]
 pub struct InstallPrefix {
