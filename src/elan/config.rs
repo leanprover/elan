@@ -13,6 +13,8 @@ use toolchain::{Toolchain, UpdateStatus};
 use telemetry_analysis::*;
 use settings::{TelemetryMode, SettingsFile, Settings};
 
+use toml;
+
 #[derive(Debug)]
 pub enum OverrideReason {
     Environment,
@@ -236,6 +238,23 @@ impl Cfg {
             let toolchain_file = d.join("lean-toolchain");
             if let Ok(s) = utils::read_file("toolchain file", &toolchain_file) {
                 if let Some(s) = s.lines().next() {
+                    let toolchain_name = s.trim();
+                    dist::validate_channel_name(&toolchain_name)
+                        .chain_err(|| format!("invalid channel name '{}' in '{}'",
+                                              toolchain_name,
+                                              toolchain_file.display()))?;
+
+                    let reason = OverrideReason::ToolchainFile(toolchain_file);
+                    return Ok(Some((toolchain_name.to_string(), reason)));
+                }
+            }
+
+            // Then look for 'leanpkg.toml'
+            let toolchain_file = d.join("leanpkg.toml");
+            if let Ok(s) = utils::read_file("leanpkg.toml", &toolchain_file) {
+                // TODO(Sebastian): better error handling, override reason
+                let toml = s.parse::<toml::Value>().unwrap();
+                if let Some(s) = toml["package"]["lean_version"].as_str() {
                     let toolchain_name = s.trim();
                     dist::validate_channel_name(&toolchain_name)
                         .chain_err(|| format!("invalid channel name '{}' in '{}'",
