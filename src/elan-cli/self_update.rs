@@ -16,7 +16,7 @@
 //! During upgrade (`elan self upgrade`):
 //!
 //! * download elan-init to $ELAN_HOME/bin/elan-init
-//! * run leanu-init with appropriate flags to indicate
+//! * run elan-init with appropriate flags to indicate
 //!   this is a self-upgrade
 //! * elan-init copies bins and hardlinks into place. On windows
 //!   this happens *after* the upgrade command exits successfully.

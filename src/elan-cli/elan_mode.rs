@@ -469,32 +469,12 @@ fn show(cfg: &Cfg) -> Result<()> {
     let installed_toolchains = try!(cfg.list_toolchains());
     let active_toolchain = cfg.find_override_toolchain_or_default(cwd);
 
-    // active_toolchain will carry the reason we don't have one in its detail.
-    let active_targets = if let Ok(ref at) = active_toolchain {
-        if let Some((ref t, _)) = *at {
-            match t.list_components() {
-                Ok(cs_vec) => cs_vec
-                    .into_iter()
-                    .filter(|c| c.component.pkg == "lean-std")
-                    .filter(|c| c.installed)
-                    .collect(),
-                Err(_) => vec![]
-            }
-        } else {
-            vec![]
-        }
-    } else {
-        vec![]
-    };
-
     let show_installed_toolchains = installed_toolchains.len() > 1;
-    let show_active_targets = active_targets.len() > 1;
     let show_active_toolchain = true;
 
     // Only need to display headers if we have multiple sections
     let show_headers = [
         show_installed_toolchains,
-        show_active_targets,
         show_active_toolchain
     ].iter().filter(|x| **x).count() > 1;
 
@@ -507,16 +487,6 @@ fn show(cfg: &Cfg) -> Result<()> {
             } else {
                 println!("{}", t);
             }
-        }
-        if show_headers { println!("") };
-    }
-
-    if show_active_targets {
-        if show_headers {
-            print_header("installed targets for active toolchain");
-        }
-        for t in active_targets {
-            println!("{}", t.component.target.as_ref().expect("lean-std should have a target"));
         }
         if show_headers { println!("") };
     }
