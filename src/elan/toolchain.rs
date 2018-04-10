@@ -280,9 +280,6 @@ impl<'a> Toolchain<'a> {
 
         let mut pathbuf = PathBuf::from(src);
 
-        pathbuf.push("lib");
-        try!(utils::assert_is_directory(&pathbuf));
-        pathbuf.pop();
         pathbuf.push("bin");
         try!(utils::assert_is_directory(&pathbuf));
         pathbuf.push(format!("lean{}", EXE_SUFFIX));
