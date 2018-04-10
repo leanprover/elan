@@ -200,7 +200,6 @@ fn canonical_elan_home() -> Result<String> {
 pub fn install(no_prompt: bool, verbose: bool,
                mut opts: InstallOpts) -> Result<()> {
 
-    try!(do_pre_install_sanity_checks());
     //try!(check_existence_of_lean_or_leanpkg_in_path(no_prompt));
     try!(do_anti_sudo_check(no_prompt));
 
@@ -336,82 +335,6 @@ fn _check_existence_of_lean_or_leanpkg_in_path(no_prompt: bool) -> Result<()> {
     } else {
         Ok(())
     }
-}
-
-fn do_pre_install_sanity_checks() -> Result<()> {
-    let multilean_manifest_path
-        = PathBuf::from("/usr/local/lib/leanlib/manifest-multilean");
-    let lean_manifest_path
-        = PathBuf::from("/usr/local/lib/leanlib/manifest-lean");
-    let uninstaller_path
-        = PathBuf::from("/usr/local/lib/leanlib/uninstall.sh");
-    let multilean_meta_path
-        = env::home_dir().map(|d| d.join(".multilean"));
-    let multilean_version_path
-        = multilean_meta_path.as_ref().map(|p| p.join("version"));
-    let elan_sh_path
-        = env::home_dir().map(|d| d.join(".elan"));
-    let elan_sh_version_path = elan_sh_path.as_ref().map(|p| p.join("elan-version"));
-
-    let multilean_exists =
-        multilean_manifest_path.exists() && uninstaller_path.exists();
-    let lean_exists =
-        lean_manifest_path.exists() && uninstaller_path.exists();
-    let elan_sh_exists =
-        elan_sh_version_path.map(|p| p.exists()) == Some(true);
-    let old_multilean_meta_exists = if let Some(ref multilean_version_path) = multilean_version_path {
-        multilean_version_path.exists() && {
-            let version = utils::read_file("old-multilean", multilean_version_path);
-            let version = version.unwrap_or(String::new());
-            let version = version.parse().unwrap_or(0);
-            let cutoff_version = 12; // First elan version
-
-            version < cutoff_version
-        }
-    } else {
-        false
-    };
-
-    match (multilean_exists, old_multilean_meta_exists) {
-        (true, false) => {
-            warn!("it looks like you have an existing installation of multilean");
-            warn!("elan cannot be installed alongside multilean");
-            warn!("run `{}` as root to uninstall multilean before installing elan", uninstaller_path.display());
-            return Err("cannot install while multilean is installed".into());
-        }
-        (false, true) => {
-            warn!("it looks like you have existing multilean metadata");
-            warn!("elan cannot be installed alongside multilean");
-            warn!("delete `{}` before installing elan", multilean_meta_path.expect("").display());
-            return Err("cannot install while multilean is installed".into());
-        }
-        (true, true) => {
-            warn!("it looks like you have an existing installation of multilean");
-            warn!("elan cannot be installed alongside multilean");
-            warn!("run `{}` as root and delete `{}` before installing elan", uninstaller_path.display(), multilean_meta_path.expect("").display());
-            return Err("cannot install while multilean is installed".into());
-        }
-        (false, false) => ()
-    }
-
-    if lean_exists {
-        warn!("it looks like you have an existing installation of Lean");
-        warn!("elan cannot be installed alongside Lean. Please uninstall first");
-        warn!("run `{}` as root to uninstall Lean", uninstaller_path.display());
-        return Err("cannot install while Lean is installed".into());
-    }
-
-    if elan_sh_exists {
-        warn!("it looks like you have existing elan.sh metadata");
-        warn!("elan cannot be installed while elan.sh metadata exists");
-        warn!("delete `{}` to remove elan.sh", elan_sh_path.expect("").display());
-        warn!("or, if you already elan installed, you can run");
-        warn!("`elan self update` and `elan toolchain list` to upgrade");
-        warn!("your directory structure");
-        return Err("cannot install while elan.sh is installed".into());
-    }
-
-    Ok(())
 }
 
 // If the user is trying to install with sudo, on some systems this will
