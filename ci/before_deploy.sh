@@ -17,10 +17,8 @@ main() {
 
     test -f Cargo.lock || cargo generate-lockfile
 
-    # TODO Update this to build the artifacts that matter to you
-    cross rustc --bin elan-init --target $TARGET --release -- -C lto
+    cargo rustc --bin elan-init --target $TARGET --release -- -C lto
 
-    # TODO Update this to package the right artifacts
     cp target/$TARGET/release/elan-init $stage/
 
     cd $stage
