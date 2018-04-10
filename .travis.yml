@@ -95,7 +95,7 @@ before_deploy:
 
 deploy:
   api_key: $GH_TOKEN
-  file: $CRATE_NAME-$TRAVIS_TAG-$TARGET.*
+  file: $CRATE_NAME-$TARGET.*
   on:
     condition: $TRAVIS_RUST_VERSION = stable
     tags: true
