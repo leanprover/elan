@@ -95,7 +95,8 @@ before_deploy:
 
 deploy:
   api_key: $GH_TOKEN
-  file: $CRATE_NAME-$TARGET.*
+  file_glob: true
+  file: "*.tar.gz"
   on:
     condition: $TRAVIS_RUST_VERSION = stable
     tags: true
