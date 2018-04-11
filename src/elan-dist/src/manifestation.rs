@@ -11,7 +11,6 @@ use notifications::*;
 use elan_utils::utils;
 use download::{DownloadCfg, File};
 use prefix::InstallPrefix;
-use std::path::Path;
 
 pub const DIST_MANIFEST: &'static str = "multilean-channel-manifest.toml";
 pub const CONFIG_FILE: &'static str = "multilean-config.toml";
@@ -303,9 +302,8 @@ impl Manifestation {
     /// Installation using the legacy v1 manifest format
     pub fn update_v1(&self,
                      new_manifest: &[String],
-                     update_hash: Option<&Path>,
                      temp_cfg: &temp::Cfg,
-                     notify_handler: &Fn(Notification)) -> Result<Option<String>> {
+                     notify_handler: &Fn(Notification)) -> Result<()> {
         let informal_target = match self.target_triple.0.as_str() {
             "x86_64-unknown-linux-gnu" => Some("linux"),
             "x86_64-apple-darwin" => Some("darwin"),
@@ -334,11 +332,7 @@ impl Manifestation {
             notify_handler: notify_handler
         };
 
-        let dl = try!(dlcfg.download_and_check(&url, update_hash, ".tar.gz"));
-        if dl.is_none() {
-            return Ok(None);
-        };
-        let (installer_file, installer_hash) = dl.unwrap();
+        let installer_file = try!(dlcfg.download_and_check(&url, ".tar.gz"));
 
         let prefix = self.installation.prefix();
 
@@ -366,7 +360,7 @@ impl Manifestation {
         // End transaction
         tx.commit();
 
-        Ok(Some(installer_hash))
+        Ok(())
     }
 
     // If the previous installation was from a v1 manifest, then it

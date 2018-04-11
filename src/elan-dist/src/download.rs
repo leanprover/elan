@@ -100,70 +100,19 @@ impl<'a> DownloadCfg<'a> {
         Ok(())
     }
 
-    fn _download_hash(&self, url: &str) -> Result<String> {
-        let hash_url = try!(utils::parse_url(&(url.to_owned() + ".sha256")));
-        let hash_file = try!(self.temp_cfg.new_file());
-
-        try!(utils::download_file(&hash_url,
-                                &hash_file,
-                                None,
-                                &|n| (self.notify_handler)(n.into())));
-
-        Ok(try!(utils::read_file("hash", &hash_file).map(|s| s[0..64].to_owned())))
-    }
-
-    /// Downloads a file, sourcing its hash from the same url with a `.sha256` suffix.
-    /// If `update_hash` is present, then that will be compared to the downloaded hash,
-    /// and if they match, the download is skipped. 
     pub fn download_and_check(&self,
                                 url_str: &str,
-                                _update_hash: Option<&Path>,
                                 ext: &str)
-                                -> Result<Option<(temp::File<'a>, String)>> {
-        /*let hash = try!(self.download_hash(url_str));
-        /let partial_hash: String = hash.chars().take(UPDATE_HASH_LEN).collect();
-
-        if let Some(hash_file) = update_hash {
-            
-            if utils::is_file(hash_file) {
-                if let Ok(contents) = utils::read_file("update hash", hash_file) {
-                    if contents == partial_hash {
-                        // Skip download, update hash matches
-                        return Ok(None);
-                    }
-                } else {
-                    (self.notify_handler)(Notification::CantReadUpdateHash(hash_file));
-                }
-            } else {
-                (self.notify_handler)(Notification::NoUpdateHash(hash_file));
-            }
-        }*/
-
+                                -> Result<temp::File<'a>> {
         let url = try!(utils::parse_url(url_str));
         let file = try!(self.temp_cfg.new_file_with_ext("", ext));
 
-        let mut hasher = Sha256::new();
         try!(utils::download_file(&url,
                                 &file,
-                                Some(&mut hasher),
+                                None,
                                 &|n| (self.notify_handler)(n.into())));
-        let actual_hash = format!("{:x}", hasher.result());
 
-        /*if hash != actual_hash {
-            // Incorrect hash
-            return Err(ErrorKind::ChecksumFailed {
-                    url: url_str.to_owned(),
-                    expected: hash,
-                    calculated: actual_hash,
-                }
-                .into());
-        } else {
-            (self.notify_handler)(Notification::ChecksumValid(url_str));
-        }*/
-
-        // TODO: Check the signature of the file
-
-        Ok(Some((file, actual_hash)))
+        Ok(file)
     }
 }
 

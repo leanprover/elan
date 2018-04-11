@@ -13,6 +13,7 @@ use std::env;
 
 use json;
 use regex::Regex;
+use sha2::{Sha256, Digest};
 
 pub const DEFAULT_DIST_SERVER: &'static str = "https://static.lean-lang.org";
 
@@ -510,12 +511,33 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
             });
         }
     };
+
+    let mut hasher = Sha256::new();
+    for url in &manifest {
+        hasher.input(url.as_bytes());
+    }
+    let hash = format!("{:x}", hasher.result());
+    let partial_hash = &hash[0..20];
+
+    if let Some(hash_file) = update_hash {
+        if utils::is_file(hash_file) {
+            if let Ok(contents) = utils::read_file("update hash", hash_file) {
+                if contents == partial_hash {
+                    // Skip download, update hash matches
+                    return Ok(None);
+                }
+            } /*else {
+                (self.notify_handler)(Notification::CantReadUpdateHash(hash_file));
+            }*/
+        } /*else {
+            (self.notify_handler)(Notification::NoUpdateHash(hash_file));
+        }*/
+    }
+
     match manifestation.update_v1(&manifest,
-                                  update_hash,
                                   &download.temp_cfg,
                                   download.notify_handler.clone()) {
-        Ok(None) => Ok(None),
-        Ok(Some(hash)) => Ok(Some(hash)),
+        Ok(()) => Ok(()),
         e @ Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
             e.chain_err(|| {
                 format!("could not download nonexistent lean version `{}`",
@@ -523,13 +545,12 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
             })
         }
         Err(e) => Err(e),
-    }
+    }.map(|()| Some(partial_hash.to_string()))
 }
 
 fn dl_v1_manifest<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Result<Vec<String>> {
     let manifest_url = toolchain.manifest_v1_url(download.dist_root);
-    let manifest_dl = try!(download.download_and_check(&manifest_url, None, ""));
-    let (manifest_file, _) = manifest_dl.unwrap();
+    let manifest_file = try!(download.download_and_check(&manifest_url, ""));
     let manifest_str = try!(utils::read_file("manifest", &manifest_file));
     let mut man_json = json::parse(&manifest_str).expect("failed to parse manifest");
     if toolchain.channel == "nightly" && toolchain.date.is_none() {
