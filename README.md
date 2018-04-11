@@ -19,7 +19,7 @@ You can also install, select, run, and uninstall Lean versions manually using th
 Run the following command in a bash-like shell and follow the printed instructions:
 
 ```bash
-curl https://sh.rustup.rs -sSf | sh
+curl https://raw.githubusercontent.com/Kha/elan/master/elan-init.sh -sSf | sh
 ```
 
 TODO: Provide a better installation method on Windows
