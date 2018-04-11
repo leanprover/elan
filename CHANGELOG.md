@@ -1,5 +1,11 @@
 # [Unreleased]
 
+# [0.3.0] - 2018-04-11
+
+## Added
+
+- `leanchecker` proxy
+
 # [0.2.0] - 2018-04-11
 
 ## Added

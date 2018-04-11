@@ -171,7 +171,7 @@ r"This will uninstall all Lean toolchains and data, and remove
 }
 
 static TOOLS: &'static [&'static str]
-    = &["lean", "leanpkg"];
+    = &["lean", "leanpkg", "leanchecker"];
 
 // Tools which are commonly installed by Leanpkg as well as elan. We take a bit
 // more care with these to ensure we don't overwrite the user's previous
