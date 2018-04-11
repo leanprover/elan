@@ -40,7 +40,7 @@ EOF
 }
 
 main() {
-    downloader --check
+    need_cmd curl
     need_cmd uname
     need_cmd mktemp
     need_cmd chmod
@@ -97,17 +97,17 @@ main() {
     fi
 
     ensure mkdir -p "$_dir"
-    ensure downloader "https://api.github.com/repos/Kha/elan/releases/latest" "$_dir/manifest"
+    ensure curl -sSfL "https://api.github.com/repos/Kha/elan/releases/latest" -o "$_dir/manifest"
     local _tag=$(grep "tag_name" "$_dir/manifest" | cut -d'"' -f 4 | cut -c 2-)
     ignore rm "$_dir/manifest"
 
     case "$_arch" in
         *windows*)
-            ensure downloader "$ELAN_UPDATE_ROOT/v$_tag/elan-$_arch.zip" "$_dir/elan-init.zip"
+            ensure curl -sSfL "$ELAN_UPDATE_ROOT/$_latest/elan-$_arch.zip" -o "$_dir/elan-init.zip"
             (cd "$_dir"; unzip elan-init.zip; ignore rm elan-init.zip)
             ;;
         *)
-            ensure downloader "$ELAN_UPDATE_ROOT/v$_tag/elan-$_arch.tar.gz" "$_dir/elan-init.tar.gz"
+            ensure curl -sSfL "$ELAN_UPDATE_ROOT/$_latest/elan-$_arch.tar.gz" -o "$_dir/elan-init.tar.gz"
             (cd "$_dir"; tar xf elan-init.tar.gz; ignore rm elan-init.tar.gz)
             ;;
     esac
@@ -373,26 +373,6 @@ ensure() {
 # as part of error handling.
 ignore() {
     "$@"
-}
-
-# This wraps curl or wget. Try curl first, if not installed,
-# use wget instead.
-downloader() {
-    if check_cmd curl
-    then _dld=curl
-    elif check_cmd wget
-    then _dld=wget
-    else _dld='curl or wget' # to be used in error message of need_cmd
-    fi
-
-    if [ "$1" = --check ]
-    then need_cmd "$_dld"
-    elif [ "$_dld" = curl ]
-    then curl -sSfL "$1" -o "$2"
-    elif [ "$_dld" = wget ]
-    then wget "$1" -O "$2"
-    else err "Unknown downloader"   # should not reach here
-    fi
 }
 
 main "$@" || exit 1
