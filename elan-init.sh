@@ -15,7 +15,7 @@
 
 set -u
 
-ELAN_UPDATE_ROOT="https://github.com/Kha/elan/releases/download"
+ELAN_UPDATE_ROOT="https://github.com/Kha/elan/releases"
 
 #XXX: If you change anything here, please make the same changes in setup_mode.rs
 usage() {
@@ -97,17 +97,15 @@ main() {
     fi
 
     ensure mkdir -p "$_dir"
-    ensure curl -sSfL "https://api.github.com/repos/Kha/elan/releases/latest" -o "$_dir/manifest"
-    local _tag=$(grep "tag_name" "$_dir/manifest" | cut -d'"' -f 4 | cut -c 2-)
-    ignore rm "$_dir/manifest"
+    local _latest=$(ensure curl -sSf "$ELAN_UPDATE_ROOT/latest" | cut -d'"' -f2 | rev | cut -d'/' -f1 | rev)
 
     case "$_arch" in
         *windows*)
-            ensure curl -sSfL "$ELAN_UPDATE_ROOT/$_latest/elan-$_arch.zip" -o "$_dir/elan-init.zip"
+            ensure curl -sSfL "$ELAN_UPDATE_ROOT/download/$_latest/elan-$_arch.zip" -o "$_dir/elan-init.zip"
             (cd "$_dir"; unzip elan-init.zip; ignore rm elan-init.zip)
             ;;
         *)
-            ensure curl -sSfL "$ELAN_UPDATE_ROOT/$_latest/elan-$_arch.tar.gz" -o "$_dir/elan-init.tar.gz"
+            ensure curl -sSfL "$ELAN_UPDATE_ROOT/download/$_latest/elan-$_arch.tar.gz" -o "$_dir/elan-init.tar.gz"
             (cd "$_dir"; tar xf elan-init.tar.gz; ignore rm elan-init.tar.gz)
             ;;
     esac
