@@ -22,6 +22,9 @@ error_chain! {
             description("toolchain is not installed")
             display("toolchain '{}' is not installed", t)
         }
+        NoDefaultToolchain {
+            description("no default toolchain configured. run `elan toolchain install nightly`")
+        }
         OverrideToolchainNotInstalled(t: String) {
             description("override toolchain is not installed")
             display("override toolchain '{}' is not installed", t)
