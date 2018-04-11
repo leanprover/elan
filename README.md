@@ -12,6 +12,17 @@
 </table>
 
 *elan* is a small tool for managing your installations of the [Lean theorem prover](https://leanprover.github.io). It places `lean` and `leanpkg` binaries in your `PATH` that automatically select and, if necessary, download the Lean version described in the `lean_version` field of your project's `leanpkg.toml`.
+You can also install, select, run, and uninstall Lean versions manually using the commands of the `elan` executable.
+
+# Installation
+
+Run the following command in a bash-like shell and follow the printed instructions:
+
+```bash
+curl https://sh.rustup.rs -sSf | sh
+```
+
+TODO: Provide a better installation method on Windows
 
 # Implementation
 

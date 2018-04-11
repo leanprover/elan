@@ -1,20 +1,14 @@
 pub static ELAN_HELP: &'static str =
 r"DISCUSSION:
-    elan installs The Lean Programming Language from the official
-    release channels, enabling you to easily switch between stable,
-    beta, and nightly compilers and keep them updated. It makes
-    cross-compiling simpler with binary builds of the standard library
-    for common platforms.
-
-    If you are new to Lean consider running `elan doc --book` to
-    learn Lean.";
+    elan manages your installations of the Lean theorem prover.
+    It places `lean` and `leanpkg` binaries in your `PATH` that automatically select and,
+    if necessary, download the Lean version described in the `lean_version` field of your
+    project's `leanpkg.toml`. You can also install, select, run, and uninstall Lean versions manually
+    using the commands of the `elan` executable.";
 
 pub static SHOW_HELP: &'static str =
 r"DISCUSSION:
     Shows the name of the active toolchain and the version of `lean`.
-
-    If the active toolchain has installed support for additional
-    compilation targets, then they are listed as well.
 
     If there are multiple toolchains installed then all installed
     toolchains are listed as well.";
@@ -42,36 +36,23 @@ r"DISCUSSION:
 pub static TOOLCHAIN_HELP: &'static str =
 r"DISCUSSION:
     Many `elan` commands deal with *toolchains*, a single
-    installation of the Lean compiler. `elan` supports multiple
+    installation of the Lean theorem prover. `elan` supports multiple
     types of toolchains. The most basic track the official release
-    channels: 'stable', 'beta' and 'nightly'; but `elan` can also
-    install toolchains from the official archives, for alternate host
-    platforms, and from local builds.
+    channels: 'stable' and 'nightly'; but `elan` can also
+    install toolchains from the official archives and from local builds.
 
     Standard release channel toolchain names have the following form:
 
         <channel>[-<date>][-<host>]
 
-        <channel>       = stable|beta|nightly|<version>
+        <channel>       = stable|nightly|<version>
         <date>          = YYYY-MM-DD
         <host>          = <target-triple>
 
     'channel' is either a named release channel or an explicit version
-    number, such as '1.8.0'. Channel names can be optionally appended
-    with an archive date, as in 'nightly-2017-05-09', in which case
+    number, such as '3.3.0'. Channel names can be optionally appended
+    with an archive date, as in 'nightly-2018-04-10', in which case
     the toolchain is downloaded from the archive for that date.
-
-    Finally, the host may be specified as a target triple. This is
-    most useful for installing a 32-bit compiler on a 64-bit platform,
-    or for installing the [MSVC-based toolchain] on Windows. For
-    example:
-
-        $ elan toolchain install stable-x86_64-pc-windows-msvc
-
-    For convenience, elements of the target triple that are omitted
-    will be inferred, so the above could be written:
-
-        $ elan default stable-msvc
 
     elan can also manage symlinked local toolchain builds, which are
     often used to for developing Lean itself. For more information see
@@ -82,38 +63,41 @@ r"DISCUSSION:
     'toolchain' is the custom name to be assigned to the new toolchain.
     Any name is permitted as long as it does not fully match an initial
     substring of a standard release channel. For example, you can use
-    the names 'latest' or '2017-04-01' but you cannot use 'stable' or
-    'beta-i686' or 'nightly-x86_64-unknown-linux-gnu'.
+    the names 'latest' or '2018-04-01' but you cannot use 'stable' or
+    'nightly'.
 
     'path' specifies the directory where the binaries and libraries for
     the custom toolchain can be found. For example, when used for
     development of Lean itself, toolchains can be linked directly out of
-    the build directory. After building, you can test out different
+    the Lean root directory. After building, you can test out different
     compiler versions as follows:
 
-        $ elan toolchain link latest-stage1 build/x86_64-unknown-linux-gnu/stage1
-        $ elan override set latest-stage1
+        $ elan toolchain link master <path/to/lean/root>
+        $ elan override set master
 
     If you now compile a crate in the current directory, the custom
-    toolchain 'latest-stage1' will be used.";
+    toolchain 'master' will be used.";
 
 pub static OVERRIDE_HELP: &'static str =
 r"DISCUSSION:
     Overrides configure elan to use a specific toolchain when
     running in a specific directory.
 
-    Directories can be assigned their own Lean toolchain with `elan
-    override`. When a directory has an override then any time `lean`
-    or `leanpkg` is run inside that directory, or one of its child
-    directories, the override toolchain will be invoked.
+    elan will automatically select the Lean toolchain specified in
+    the `lean_version` field of the `leanpkg.toml` file when inside
+    a Lean package, but directories can also be assigned their own
+    Lean toolchain manually with `elan override`. When a directory
+    has an override then any time `lean` or `leanpkg` is run inside
+    that directory, or one of its child directories, the override
+    toolchain will be invoked.
 
     To pin to a specific nightly:
 
-        $ elan override set nightly-2014-12-18
+        $ elan override set nightly-2018-04-10
 
     Or a specific stable release:
 
-        $ elan override set 1.0.0
+        $ elan override set 3.3.0
 
     To see the active toolchain use `elan show`. To remove the
     override and use the default toolchain again, `elan override
@@ -255,5 +239,5 @@ r"DISCUSSION:
 
 pub static TOOLCHAIN_ARG_HELP: &'static str =
     "Toolchain name, such as 'stable', 'nightly', \
-     or '1.8.0'. For more information see `elan \
+     or '3.3.0'. For more information see `elan \
      help toolchain`";
