@@ -33,6 +33,10 @@ extern crate sha2;
 extern crate markdown;
 extern crate toml;
 extern crate wait_timeout;
+extern crate flate2;
+extern crate tar;
+extern crate zip;
+extern crate json;
 
 #[cfg(windows)]
 extern crate gcc;

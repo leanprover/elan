@@ -15,7 +15,7 @@
 
 set -u
 
-ELAN_UPDATE_ROOT="https://static.lean-lang.org/elan/dist"
+ELAN_UPDATE_ROOT="https://github.com/Kha/elan/releases/download"
 
 #XXX: If you change anything here, please make the same changes in setup_mode.rs
 usage() {
@@ -59,8 +59,6 @@ main() {
             ;;
     esac
 
-    local _url="$ELAN_UPDATE_ROOT/$_arch/elan-init$_ext"
-
     local _dir="$(mktemp -d 2>/dev/null || ensure mktemp -d -t elan)"
     local _file="$_dir/elan-init$_ext"
 
@@ -99,7 +97,21 @@ main() {
     fi
 
     ensure mkdir -p "$_dir"
-    ensure downloader "$_url" "$_file"
+    ensure downloader "https://api.github.com/repos/Kha/elan/releases/latest" "$_dir/manifest"
+    local _tag=$(grep "tag_name" "$_dir/manifest" | cut -d'"' -f 4 | cut -c 2-)
+    ignore rm "$_dir/manifest"
+
+    case "$_arch" in
+        *windows*)
+            ensure downloader "$ELAN_UPDATE_ROOT/v$_tag/elan-$_arch.zip" "$_dir/elan-init.zip"
+            (cd "$_dir"; unzip elan-init.zip; ignore rm elan-init.zip)
+            ;;
+        *)
+            ensure downloader "$ELAN_UPDATE_ROOT/v$_tag/elan-$_arch.tar.gz" "$_dir/elan-init.tar.gz"
+            (cd "$_dir"; tar xf elan-init.tar.gz; ignore rm elan-init.tar.gz)
+            ;;
+    esac
+
     ensure chmod u+x "$_file"
     if [ ! -x "$_file" ]; then
         printf '%s\n' "Cannot execute $_file (likely because of mounting /tmp as noexec)." 1>&2

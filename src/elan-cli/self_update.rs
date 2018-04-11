@@ -34,15 +34,20 @@ use common::{self, Confirm};
 use errors::*;
 use elan_dist::dist;
 use elan_utils::utils;
+use flate2;
+use json;
 use same_file::Handle;
 use std::env;
 use std::env::consts::EXE_SUFFIX;
+use std::io;
 use std::path::{Path, PathBuf, Component};
 use std::process::{self, Command};
 use std::fs;
+use tar;
 use tempdir::TempDir;
 use term2;
 use regex::Regex;
+use zip;
 
 pub struct InstallOpts {
     pub default_host_triple: String,
@@ -174,7 +179,7 @@ static TOOLS: &'static [&'static str]
 static DUP_TOOLS: &'static [&'static str] = &[];
 
 static UPDATE_ROOT: &'static str
-    = "https://static.lean-lang.org/elan";
+    = "https://github.com/Kha/elan/releases/download";
 
 /// `ELAN_HOME` suitable for display, possibly with $HOME
 /// substituted for the directory prefix
@@ -1224,8 +1229,6 @@ fn parse_new_elan_version(version: String) -> String {
 }
 
 pub fn prepare_update() -> Result<Option<PathBuf>> {
-    use toml;
-
     let ref elan_home = try!(utils::elan_home());
     let ref elan_path = elan_home.join(&format!("bin/elan{}", EXE_SUFFIX));
     let ref setup_path = elan_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
@@ -1264,34 +1267,28 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
 
     // Download available version
     info!("checking for self-updates");
-    let release_file_url = format!("{}/release-stable.toml", update_root);
-    let release_file_url = try!(utils::parse_url(&release_file_url));
-    let release_file = tempdir.path().join("release-stable.toml");
-    try!(utils::download_file(&release_file_url, &release_file, None, &|_| ()));
-    let release_toml_str = try!(utils::read_file("elan release", &release_file));
-    let release_toml: toml::Value = try!(toml::from_str(&release_toml_str)
-                            .map_err(|_| Error::from("unable to parse elan release file")));
-    let schema = try!(release_toml.get("schema-version")
-                      .ok_or(Error::from("no schema key in elan release file")));
-    let schema = try!(schema.as_str()
-                      .ok_or(Error::from("invalid schema key in elan release file")));
-    let available_version = try!(release_toml.get("version")
-                                 .ok_or(Error::from("no version key in elan release file")));
-    let available_version = try!(available_version.as_str()
-                                 .ok_or(Error::from("invalid version key in elan release file")));
 
-    if schema != "1" {
-        return Err(Error::from(&*format!("unknown schema version '{}' in elan release file", schema)));
-    }
+    let manifest_url = utils::parse_url("https://api.github.com/repos/Kha/elan/releases/latest")?;
+    let manifest_path = &tempdir.path().join("manifest");
+    try!(utils::download_file(&manifest_url,
+                              &manifest_path,
+                              None,
+                              &|_| ()));
+    let manifest_str = try!(utils::read_file("manifest", &manifest_path));
+    let man_json = json::parse(&manifest_str).expect("failed to parse manifest");
+    let tag = man_json["tag_name"].as_str().unwrap();
+    let available_version = &tag[1..];
 
     // If up-to-date
     if available_version == current_version {
         return Ok(None);
     }
 
+    let archive_suffix = if cfg!(target_os = "windows") { ".zip" } else { ".tar.gz" };
+    let archive_name = format!("elan-{}{}", triple, archive_suffix);
+    let archive_path = tempdir.path().join(&archive_name);
     // Get download URL
-    let url = format!("{}/archive/{}/{}/elan-init{}", update_root,
-                      available_version, triple, EXE_SUFFIX);
+    let url = format!("{}/v{}/{}", update_root, available_version, archive_name);
 
     // Get download path
     let download_url = try!(utils::parse_url(&url));
@@ -1299,9 +1296,20 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
     // Download new version
     info!("downloading self-update");
     try!(utils::download_file(&download_url,
-                              &setup_path,
+                              &archive_path,
                               None,
                               &|_| ()));
+
+    let file = fs::File::open(archive_path)?;
+    if cfg!(target_os = "windows") {
+        let mut archive = zip::read::ZipArchive::new(file).chain_err(|| "failed to open zip archive")?;
+        let mut src = archive.by_name("elan-init.exe").chain_err(|| "failed to extract update")?;
+        let mut dst = fs::File::create(setup_path)?;
+        io::copy(&mut src, &mut dst)?;
+    } else {
+        let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
+        archive.unpack(elan_home.join("bin"))?;
+    }
 
     // Mark as executable
     try!(utils::make_executable(setup_path));
