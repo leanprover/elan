@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 use std::collections::HashSet;
 use std::fmt;
 use std::io::{Read,Seek,self};
-use std::fs::File;
+use std::fs::{File,self};
 
 use zip::ZipArchive;
 
@@ -188,12 +188,20 @@ impl<'a> ZipPackage<'a> {
             // Create the full path to the entry if it does not exist already
             match full_path.parent() {
                 Some(parent) if !parent.exists() =>
-                    try!(::std::fs::create_dir_all(&parent).chain_err(|| ErrorKind::ExtractingPackage)),
+                    try!(fs::create_dir_all(&parent).chain_err(|| ErrorKind::ExtractingPackage)),
                 _ => (),
             };
 
-            let mut dst = File::create(full_path).chain_err(|| ErrorKind::ExtractingPackage)?;
+            let mut dst = File::create(&full_path).chain_err(|| ErrorKind::ExtractingPackage)?;
             io::copy(&mut entry, &mut dst).chain_err(|| ErrorKind::ExtractingPackage)?;
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+
+                if let Some(mode) = entry.unix_mode() {
+                    fs::set_permissions(&full_path, fs::Permissions::from_mode(mode)).unwrap();
+                }
+            }
         }
 
         Ok(())
