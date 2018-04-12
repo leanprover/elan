@@ -307,7 +307,7 @@ impl Manifestation {
         let informal_target = match self.target_triple.0.as_str() {
             "x86_64-unknown-linux-gnu" => Some("linux"),
             "x86_64-apple-darwin" => Some("darwin"),
-            "x86_64-pc-windows" => Some("windows"),
+            "x86_64-pc-windows-msvc" => Some("windows"),
             _ => None,
         };
         let url = new_manifest.iter().find(|u|
