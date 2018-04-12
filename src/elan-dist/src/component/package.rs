@@ -176,6 +176,9 @@ impl<'a> ZipPackage<'a> {
     fn unpack_without_first_dir<R: Read + Seek>(archive: &mut ZipArchive<R>, path: &Path) -> Result<()> {
         for i in 0..archive.len() {
             let mut entry = archive.by_index(i).chain_err(|| ErrorKind::ExtractingPackage)?;
+            if entry.name().ends_with('/') {
+                continue // skip directories
+            }
             let relpath = PathBuf::from(entry.name());
             let mut components = relpath.components();
             // Throw away the first path component
