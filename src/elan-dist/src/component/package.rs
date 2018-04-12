@@ -189,8 +189,8 @@ impl<'a> ZipPackage<'a> {
                 _ => (),
             };
 
-            let mut dst = File::create(full_path)?;
-            io::copy(&mut entry, &mut dst)?;
+            let mut dst = File::create(full_path).chain_err(|| ErrorKind::ExtractingPackage)?;
+            io::copy(&mut entry, &mut dst).chain_err(|| ErrorKind::ExtractingPackage)?;
         }
 
         Ok(())
