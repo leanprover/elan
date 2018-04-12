@@ -41,7 +41,8 @@ test_script:
   - cargo test --target %TARGET%
   - cargo test --target %TARGET% --release
   # quick test
-  - cargo run --target %TARGET% --release -- -y
+  - set RUST_BACKTRACE=1
+  - cargo run --target %TARGET% -- -y
 
 before_deploy:
   - cargo rustc --target %TARGET% --release --bin elan-init -- -C lto

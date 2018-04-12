@@ -351,7 +351,7 @@ pub fn report_error(e: &Error) {
         use std::env;
         use std::ops::Deref;
 
-        if env::var("LEAN_BACKTRACE").as_ref().map(Deref::deref) == Ok("1") {
+        if env::var("RUST_BACKTRACE").as_ref().map(Deref::deref) == Ok("1") {
             return true;
         }
 
