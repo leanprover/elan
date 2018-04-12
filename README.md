@@ -14,6 +14,31 @@
 *elan* is a small tool for managing your installations of the [Lean theorem prover](https://leanprover.github.io). It places `lean` and `leanpkg` binaries in your `PATH` that automatically select and, if necessary, download the Lean version described in the `lean_version` field of your project's `leanpkg.toml`.
 You can also install, select, run, and uninstall Lean versions manually using the commands of the `elan` executable.
 
+```bash
+~/my/package $ cat leanpkg.toml | grep lean_version
+lean_version = "nightly-2018-04-10"
+~/my/package $ leanpkg -v
+info: downloading component 'lean'
+ 14.6 MiB /  14.6 MiB (100 %)   2.2 MiB/s ETA:   0 s
+info: installing component 'lean'
+Lean package manager, version nightly-2018-04-10
+[...]
+~/my/package $ elan show
+installed toolchains
+--------------------
+
+stable-x86_64-unknown-linux-gnu
+nightly-2018-04-06-x86_64-unknown-linux-gnu
+nightly-2018-04-10-x86_64-unknown-linux-gnu
+master
+
+active toolchain
+----------------
+
+nightly-2018-04-10-x86_64-unknown-linux-gnu (overridden by '/home/me/my/package/leanpkg.toml')
+Lean (version 3.3.1, nightly-2018-04-10, commit d36b859c6579, Release)
+```
+
 # Installation
 
 Run the following command in a bash-like shell and follow the printed instructions:
