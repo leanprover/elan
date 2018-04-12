@@ -12,6 +12,7 @@ extern crate elan_utils;
 extern crate error_chain;
 extern crate sha2;
 extern crate json;
+extern crate zip;
 
 #[cfg(windows)]
 extern crate winapi;

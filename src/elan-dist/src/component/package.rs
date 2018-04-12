@@ -15,8 +15,10 @@ use temp;
 use std::path::{Path, PathBuf};
 use std::collections::HashSet;
 use std::fmt;
-use std::io::Read;
+use std::io::{Read,Seek,self};
 use std::fs::File;
+
+use zip::ZipArchive;
 
 /// The current metadata revision used by lean-installer
 pub const INSTALLER_VERSION: &'static str = "3";
@@ -131,6 +133,71 @@ fn unpack_without_first_dir<R: Read>(archive: &mut tar::Archive<R>, path: &Path)
 }
 
 impl<'a> Package for TarPackage<'a> {
+    fn contains(&self, component: &str, short_name: Option<&str>) -> bool {
+        self.0.contains(component, short_name)
+    }
+    fn install<'b>(&self,
+                   target: &Components,
+                   component: &str,
+                   short_name: Option<&str>,
+                   tx: Transaction<'b>)
+                   -> Result<Transaction<'b>> {
+        self.0.install(target, component, short_name, tx)
+    }
+    fn components(&self) -> Vec<String> {
+        self.0.components()
+    }
+}
+
+#[derive(Debug)]
+pub struct ZipPackage<'a>(DirectoryPackage, temp::Dir<'a>);
+
+impl<'a> ZipPackage<'a> {
+    pub fn new<R: Read + Seek>(stream: R, temp_cfg: &'a temp::Cfg) -> Result<Self> {
+        let temp_dir = try!(temp_cfg.new_directory());
+        let mut archive = ZipArchive::new(stream).chain_err(|| ErrorKind::ExtractingPackage)?;
+        /*
+                let mut src = archive.by_name("elan-init.exe").chain_err(|| "failed to extract update")?;
+                let mut dst = fs::File::create(setup_path)?;
+                io::copy(&mut src, &mut dst)?;
+                */
+        // The lean-installer packages unpack to a directory called
+        // $pkgname-$version-$target. Skip that directory when
+        // unpacking.
+        try!(Self::unpack_without_first_dir(&mut archive, &*temp_dir));
+
+        Ok(ZipPackage(try!(DirectoryPackage::new(temp_dir.to_owned())), temp_dir))
+    }
+    pub fn new_file(path: &Path, temp_cfg: &'a temp::Cfg) -> Result<Self> {
+        let file = try!(File::open(path).chain_err(|| ErrorKind::ExtractingPackage));
+        Self::new(file, temp_cfg)
+    }
+
+    fn unpack_without_first_dir<R: Read + Seek>(archive: &mut ZipArchive<R>, path: &Path) -> Result<()> {
+        for i in 0..archive.len() {
+            let mut entry = archive.by_index(i).chain_err(|| ErrorKind::ExtractingPackage)?;
+            let relpath = PathBuf::from(entry.name());
+            let mut components = relpath.components();
+            // Throw away the first path component
+            components.next();
+            let full_path = path.join(&components.as_path());
+
+            // Create the full path to the entry if it does not exist already
+            match full_path.parent() {
+                Some(parent) if !parent.exists() =>
+                    try!(::std::fs::create_dir_all(&parent).chain_err(|| ErrorKind::ExtractingPackage)),
+                _ => (),
+            };
+
+            let mut dst = File::create(full_path)?;
+            io::copy(&mut entry, &mut dst)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a> Package for ZipPackage<'a> {
     fn contains(&self, component: &str, short_name: Option<&str>) -> bool {
         self.0.contains(component, short_name)
     }

@@ -4,7 +4,7 @@
 use config::Config;
 use manifest::{Component, Manifest, TargetedPackage};
 use dist::{TargetTriple, DEFAULT_DIST_SERVER};
-use component::{Components, Transaction, TarGzPackage, TarXzPackage, Package};
+use component::{Components, Transaction, TarGzPackage, TarXzPackage, ZipPackage, Package};
 use temp;
 use errors::*;
 use notifications::*;
@@ -332,7 +332,8 @@ impl Manifestation {
             notify_handler: notify_handler
         };
 
-        let installer_file = try!(dlcfg.download_and_check(&url, ".tar.gz"));
+        let ext = if cfg!(target_os = "linux") { ".tar.gz" } else { ".zip" };
+        let installer_file = try!(dlcfg.download_and_check(&url, ext));
 
         let prefix = self.installation.prefix();
 
@@ -349,7 +350,11 @@ impl Manifestation {
         }
 
         // Install all the components in the installer
-        let package = try!(TarGzPackage::new_file(&installer_file, temp_cfg));
+        let package: Box<Package> = if cfg!(target_os = "linux") {
+            Box::new(try!(TarGzPackage::new_file(&installer_file, temp_cfg)))
+        } else {
+            Box::new(try!(ZipPackage::new_file(&installer_file, temp_cfg)))
+        };
 
         for component in package.components() {
             tx = try!(package.install(&self.installation,

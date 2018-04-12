@@ -296,6 +296,7 @@ dependencies = [
  "winapi 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "winreg 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "xz2 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "zip 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
