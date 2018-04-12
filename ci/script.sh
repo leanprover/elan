@@ -11,3 +11,6 @@ fi
 
 cross test --target $TARGET
 cross test --target $TARGET --release
+
+# quick test
+cargo run --target $TARGET --release -- -y
