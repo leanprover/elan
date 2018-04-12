@@ -12,5 +12,8 @@ fi
 cross test --target $TARGET
 cross test --target $TARGET --release
 
-# quick test
-RUST_BACKTRACE=1 cargo run --target $TARGET -- -y
+# quick test, skip on deploy
+if [ -z $TRAVIS_TAG ]
+then
+    RUST_BACKTRACE=1 cargo run --target $TARGET -- -y
+fi
