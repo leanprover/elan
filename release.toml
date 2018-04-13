@@ -1,2 +1,2 @@
-no-dev-version = true
+dev-version-ext = "pre"
 tag-prefix = "v"
