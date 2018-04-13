@@ -41,13 +41,13 @@ Lean (version 3.3.1, nightly-2018-04-10, commit d36b859c6579, Release)
 
 # Installation
 
-Run the following command in a bash-like shell and follow the printed instructions:
+**Linux/OS X/Cygwin/MSYS2/git bash/...**: Run the following command in a terminal and follow the printed instructions:
 
 ```bash
 curl https://raw.githubusercontent.com/Kha/elan/master/elan-init.sh -sSf | sh
 ```
 
-TODO: Provide a better installation method on Windows
+Alternatively, **any supported platform**: Grab the [latest release](https://github.com/Kha/elan/releases/latest) for your platform, unpack it, run it in a terminal, and follow the printed instructions.
 
 # Implementation
 
