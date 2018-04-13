@@ -102,11 +102,11 @@ main() {
     case "$_arch" in
         *windows*)
             ensure curl -sSfL "$ELAN_UPDATE_ROOT/download/$_latest/elan-$_arch.zip" -o "$_dir/elan-init.zip"
-            (cd "$_dir"; unzip elan-init.zip; ignore rm elan-init.zip)
+            (cd "$_dir"; ensure unzip elan-init.zip; ignore rm elan-init.zip)
             ;;
         *)
             ensure curl -sSfL "$ELAN_UPDATE_ROOT/download/$_latest/elan-$_arch.tar.gz" -o "$_dir/elan-init.tar.gz"
-            (cd "$_dir"; tar xf elan-init.tar.gz; ignore rm elan-init.tar.gz)
+            (cd "$_dir"; ensure tar xf elan-init.tar.gz; ignore rm elan-init.tar.gz)
             ;;
     esac
 
