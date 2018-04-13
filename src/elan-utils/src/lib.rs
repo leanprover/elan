@@ -9,6 +9,8 @@ extern crate url;
 extern crate toml;
 extern crate download;
 extern crate semver;
+extern crate curl;
+extern crate regex;
 
 #[cfg(windows)]
 extern crate winapi;

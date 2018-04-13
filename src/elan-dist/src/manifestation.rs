@@ -301,24 +301,9 @@ impl Manifestation {
 
     /// Installation using the legacy v1 manifest format
     pub fn update_v1(&self,
-                     new_manifest: &[String],
+                     url: &String,
                      temp_cfg: &temp::Cfg,
                      notify_handler: &Fn(Notification)) -> Result<()> {
-        let informal_target = match self.target_triple.0.as_str() {
-            "x86_64-unknown-linux-gnu" => Some("linux"),
-            "x86_64-apple-darwin" => Some("darwin"),
-            "x86_64-pc-windows-msvc" => Some("windows"),
-            _ => None,
-        };
-        let url = new_manifest.iter().find(|u|
-            informal_target.map(|t| u.contains(t)).unwrap_or(false));
-        if url.is_none() {
-            return Err(format!("binary package was not provided for '{}'",
-                               self.target_triple.to_string()).into());
-        }
-        // Only replace once. The cost is inexpensive.
-        let url = url.unwrap().replace(DEFAULT_DIST_SERVER, temp_cfg.dist_server.as_str());
-
         notify_handler(Notification::DownloadingComponent("lean",
                                                           &self.target_triple,
                                                           Some(&self.target_triple)));
@@ -331,6 +316,28 @@ impl Manifestation {
             temp_cfg: temp_cfg,
             notify_handler: notify_handler
         };
+
+        // find correct download on HTML page (AAAAH)
+        use std::fs;
+        use regex::Regex;
+        use std::io::Read;
+        let informal_target = match self.target_triple.0.as_str() {
+            "x86_64-unknown-linux-gnu" => Some("linux"),
+            "x86_64-apple-darwin" => Some("darwin"),
+            "x86_64-pc-windows-msvc" => Some("windows"),
+            _ => None,
+        };
+        let re = Regex::new(r#"/leanprover/[a-z-]+/releases/download/[^"]+"#).unwrap();
+        let download_page_file = dlcfg.download_and_check(&url, "")?;
+        let mut html = String::new();
+        fs::File::open(&download_page_file as &::std::path::Path)?.read_to_string(&mut html)?;
+        let url = re.find_iter(&html).map(|m| m.as_str().to_string()).find(|m|
+            informal_target.map(|t| m.as_str().contains(t)).unwrap_or(false));
+        if url.is_none() {
+            return Err(format!("binary package was not provided for '{}'",
+                               self.target_triple.to_string()).into());
+        }
+        let url = format!("https://github.com/{}", url.unwrap());
 
         let ext = if cfg!(target_os = "linux") { ".tar.gz" } else { ".zip" };
         let installer_file = try!(dlcfg.download_and_check(&url, ext));

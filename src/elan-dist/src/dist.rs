@@ -6,14 +6,13 @@ use prefix::InstallPrefix;
 use manifest::Component;
 use manifestation::{Manifestation};
 use download::{DownloadCfg};
+use notifications::Notification;
 
 use std::path::Path;
 use std::fmt;
 use std::env;
 
-use json;
 use regex::Regex;
-use sha2::{Sha256, Digest};
 
 pub const DEFAULT_DIST_SERVER: &'static str = "https://static.lean-lang.org";
 
@@ -336,20 +335,6 @@ impl ToolchainDesc {
             .ok_or(ErrorKind::InvalidToolchainName(name.to_string()).into())
     }
 
-    pub fn manifest_v1_url(&self, _dist_root: &str) -> String {
-        match (self.channel.as_str(), self.date.as_ref()) {
-            ("stable", None) => "https://api.github.com/repos/leanprover/lean/releases/latest".to_string(),
-            // HACK: prereleases don't have "/latest"
-            ("nightly", None) => "https://api.github.com/repos/leanprover/lean-nightly/releases".to_string(),
-            ("nightly", Some(date)) =>
-                format!("https://api.github.com/repos/leanprover/lean-nightly/releases/tags/nightly-{}",
-                        date),
-            (version, None) => format!("https://api.github.com/repos/leanprover/lean/releases/tags/v{}",
-                                    version),
-            _ => panic!("wat"),
-        }
-    }
-
     /// Either "$channel" or "channel-$date"
     pub fn manifest_name(&self) -> String {
         match self.date {
@@ -496,8 +481,8 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
     let toolchain_str = toolchain.to_string();
     let manifestation = try!(Manifestation::open(prefix.clone(), toolchain.target.clone()));
 
-    let manifest = match dl_v1_manifest(download, toolchain) {
-        Ok(m) => m,
+    let url = match toolchain_url(download, toolchain) {
+        Ok(url) => url,
         Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
             return Err(format!("no release found for '{}'", toolchain.manifest_name()).into());
         }
@@ -506,24 +491,17 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
         }
         Err(e) => {
             return Err(e).chain_err(|| {
-                format!("failed to download manifest for '{}'",
+                format!("failed to resolve latest version of '{}'",
                         toolchain.manifest_name())
             });
         }
     };
 
-    let mut hasher = Sha256::new();
-    for url in &manifest {
-        hasher.input(url.as_bytes());
-    }
-    let hash = format!("{:x}", hasher.result());
-    let partial_hash = &hash[0..20];
-
     if let Some(hash_file) = update_hash {
         if utils::is_file(hash_file) {
             if let Ok(contents) = utils::read_file("update hash", hash_file) {
-                if contents == partial_hash {
-                    // Skip download, update hash matches
+                if contents == url {
+                    // Skip download, url matches
                     return Ok(None);
                 }
             } /*else {
@@ -534,7 +512,7 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
         }*/
     }
 
-    match manifestation.update_v1(&manifest,
+    match manifestation.update_v1(&url,
                                   &download.temp_cfg,
                                   download.notify_handler.clone()) {
         Ok(()) => Ok(()),
@@ -545,20 +523,22 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
             })
         }
         Err(e) => Err(e),
-    }.map(|()| Some(partial_hash.to_string()))
+    }.map(|()| Some(url))
 }
 
-fn dl_v1_manifest<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Result<Vec<String>> {
-    let manifest_url = toolchain.manifest_v1_url(download.dist_root);
-    let manifest_file = try!(download.download_and_check(&manifest_url, ""));
-    let manifest_str = try!(utils::read_file("manifest", &manifest_file));
-    let mut man_json = json::parse(&manifest_str).expect("failed to parse manifest");
-    if toolchain.channel == "nightly" && toolchain.date.is_none() {
-        // HACK: no "/latest" for prereleases
-        man_json = man_json[0].take();
-    };
-    let urls = man_json["assets"].members().map(|j|
-        j["browser_download_url"].as_str().unwrap().to_string()).collect();
-
-    Ok(urls)
+fn toolchain_url<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Result<String> {
+    Ok(match (toolchain.date.as_ref(), toolchain.channel.as_str()) {
+        (None, version) if version == "stable" || version == "nightly" => {
+            (download.notify_handler)(Notification::DownloadingManifest(version));
+            let repo = if version == "stable" { "leanprover/lean" } else { "leanprover/lean-nightly" };
+            let release = utils::fetch_latest_release_tag(repo)?;
+            (download.notify_handler)(Notification::DownloadedManifest(version, Some(&release)));
+            format!("https://github.com/{}/releases/tag/{}", repo, release)
+        }
+        (Some(date), "nightly") =>
+            format!("https://github.com/leanprover/lean-nightly/releases/tag/nightly-{}", date),
+        (None, version) =>
+            format!("https://github.com/leanprover/lean/releases/tag/v{}", version),
+        _ => panic!("wat"),
+    })
 }

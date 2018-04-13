@@ -35,7 +35,6 @@ use errors::*;
 use elan_dist::dist;
 use elan_utils::utils;
 use flate2;
-use json;
 use same_file::Handle;
 use std::env;
 use std::env::consts::EXE_SUFFIX;
@@ -1268,15 +1267,7 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
     // Download available version
     info!("checking for self-updates");
 
-    let manifest_url = utils::parse_url("https://api.github.com/repos/Kha/elan/releases/latest")?;
-    let manifest_path = &tempdir.path().join("manifest");
-    try!(utils::download_file(&manifest_url,
-                              &manifest_path,
-                              None,
-                              &|_| ()));
-    let manifest_str = try!(utils::read_file("manifest", &manifest_path));
-    let man_json = json::parse(&manifest_str).expect("failed to parse manifest");
-    let tag = man_json["tag_name"].as_str().unwrap();
+    let tag = utils::fetch_latest_release_tag("Kha/elan")?;
     let available_version = &tag[1..];
 
     // If up-to-date

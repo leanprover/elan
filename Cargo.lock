@@ -303,10 +303,12 @@ dependencies = [
 name = "elan-utils"
 version = "1.11.0"
 dependencies = [
+ "curl 0.4.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "download 0.4.0",
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "remove_dir_all 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "scopeguard 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
