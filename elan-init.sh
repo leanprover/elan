@@ -41,6 +41,7 @@ EOF
 
 main() {
     need_cmd curl
+    need_cmd awk
     need_cmd uname
     need_cmd mktemp
     need_cmd chmod
@@ -97,7 +98,7 @@ main() {
     fi
 
     ensure mkdir -p "$_dir"
-    local _latest=$(ensure curl -sSf "$ELAN_UPDATE_ROOT/latest" | cut -d'"' -f2 | rev | cut -d'/' -f1 | rev)
+    local _latest=$(ensure curl -sSf "$ELAN_UPDATE_ROOT/latest" | cut -d'"' -f2 | awk -F/ '{print $NF}')
 
     case "$_arch" in
         *windows*)
