@@ -138,6 +138,9 @@ pub mod curl {
     use url::Url;
     use super::Event;
 
+
+    thread_local!(pub static EASY: RefCell<Easy> = RefCell::new(Easy::new()));
+
     pub fn download(url: &Url,
                     resume_from: u64,
                     callback: &Fn(Event) -> Result<()> )
@@ -147,7 +150,6 @@ pub mod curl {
         //
         // Once we've acquired it, reset the lifetime from 'static to our local
         // scope.
-        thread_local!(static EASY: RefCell<Easy> = RefCell::new(Easy::new()));
         EASY.with(|handle| {
             let mut handle = handle.borrow_mut();
 
