@@ -625,6 +625,7 @@ pub fn fetch_latest_release_tag(repo_slug: &str) -> Result<String> {
     ::download::curl::EASY.with(|handle| {
         let mut handle = handle.borrow_mut();
         handle.url(&latest_url).unwrap();
+        handle.follow_location(true).unwrap();
         {
             let mut transfer = handle.transfer();
             transfer.write_function(|new_data| {
