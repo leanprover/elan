@@ -15,9 +15,9 @@ main() {
             ;;
     esac
 
-    test -f Cargo.lock || cargo generate-lockfile
+    #test -f Cargo.lock || cargo generate-lockfile
 
-    cross rustc --bin elan-init --target $TARGET --release -- -C lto
+    #cross rustc --bin elan-init --target $TARGET --release -- -C lto
 
     cp target/$TARGET/release/elan-init $stage/
 
