@@ -1,2 +1,3 @@
 dev-version-ext = "pre"
 tag-prefix = "v"
+pre-release-replacements = [ {file="CHANGELOG.md", search="Unreleased", replace="{{version}} - {{date}}"} ]
