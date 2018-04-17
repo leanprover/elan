@@ -239,11 +239,6 @@ impl Cfg {
             if let Ok(s) = utils::read_file("toolchain file", &toolchain_file) {
                 if let Some(s) = s.lines().next() {
                     let toolchain_name = s.trim();
-                    dist::validate_channel_name(&toolchain_name)
-                        .chain_err(|| format!("invalid channel name '{}' in '{}'",
-                                              toolchain_name,
-                                              toolchain_file.display()))?;
-
                     let reason = OverrideReason::ToolchainFile(toolchain_file);
                     return Ok(Some((toolchain_name.to_string(), reason)));
                 }
@@ -256,11 +251,6 @@ impl Cfg {
                 let toml = s.parse::<toml::Value>().unwrap();
                 if let Some(s) = toml["package"]["lean_version"].as_str() {
                     let toolchain_name = s.trim();
-                    dist::validate_channel_name(&toolchain_name)
-                        .chain_err(|| format!("invalid channel name '{}' in '{}'",
-                                              toolchain_name,
-                                              toolchain_file.display()))?;
-
                     let reason = OverrideReason::ToolchainFile(toolchain_file);
                     return Ok(Some((toolchain_name.to_string(), reason)));
                 }

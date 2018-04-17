@@ -1,5 +1,9 @@
 # [Unreleased]
 
+## Changed
+
+- `leanpkg.toml` and `lean-toolchain` files can now reference custom toolchains (those added by `elan toolchain link`)
+
 # [0.3.0] - 2018-04-11
 
 ## Added
