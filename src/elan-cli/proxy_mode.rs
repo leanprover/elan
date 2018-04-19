@@ -48,7 +48,7 @@ pub fn main() -> Result<()> {
 fn direct_proxy(cfg: &Cfg, arg0: &str, toolchain: Option<&str>, args: &[OsString]) -> Result<()> {
     let cmd = match toolchain {
         None => try!(cfg.create_command_for_dir(&try!(utils::current_dir()), arg0)),
-        Some(tc) => try!(cfg.create_command_for_toolchain(tc, false, arg0)),
+        Some(tc) => try!(cfg.create_command_for_toolchain(tc, true, arg0)),
     };
     Ok(try!(run_command_for_dir(cmd, arg0, args, &cfg)))
 }

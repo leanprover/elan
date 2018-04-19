@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- An explicit version passed to a proxy command like in `leanpkg +nightly build` will now be installed automatically when necessary
+
 # [0.4.0 - 2018-04-17]
 
 ## Changed
