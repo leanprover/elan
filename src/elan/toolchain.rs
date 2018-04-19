@@ -45,11 +45,10 @@ pub enum UpdateStatus {
 
 impl<'a> Toolchain<'a> {
     pub fn from(cfg: &'a Cfg, name: &str) -> Result<Self> {
-        let resolved_name = try!(cfg.resolve_toolchain(name));
-        let path = cfg.toolchains_dir.join(&resolved_name);
+        let path = cfg.toolchains_dir.join(&name);
         Ok(Toolchain {
             cfg: cfg,
-            name: resolved_name,
+            name: name.to_owned(),
             path: path.clone(),
             telemetry: Telemetry::new(cfg.elan_dir.join("telemetry")),
             dist_handler: Box::new(move |n| {

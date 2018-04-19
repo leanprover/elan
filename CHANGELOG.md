@@ -3,6 +3,7 @@
 ## Changed
 
 - An explicit version passed to a proxy command like in `leanpkg +nightly build` will now be installed automatically when necessary
+- Full toolchain names and their directories do not mention the operating system (the "target triple", to be exact) any more. You may want to delete your old toolchains from `~/.elan/toolchains` to save space.
 
 # [0.4.0 - 2018-04-17]
 

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use errors::*;
 use notifications::*;
-use elan_dist::{temp, dist};
+use elan_dist::{temp};
 use elan_utils::utils;
 use toolchain::{Toolchain, UpdateStatus};
 use telemetry_analysis::*;
@@ -343,31 +343,6 @@ impl Cfg {
     pub fn open_docs_for_dir(&self, path: &Path, relative: &str) -> Result<()> {
         let (toolchain, _) = try!(self.toolchain_for_dir(path));
         toolchain.open_docs(relative)
-    }
-
-    pub fn set_default_host_triple(&self, host_triple: &str) -> Result<()> {
-        if dist::PartialTargetTriple::from_str(host_triple).is_none() {
-            return Err("Invalid host triple".into())
-        }
-        self.settings_file.with_mut(|s| {
-            s.default_host_triple = Some(host_triple.to_owned());
-            Ok(())
-        })
-    }
-
-    pub fn get_default_host_triple(&self) -> Result<dist::TargetTriple> {
-        Ok(try!(self.settings_file.with(|s| {
-            Ok(s.default_host_triple.as_ref().map(|s| dist::TargetTriple::from_str(&s)))
-        })).unwrap_or_else(dist::TargetTriple::from_build))
-    }
-
-    pub fn resolve_toolchain(&self, name: &str) -> Result<String> {
-        if let Ok(desc) = dist::PartialToolchainDesc::from_str(name) {
-            let host = try!(self.get_default_host_triple());
-            Ok(desc.resolve(&host).to_string())
-        } else {
-            Ok(name.to_owned())
-        }
     }
 
     pub fn set_telemetry(&self, telemetry_enabled: bool) -> Result<()> {

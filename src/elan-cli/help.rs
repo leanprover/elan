@@ -47,7 +47,6 @@ r"DISCUSSION:
 
         <channel>       = stable|nightly|<version>
         <date>          = YYYY-MM-DD
-        <host>          = <target-triple>
 
     'channel' is either a named release channel or an explicit version
     number, such as '3.3.0'. Channel names can be optionally appended

@@ -2,7 +2,6 @@ use std::env;
 use self_update::{self, InstallOpts};
 use errors::*;
 use clap::{App, Arg, AppSettings};
-use elan_dist::dist::TargetTriple;
 use common;
 
 pub fn main() -> Result<()> {
@@ -36,14 +35,10 @@ pub fn main() -> Result<()> {
     let matches = cli.get_matches();
     let no_prompt = matches.is_present("no-prompt");
     let verbose = matches.is_present("verbose");
-    let default_host = matches.value_of("default-host").map(|s| s.to_owned()).unwrap_or_else(|| {
-        TargetTriple::from_host_or_build().to_string()
-    });
     let default_toolchain = matches.value_of("default-toolchain").unwrap_or("stable");
     let no_modify_path = matches.is_present("no-modify-path");
 
     let opts = InstallOpts {
-        default_host_triple: default_host,
         default_toolchain: default_toolchain.to_owned(),
         no_modify_path: no_modify_path,
     };

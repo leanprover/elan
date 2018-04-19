@@ -3,7 +3,6 @@ use common;
 use elan::{Cfg, Toolchain, command};
 use elan::settings::TelemetryMode;
 use errors::*;
-use elan_dist::dist::{PartialToolchainDesc, PartialTargetTriple};
 use elan_utils::utils;
 use self_update;
 use std::path::Path;
@@ -63,12 +62,6 @@ pub fn main() -> Result<()> {
                 (_, _) => unreachable!(),
             }
         }
-        /*("set", Some(c)) => {
-            match c.subcommand() {
-                ("default-host", Some(m)) => try!(set_default_host_triple(&cfg, m)),
-                (_, _) => unreachable!(),
-            }
-        }*/
         ("completions", Some(c)) => {
             if let Some(shell) = c.value_of("shell") {
                 cli().gen_completions_to("elan", shell.parse::<Shell>().unwrap(), &mut io::stdout());
@@ -260,72 +253,8 @@ pub fn cli() -> App<'static, 'static> {
             .possible_values(&Shell::variants())))
 }
 
-fn update_bare_triple_check(cfg: &Cfg, name: &str) -> Result<()> {
-    if let Some(triple) = PartialTargetTriple::from_str(name) {
-        warn!("(partial) target triple specified instead of toolchain name");
-        let installed_toolchains = try!(cfg.list_toolchains());
-        let default = try!(cfg.find_default());
-        let default_name = default.map(|t| t.name().to_string())
-                           .unwrap_or("".into());
-        let mut candidates = vec![];
-        for t in installed_toolchains {
-            if t == default_name {
-                continue;
-            }
-            if let Ok(desc) = PartialToolchainDesc::from_str(&t) {
-                fn triple_comp_eq(given: &str, from_desc: Option<&String>) -> bool {
-                    from_desc.map_or(false, |s| *s == *given)
-                }
-
-                let triple_matches =
-                    triple.arch.as_ref().map_or(true, |s| triple_comp_eq(s, desc.target.arch.as_ref()))
-                    && triple.os.as_ref().map_or(true, |s| triple_comp_eq(s, desc.target.os.as_ref()))
-                    && triple.env.as_ref().map_or(true, |s| triple_comp_eq(s, desc.target.env.as_ref()));
-                if triple_matches {
-                    candidates.push(t);
-                }
-            }
-        }
-        match candidates.len() {
-            0 => err!("no candidate toolchains found"),
-            1 => println!("\nyou may use the following toolchain: {}\n", candidates[0]),
-            _ => {
-                println!("\nyou may use one of the following toolchains:");
-                for n in &candidates {
-                    println!("{}", n);
-                }
-                println!("");
-            }
-        }
-        return Err(ErrorKind::ToolchainNotInstalled(name.to_string()).into());
-    }
-    Ok(())
-}
-
-fn default_bare_triple_check(cfg: &Cfg, name: &str) -> Result<()> {
-    if let Some(triple) = PartialTargetTriple::from_str(name) {
-        warn!("(partial) target triple specified instead of toolchain name");
-        let default = try!(cfg.find_default());
-        let default_name = default.map(|t| t.name().to_string())
-                           .unwrap_or("".into());
-        if let Ok(mut desc) = PartialToolchainDesc::from_str(&default_name) {
-            desc.target = triple;
-            let maybe_toolchain = format!("{}", desc);
-            let ref toolchain = try!(cfg.get_toolchain(maybe_toolchain.as_ref(), false));
-            if toolchain.name() == default_name {
-                warn!("(partial) triple '{}' resolves to a toolchain that is already default", name);
-            } else {
-                println!("\nyou may use the following toolchain: {}\n", toolchain.name());
-            }
-            return Err(ErrorKind::ToolchainNotInstalled(name.to_string()).into());
-        }
-    }
-    Ok(())
-}
-
 fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
-    try!(default_bare_triple_check(cfg, toolchain));
     let ref toolchain = try!(cfg.get_toolchain(toolchain, false));
 
     let status = if !toolchain.is_custom() {
@@ -349,7 +278,6 @@ fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 fn update(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     if let Some(names) = m.values_of("toolchain") {
         for name in names {
-            try!(update_bare_triple_check(cfg, name));
             let toolchain = try!(cfg.get_toolchain(name, false));
 
             let status = if !toolchain.is_custom() {

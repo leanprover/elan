@@ -49,7 +49,6 @@ use regex::Regex;
 use zip;
 
 pub struct InstallOpts {
-    pub default_host_triple: String,
     pub default_toolchain: String,
     pub no_modify_path: bool,
 }
@@ -234,7 +233,7 @@ pub fn install(no_prompt: bool, verbose: bool,
         if !opts.no_modify_path {
             try!(do_add_to_path(&get_add_path_methods()));
         }
-        try!(maybe_install_lean(&opts.default_toolchain, &opts.default_host_triple, verbose));
+        try!(maybe_install_lean(&opts.default_toolchain, verbose));
 
         if cfg!(unix) {
             let ref env_file = try!(utils::elan_home()).join("env");
@@ -538,7 +537,7 @@ pub fn install_proxies() -> Result<()> {
     Ok(())
 }
 
-fn maybe_install_lean(toolchain_str: &str, default_host_triple: &str, verbose: bool) -> Result<()> {
+fn maybe_install_lean(toolchain_str: &str, verbose: bool) -> Result<()> {
     let ref cfg = try!(common::set_globals(verbose));
 
     // If there is already an install, then `toolchain_str` may not be
@@ -549,8 +548,6 @@ fn maybe_install_lean(toolchain_str: &str, default_host_triple: &str, verbose: b
         info!("skipping toolchain installation");
         println!("");
     } else if try!(cfg.find_default()).is_none() {
-        // Set host triple first as it will affect resolution of toolchain_str
-        try!(cfg.set_default_host_triple(default_host_triple));
         let toolchain = try!(cfg.get_toolchain(toolchain_str, false));
         let status = try!(toolchain.install_from_dist(false));
         try!(cfg.set_default(toolchain_str));
@@ -1240,21 +1237,6 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
         try!(utils::remove_file("setup", setup_path));
     }
 
-    // Get build triple
-    let build_triple = dist::TargetTriple::from_build();
-    let triple = if cfg!(windows) {
-        // For windows x86 builds seem slow when used with windows defender.
-        // The website defaulted to i686-windows-gnu builds for a long time.
-        // This ensures that we update to a version thats appropriate for users
-        // and also works around if the website messed up the detection.
-        // If someone really wants to use another version, he still can enforce
-        // that using the environment variable ELAN_OVERRIDE_HOST_TRIPLE.
-
-        dist::TargetTriple::from_host().unwrap_or(build_triple)
-    } else {
-        build_triple
-    };
-
     let update_root = env::var("ELAN_UPDATE_ROOT")
         .unwrap_or(String::from(UPDATE_ROOT));
 
@@ -1276,7 +1258,7 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
     }
 
     let archive_suffix = if cfg!(target_os = "windows") { ".zip" } else { ".tar.gz" };
-    let archive_name = format!("elan-{}{}", triple, archive_suffix);
+    let archive_name = format!("elan-{}{}", dist::host_triple(), archive_suffix);
     let archive_path = tempdir.path().join(&archive_name);
     // Get download URL
     let url = format!("{}/v{}/{}", update_root, available_version, archive_name);

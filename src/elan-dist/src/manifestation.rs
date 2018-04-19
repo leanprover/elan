@@ -1,6 +1,5 @@
 //! Manifest a particular Lean version by installing it from a distribution server.
 
-use dist::TargetTriple;
 use component::{Components, Transaction, TarGzPackage, ZipPackage, Package};
 use temp;
 use errors::*;
@@ -11,7 +10,6 @@ use prefix::InstallPrefix;
 #[derive(Debug)]
 pub struct Manifestation {
     installation: Components,
-    target_triple: TargetTriple
 }
 
 impl Manifestation {
@@ -20,12 +18,11 @@ impl Manifestation {
     /// it will be created as needed. If there's an existing install
     /// then the lean-install installation format will be verified. A
     /// bad installer version is the only reason this will fail.
-    pub fn open(prefix: InstallPrefix, triple: TargetTriple) -> Result<Self> {
+    pub fn open(prefix: InstallPrefix) -> Result<Self> {
         // TODO: validate the triple with the existing install as well
         // as the metadata format of the existing install
         Ok(Manifestation {
             installation: try!(Components::open(prefix)),
-            target_triple: triple,
         })
     }
 
@@ -34,9 +31,7 @@ impl Manifestation {
                   url: &String,
                   temp_cfg: &temp::Cfg,
                   notify_handler: &Fn(Notification)) -> Result<()> {
-        notify_handler(Notification::DownloadingComponent("lean",
-                                                          &self.target_triple,
-                                                          Some(&self.target_triple)));
+        notify_handler(Notification::DownloadingComponent("lean"));
 
         use std::path::PathBuf;
         let dld_dir = PathBuf::from("bogus");
@@ -50,21 +45,24 @@ impl Manifestation {
         use std::fs;
         use regex::Regex;
         use std::io::Read;
-        let informal_target = match self.target_triple.0.as_str() {
-            "x86_64-unknown-linux-gnu" => Some("linux"),
-            "x86_64-apple-darwin" => Some("darwin"),
-            "x86_64-pc-windows-msvc" => Some("windows"),
-            _ => None,
+        let informal_target = if cfg!(target_os = "windows") {
+            "windows"
+        } else if cfg!(target_os = "linux") {
+            "linux"
+        } else if cfg!(target_os = "macos") {
+            "darwin"
+        } else {
+            unreachable!()
         };
         let re = Regex::new(r#"/leanprover/[a-z-]+/releases/download/[^"]+"#).unwrap();
         let download_page_file = dlcfg.download_and_check(&url, "")?;
         let mut html = String::new();
         fs::File::open(&download_page_file as &::std::path::Path)?.read_to_string(&mut html)?;
         let url = re.find_iter(&html).map(|m| m.as_str().to_string()).find(|m|
-            informal_target.map(|t| m.as_str().contains(t)).unwrap_or(false));
+            m.contains(informal_target));
         if url.is_none() {
             return Err(format!("binary package was not provided for '{}'",
-                               self.target_triple.to_string()).into());
+                               informal_target).into());
         }
         let url = format!("https://github.com/{}", url.unwrap());
 
@@ -73,9 +71,7 @@ impl Manifestation {
 
         let prefix = self.installation.prefix();
 
-        notify_handler(Notification::InstallingComponent("lean",
-                                                         &self.target_triple,
-                                                         Some(&self.target_triple)));
+        notify_handler(Notification::InstallingComponent("lean"));
 
         // Begin transaction
         let mut tx = Transaction::new(prefix.clone(), temp_cfg, notify_handler);

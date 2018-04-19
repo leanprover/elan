@@ -4,7 +4,6 @@ use temp;
 use elan_utils;
 use elan_utils::notify::{NotificationLevel};
 use manifest::Component;
-use dist::TargetTriple;
 use errors::*;
 
 #[derive(Debug)]
@@ -24,9 +23,9 @@ pub enum Notification<'a> {
     ExtensionNotInstalled(&'a Component),
     NonFatalError(&'a Error),
     MissingInstalledComponent(&'a str),
-    DownloadingComponent(&'a str, &'a TargetTriple, Option<&'a TargetTriple>),
-    InstallingComponent(&'a str, &'a TargetTriple, Option<&'a TargetTriple>),
-    RemovingComponent(&'a str, &'a TargetTriple, Option<&'a TargetTriple>),
+    DownloadingComponent(&'a str),
+    InstallingComponent(&'a str),
+    RemovingComponent(&'a str),
     DownloadingManifest(&'a str),
     DownloadedManifest(&'a str, Option<&'a str>),
     DownloadingLegacyManifest,
@@ -55,9 +54,9 @@ impl<'a> Notification<'a> {
             FileAlreadyDownloaded |
             DownloadingLegacyManifest  => NotificationLevel::Verbose,
             Extracting(_, _) | SignatureValid(_)  |
-            DownloadingComponent(_, _, _) |
-            InstallingComponent(_, _, _) |
-            RemovingComponent(_, _, _) |
+            DownloadingComponent(_) |
+            InstallingComponent(_) |
+            RemovingComponent(_) |
             ComponentAlreadyInstalled(_)  |
             ManifestChecksumFailedHack |
             RollingBack | DownloadingManifest(_) |
@@ -95,27 +94,9 @@ impl<'a> Display for Notification<'a> {
             }
             NonFatalError(e) => write!(f, "{}", e),
             MissingInstalledComponent(c) => write!(f, "during uninstall component {} was not found", c),
-            DownloadingComponent(c, h, t) => {
-                if Some(h) == t || t.is_none() {
-                    write!(f, "downloading component '{}'", c)
-                } else {
-                    write!(f, "downloading component '{}' for '{}'", c, t.unwrap())
-                }
-            }
-            InstallingComponent(c, h, t) => {
-                if Some(h) == t || t.is_none() {
-                    write!(f, "installing component '{}'", c)
-                } else {
-                    write!(f, "installing component '{}' for '{}'", c, t.unwrap())
-                }
-            }
-            RemovingComponent(c, h, t) => {
-                if Some(h) == t || t.is_none() {
-                    write!(f, "removing component '{}'", c)
-                } else {
-                    write!(f, "removing component '{}' for '{}'", c, t.unwrap())
-                }
-            }
+            DownloadingComponent(c) => write!(f, "downloading component '{}'", c),
+            InstallingComponent(c) => write!(f, "installing component '{}'", c),
+            RemovingComponent(c) => write!(f, "removing component '{}'", c),
             DownloadingManifest(t) => write!(f, "syncing channel updates for '{}'", t),
             DownloadedManifest(date, Some(version)) => write!(f, "latest update on {}, lean version {}", date, version),
             DownloadedManifest(date, None) => write!(f, "latest update on {}, no lean version", date),

@@ -10,29 +10,8 @@ use notifications::Notification;
 
 use std::path::Path;
 use std::fmt;
-use std::env;
 
 use regex::Regex;
-
-// A toolchain descriptor from elan's perspective. These contain
-// 'partial target triples', which allow toolchain names like
-// 'stable-msvc' to work. Partial target triples though are parsed
-// from a hardcoded set of known triples, whereas target triples
-// are nearly-arbitrary strings.
-#[derive(Debug, Clone)]
-pub struct PartialToolchainDesc {
-    // Either "nightly", "stable", or an explicit version number
-    pub channel: String,
-    pub date: Option<String>,
-    pub target: PartialTargetTriple,
-}
-
-#[derive(Debug, Clone)]
-pub struct PartialTargetTriple {
-    pub arch: Option<String>,
-    pub os: Option<String>,
-    pub env: Option<String>,
-}
 
 // Fully-resolved toolchain descriptors. These always have full target
 // triples attached to them and are used for canonical identification,
@@ -42,265 +21,6 @@ pub struct ToolchainDesc {
     // Either "nightly", "stable", or an explicit version number
     pub channel: String,
     pub date: Option<String>,
-    pub target: TargetTriple,
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct TargetTriple(pub String);
-
-// These lists contain the targets known to elan, and used to build
-// the PartialTargetTriple.
-
-static LIST_ARCHS: &'static [&'static str] = &["i386",
-                                               "i586",
-                                               "i686",
-                                               "x86_64",
-                                               "arm",
-                                               "armv7",
-                                               "armv7s",
-                                               "aarch64",
-                                               "mips",
-                                               "mipsel",
-                                               "mips64",
-                                               "mips64el",
-                                               "powerpc",
-                                               "powerpc64",
-                                               "powerpc64le",
-                                               "s390x"];
-static LIST_OSES: &'static [&'static str] = &["pc-windows",
-                                              "unknown-linux",
-                                              "apple-darwin",
-                                              "unknown-netbsd",
-                                              "apple-ios",
-                                              "linux",
-                                              "rumprun-netbsd",
-                                              "unknown-freebsd"];
-static LIST_ENVS: &'static [&'static str] =
-    &["gnu", "msvc", "gnueabi", "gnueabihf", "gnuabi64", "androideabi", "android", "musl"];
-
-// MIPS platforms don't indicate endianness in uname, however binaries only
-// run on boxes with the same endianness, as expected.
-// Hence we could distinguish between the variants with compile-time cfg()
-// attributes alone.
-#[cfg(all(not(windows), target_endian = "big"))]
-const TRIPLE_MIPS_UNKNOWN_LINUX_GNU: &'static str = "mips-unknown-linux-gnu";
-#[cfg(all(not(windows), target_endian = "little"))]
-const TRIPLE_MIPS_UNKNOWN_LINUX_GNU: &'static str = "mipsel-unknown-linux-gnu";
-
-#[cfg(all(not(windows), target_endian = "big"))]
-const TRIPLE_MIPS64_UNKNOWN_LINUX_GNUABI64: &'static str =
-    "mips64-unknown-linux-gnuabi64";
-#[cfg(all(not(windows), target_endian = "little"))]
-const TRIPLE_MIPS64_UNKNOWN_LINUX_GNUABI64: &'static str =
-    "mips64el-unknown-linux-gnuabi64";
-
-impl TargetTriple {
-    pub fn from_str(name: &str) -> Self {
-        TargetTriple(name.to_string())
-    }
-
-    pub fn from_build() -> Self {
-        if let Some(triple) = option_env!("ELAN_OVERRIDE_BUILD_TRIPLE") {
-            TargetTriple::from_str(triple)
-        } else {
-            TargetTriple::from_str(include_str!(concat!(env!("OUT_DIR"), "/target.txt")))
-        }
-    }
-
-    pub fn from_host() -> Option<Self> {
-        #[cfg(windows)]
-        fn inner() -> Option<TargetTriple> {
-            use winapi::um::sysinfoapi::GetNativeSystemInfo;
-            use std::mem;
-
-            // First detect architecture
-            const PROCESSOR_ARCHITECTURE_AMD64: u16 = 9;
-            const PROCESSOR_ARCHITECTURE_INTEL: u16 = 0;
-
-            let mut sys_info;
-            unsafe {
-                sys_info = mem::zeroed();
-                GetNativeSystemInfo(&mut sys_info);
-            }
-
-            let arch = match unsafe { sys_info.u.s() }.wProcessorArchitecture {
-                PROCESSOR_ARCHITECTURE_AMD64 => "x86_64",
-                PROCESSOR_ARCHITECTURE_INTEL => "i686",
-                _ => return None,
-            };
-
-            // Default to msvc
-            let msvc_triple = format!("{}-pc-windows-msvc", arch);
-            Some(TargetTriple(msvc_triple))
-        }
-
-        #[cfg(not(windows))]
-        fn inner() -> Option<TargetTriple> {
-            use libc;
-            use std::mem;
-            use std::ffi::CStr;
-
-            let mut sys_info;
-            let (sysname, machine) = unsafe {
-                sys_info = mem::zeroed();
-                if libc::uname(&mut sys_info) != 0 {
-                    return None;
-                }
-
-                (CStr::from_ptr(sys_info.sysname.as_ptr()).to_bytes(),
-                 CStr::from_ptr(sys_info.machine.as_ptr()).to_bytes())
-            };
-
-            let host_triple = match (sysname, machine) {
-                (_, b"arm") if cfg!(target_os = "android") => Some("arm-linux-androideabi"),
-                (_, b"armv7l") if cfg!(target_os = "android") => Some("armv7-linux-androideabi"),
-                (_, b"armv8l") if cfg!(target_os = "android") => Some("armv7-linux-androideabi"),
-                (_, b"aarch64") if cfg!(target_os = "android") => Some("aarch64-linux-android"),
-                (_, b"i686") if cfg!(target_os = "android") => Some("i686-linux-android"),
-                (_, b"x86_64") if cfg!(target_os = "android") => Some("x86_64-linux-android"),
-                (b"Linux", b"x86_64") => Some("x86_64-unknown-linux-gnu"),
-                (b"Linux", b"i686") => Some("i686-unknown-linux-gnu"),
-                (b"Linux", b"mips") => Some(TRIPLE_MIPS_UNKNOWN_LINUX_GNU),
-                (b"Linux", b"mips64") => Some(TRIPLE_MIPS64_UNKNOWN_LINUX_GNUABI64),
-                (b"Linux", b"arm") => Some("arm-unknown-linux-gnueabi"),
-                (b"Linux", b"armv7l") => Some("armv7-unknown-linux-gnueabihf"),
-                (b"Linux", b"armv8l") => Some("armv7-unknown-linux-gnueabihf"),
-                (b"Linux", b"aarch64") => Some("aarch64-unknown-linux-gnu"),
-                (b"Darwin", b"x86_64") => Some("x86_64-apple-darwin"),
-                (b"Darwin", b"i686") => Some("i686-apple-darwin"),
-                (b"FreeBSD", b"x86_64") => Some("x86_64-unknown-freebsd"),
-                (b"FreeBSD", b"i686") => Some("i686-unknown-freebsd"),
-                (b"OpenBSD", b"x86_64") => Some("x86_64-unknown-openbsd"),
-                (b"OpenBSD", b"i686") => Some("i686-unknown-openbsd"),
-                (b"NetBSD", b"x86_64") => Some("x86_64-unknown-netbsd"),
-                (b"NetBSD", b"i686") => Some("i686-unknown-netbsd"),
-                (b"DragonFly", b"x86_64") => Some("x86_64-unknown-dragonfly"),
-                _ => None,
-            };
-
-            host_triple.map(TargetTriple::from_str)
-        }
-
-        if let Ok(triple) = env::var("ELAN_OVERRIDE_HOST_TRIPLE") {
-            Some(TargetTriple(triple))
-        } else {
-            inner()
-        }
-    }
-
-    pub fn from_host_or_build() -> Self {
-        Self::from_host().unwrap_or_else(Self::from_build)
-    }
-}
-
-impl PartialTargetTriple {
-    pub fn from_str(name: &str) -> Option<Self> {
-        if name.is_empty() {
-            return Some(PartialTargetTriple {
-                arch: None,
-                os: None,
-                env: None,
-            });
-        }
-
-        // Prepending `-` makes this next regex easier since
-        // we can count  on all triple components being
-        // delineated by it.
-        let name = format!("-{}", name);
-        let pattern = format!(r"^(?:-({}))?(?:-({}))?(?:-({}))?$",
-                              LIST_ARCHS.join("|"),
-                              LIST_OSES.join("|"),
-                              LIST_ENVS.join("|"));
-
-        let re = Regex::new(&pattern).unwrap();
-        re.captures(&name).map(|c| {
-            fn fn_map(s: &str) -> Option<String> {
-                if s == "" {
-                    None
-                } else {
-                    Some(s.to_owned())
-                }
-            }
-
-            PartialTargetTriple {
-                arch: c.get(1).map(|s| s.as_str()).and_then(fn_map),
-                os: c.get(2).map(|s| s.as_str()).and_then(fn_map),
-                env: c.get(3).map(|s| s.as_str()).and_then(fn_map),
-            }
-        })
-    }
-}
-
-impl PartialToolchainDesc {
-    pub fn from_str(name: &str) -> Result<Self> {
-        let channels =
-            ["nightly", "stable", r"\d{1}\.\d{1}\.\d{1}", r"\d{1}\.\d{2}\.\d{1}"];
-
-        let pattern = format!(r"^({})(?:-(\d{{4}}-\d{{2}}-\d{{2}}))?(?:-(.*))?$",
-                              channels.join("|"));
-
-
-        let re = Regex::new(&pattern).unwrap();
-        let d = re.captures(name).map(|c| {
-            fn fn_map(s: &str) -> Option<String> {
-                if s == "" {
-                    None
-                } else {
-                    Some(s.to_owned())
-                }
-            }
-
-            let trip = c.get(3).map(|c| c.as_str()).unwrap_or("");
-            let trip = PartialTargetTriple::from_str(&trip);
-            trip.map(|t| {
-                PartialToolchainDesc {
-                    channel: c.get(1).unwrap().as_str().to_owned(),
-                    date: c.get(2).map(|s| s.as_str()).and_then(fn_map),
-                    target: t,
-                }
-            })
-        });
-
-        if let Some(Some(d)) = d {
-            Ok(d)
-        } else {
-            Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
-        }
-    }
-
-    pub fn resolve(self, host: &TargetTriple) -> ToolchainDesc {
-        let host = PartialTargetTriple::from_str(&host.0)
-            .expect("host triple couldn't be converted to partial triple");
-        let host_arch = host.arch.expect("");
-        let host_os = host.os.expect("");
-        let host_env = host.env;
-
-        // If OS was specified, don't default to host environment, even if the OS matches
-        // the host OS, otherwise cannot specify no environment.
-        let env = if self.target.os.is_some() {
-            self.target.env
-        } else {
-            self.target.env.or_else(|| host_env)
-        };
-        let arch = self.target.arch.unwrap_or_else(|| host_arch);
-        let os = self.target.os.unwrap_or_else(|| host_os);
-
-        let trip = if let Some(env) = env {
-            format!("{}-{}-{}", arch, os, env)
-        } else {
-            format!("{}-{}", arch, os)
-        };
-
-        ToolchainDesc {
-            channel: self.channel,
-            date: self.date,
-            target: TargetTriple(trip),
-        }
-    }
-
-    pub fn has_triple(&self) -> bool {
-        self.target.arch.is_some() || self.target.os.is_some() || self.target.env.is_some()
-    }
 }
 
 impl ToolchainDesc {
@@ -309,7 +29,7 @@ impl ToolchainDesc {
             ["nightly", "stable", r"\d{1}\.\d{1}\.\d{1}", r"\d{1}\.\d{2}\.\d{1}"];
 
         let pattern = format!(
-            r"^({})(?:-(\d{{4}}-\d{{2}}-\d{{2}}))?-(.*)?$",
+            r"^({})(?:-(\d{{4}}-\d{{2}}-\d{{2}}))?$",
             channels.join("|"),
             );
 
@@ -327,7 +47,6 @@ impl ToolchainDesc {
                 ToolchainDesc {
                     channel: c.get(1).unwrap().as_str().to_owned(),
                     date: c.get(2).map(|s| s.as_str()).and_then(fn_map),
-                    target: TargetTriple(c.get(3).unwrap().as_str().to_owned()),
                 }
             })
             .ok_or(ErrorKind::InvalidToolchainName(name.to_string()).into())
@@ -362,62 +81,8 @@ impl ToolchainDesc {
     }
 }
 
-// A little convenience for just parsing a channel name or archived channel name
-pub fn validate_channel_name(name: &str) -> Result<()> {
-    let toolchain = PartialToolchainDesc::from_str(&name)?;
-    if toolchain.has_triple() {
-        Err(format!("target triple in channel name '{}'", name).into())
-    } else {
-        Ok(())
-    }
-}
-
 #[derive(Debug)]
 pub struct Manifest<'a>(temp::File<'a>, String);
-
-impl<'a> Manifest<'a> {
-    pub fn package_url(&self,
-                       package: &str,
-                       target_triple: &str,
-                       ext: &str)
-                       -> Result<Option<String>> {
-        let suffix = target_triple.to_owned() + ext;
-        Ok(try!(utils::match_file("manifest", &self.0, |line| {
-            if line.starts_with(package) && line.ends_with(&suffix) {
-                Some(format!("{}/{}", &self.1, line))
-            } else {
-                None
-            }
-        })))
-    }
-}
-
-impl fmt::Display for TargetTriple {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl fmt::Display for PartialToolchainDesc {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(write!(f, "{}", &self.channel));
-
-        if let Some(ref date) = self.date {
-            try!(write!(f, "-{}", date));
-        }
-        if let Some(ref arch) = self.target.arch {
-            try!(write!(f, "-{}", arch));
-        }
-        if let Some(ref os) = self.target.os {
-            try!(write!(f, "-{}", os));
-        }
-        if let Some(ref env) = self.target.env {
-            try!(write!(f, "-{}", env));
-        }
-
-        Ok(())
-    }
-}
 
 impl fmt::Display for ToolchainDesc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -426,7 +91,6 @@ impl fmt::Display for ToolchainDesc {
         if let Some(ref date) = self.date {
             try!(write!(f, "-{}", date));
         }
-        try!(write!(f, "-{}", self.target));
 
         Ok(())
     }
@@ -477,7 +141,7 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
                              -> Result<Option<String>> {
 
     let toolchain_str = toolchain.to_string();
-    let manifestation = try!(Manifestation::open(prefix.clone(), toolchain.target.clone()));
+    let manifestation = try!(Manifestation::open(prefix.clone()));
 
     let url = match toolchain_url(download, toolchain) {
         Ok(url) => url,
@@ -539,4 +203,8 @@ fn toolchain_url<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Re
             format!("https://github.com/leanprover/lean/releases/tag/v{}", version),
         _ => panic!("wat"),
     })
+}
+
+pub fn host_triple() -> &'static str {
+    include_str!(concat!(env!("OUT_DIR"), "/target.txt"))
 }
