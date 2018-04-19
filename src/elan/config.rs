@@ -249,7 +249,7 @@ impl Cfg {
             if let Ok(s) = utils::read_file("leanpkg.toml", &toolchain_file) {
                 // TODO(Sebastian): better error handling, override reason
                 let toml = s.parse::<toml::Value>().unwrap();
-                if let Some(s) = toml["package"]["lean_version"].as_str() {
+                if let Some(s) = toml["package"].get("lean_version").and_then(toml::Value::as_str) {
                     let toolchain_name = s.trim();
                     let reason = OverrideReason::ToolchainFile(toolchain_file);
                     return Ok(Some((toolchain_name.to_string(), reason)));
