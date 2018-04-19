@@ -45,8 +45,6 @@ pub struct Cfg {
     pub temp_cfg: temp::Cfg,
     //pub gpg_key: Cow<'static, str>,
     pub env_override: Option<String>,
-    pub dist_root_url: String,
-    pub dist_root_server: String,
     pub notify_handler: Arc<Fn(Notification)>,
 }
 
@@ -77,16 +75,11 @@ impl Cfg {
                                .ok()
                                .and_then(utils::if_not_empty);
 
-        let dist_root_server = env::var("ELAN_DIST_SERVER")
-            .unwrap_or_else(|_| String::from(dist::DEFAULT_DIST_SERVER));
-
         let notify_clone = notify_handler.clone();
         let temp_cfg = temp::Cfg::new(elan_dir.join("tmp"),
-                                      dist_root_server.as_str(),
                                       Box::new(move |n| {
                                           (notify_clone)(n.into())
                                       }));
-        let dist_root = dist_root_server.clone() + "/dist";
 
         Ok(Cfg {
             elan_dir: elan_dir,
@@ -98,8 +91,6 @@ impl Cfg {
             //gpg_key: gpg_key,
             notify_handler: notify_handler,
             env_override: env_override,
-            dist_root_url: dist_root,
-            dist_root_server: dist_root_server,
         })
     }
 

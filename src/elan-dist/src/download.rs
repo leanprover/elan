@@ -14,7 +14,6 @@ const _UPDATE_HASH_LEN: usize = 20;
 
 #[derive(Copy, Clone)]
 pub struct DownloadCfg<'a> {
-    pub dist_root: &'a str,
     pub temp_cfg: &'a temp::Cfg,
     pub download_dir: &'a PathBuf,
     pub notify_handler: &'a Fn(Notification),

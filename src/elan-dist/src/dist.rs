@@ -14,8 +14,6 @@ use std::env;
 
 use regex::Regex;
 
-pub const DEFAULT_DIST_SERVER: &'static str = "https://static.lean-lang.org";
-
 // A toolchain descriptor from elan's perspective. These contain
 // 'partial target triples', which allow toolchain names like
 // 'stable-msvc' to work. Partial target triples though are parsed
@@ -512,9 +510,9 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
         }*/
     }
 
-    match manifestation.update_v1(&url,
-                                  &download.temp_cfg,
-                                  download.notify_handler.clone()) {
+    match manifestation.update(&url,
+                               &download.temp_cfg,
+                               download.notify_handler.clone()) {
         Ok(()) => Ok(()),
         e @ Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
             e.chain_err(|| {
