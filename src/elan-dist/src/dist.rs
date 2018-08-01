@@ -141,12 +141,14 @@ pub fn update_from_dist<'a>(download: DownloadCfg<'a>,
     res
 }
 
-//A shorthand to return the default origin if a custom one was not specified
-fn fill_origin(origin: Option<&String>) -> String {
-    match origin {
+//Append "-nightly" to the origin if version == "nightly" was specified.
+//If origin is None use DEFAULT_ORIGIN.
+fn build_origin_name(origin: Option<&String>, version: &str) -> String {
+    let repo = match origin {
         None => DEFAULT_ORIGIN,
         Some (repo) => repo
-    }.to_owned()
+    };
+    format!("{}{}", repo, if version == "nightly" { "-nightly" } else { "" })
 }
 
 pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
@@ -192,7 +194,7 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
         }*/
     }
 
-    match manifestation.update(&fill_origin(toolchain.origin.as_ref()),
+    match manifestation.update(&build_origin_name(toolchain.origin.as_ref(), &toolchain.channel),
                                &url,
                                &download.temp_cfg,
                                download.notify_handler.clone()) {
@@ -208,17 +210,16 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
 }
 
 fn toolchain_url<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Result<String> {
-    let origin = fill_origin(toolchain.origin.as_ref());
+    let origin = build_origin_name(toolchain.origin.as_ref(), toolchain.channel.as_ref());
     Ok(match (toolchain.date.as_ref(), toolchain.channel.as_str()) {
         (None, version) if version == "stable" || version == "nightly" => {
             (download.notify_handler)(Notification::DownloadingManifest(version));
-            let repo = format!("{}{}", &origin, if version == "nightly" { "-nightly" } else { "" });
-            let release = utils::fetch_latest_release_tag(&repo)?;
+            let release = utils::fetch_latest_release_tag(&origin)?;
             (download.notify_handler)(Notification::DownloadedManifest(version, Some(&release)));
-            format!("https://github.com/{}/releases/tag/{}", repo, release)
+            format!("https://github.com/{}/releases/tag/{}", origin, release)
         }
         (Some(date), "nightly") =>
-            format!("https://github.com/{}-nightly/releases/tag/nightly-{}", origin, date),
+            format!("https://github.com/{}/releases/tag/nightly-{}", origin, date),
         (None, version) =>
             format!("https://github.com/{}/releases/tag/v{}", origin, version),
         _ => panic!("wat"),
