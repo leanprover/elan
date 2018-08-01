@@ -13,11 +13,16 @@ use std::fmt;
 
 use regex::Regex;
 
+const DEFAULT_ORIGIN: &str = "leanprover/lean";
+
 // Fully-resolved toolchain descriptors. These always have full target
 // triples attached to them and are used for canonical identification,
 // such as naming their installation directory.
 #[derive(Debug, Clone)]
 pub struct ToolchainDesc {
+    // The GitHub source repository to use (if "nightly" is specified, we append "-nightly" to this)
+    // If None, we default to "leanprover/lean"
+    pub origin: Option<String>,
     // Either "nightly", "stable", or an explicit version number
     pub channel: String,
     pub date: Option<String>,
@@ -29,7 +34,7 @@ impl ToolchainDesc {
             ["nightly", "stable", r"\d{1}\.\d{1}\.\d{1}", r"\d{1}\.\d{2}\.\d{1}"];
 
         let pattern = format!(
-            r"^({})(?:-(\d{{4}}-\d{{2}}-\d{{2}}))?$",
+            r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?({})(?:-(\d{{4}}-\d{{2}}-\d{{2}}))?$",
             channels.join("|"),
             );
 
@@ -45,8 +50,9 @@ impl ToolchainDesc {
                 }
 
                 ToolchainDesc {
-                    channel: c.get(1).unwrap().as_str().to_owned(),
-                    date: c.get(2).map(|s| s.as_str()).and_then(fn_map),
+                    origin: c.get(1).map(|s| s.as_str()).and_then(fn_map),
+                    channel: c.get(2).unwrap().as_str().to_owned(),
+                    date: c.get(3).map(|s| s.as_str()).and_then(fn_map),
                 }
             })
             .ok_or(ErrorKind::InvalidToolchainName(name.to_string()).into())
@@ -86,6 +92,10 @@ pub struct Manifest<'a>(temp::File<'a>, String);
 
 impl fmt::Display for ToolchainDesc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        if let Some(ref origin) = self.origin {
+            try!(write!(f, "{}-", str::replace(origin, "/", "-")));
+        }
+
         try!(write!(f, "{}", &self.channel));
 
         if let Some(ref date) = self.date {
@@ -131,6 +141,14 @@ pub fn update_from_dist<'a>(download: DownloadCfg<'a>,
     res
 }
 
+//A shorthand to return the default origin if a custom one was not specified
+fn fill_origin(origin: Option<&String>) -> String {
+    match origin {
+        None => DEFAULT_ORIGIN,
+        Some (repo) => repo
+    }.to_owned()
+}
+
 pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
                              update_hash: Option<&Path>,
                              toolchain: &ToolchainDesc,
@@ -174,7 +192,8 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
         }*/
     }
 
-    match manifestation.update(&url,
+    match manifestation.update(&fill_origin(toolchain.origin.as_ref()),
+                               &url,
                                &download.temp_cfg,
                                download.notify_handler.clone()) {
         Ok(()) => Ok(()),
@@ -189,18 +208,19 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
 }
 
 fn toolchain_url<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Result<String> {
+    let origin = fill_origin(toolchain.origin.as_ref());
     Ok(match (toolchain.date.as_ref(), toolchain.channel.as_str()) {
         (None, version) if version == "stable" || version == "nightly" => {
             (download.notify_handler)(Notification::DownloadingManifest(version));
-            let repo = if version == "stable" { "leanprover/lean" } else { "leanprover/lean-nightly" };
-            let release = utils::fetch_latest_release_tag(repo)?;
+            let repo = format!("{}{}", &origin, if version == "nightly" { "-nightly" } else { "" });
+            let release = utils::fetch_latest_release_tag(&repo)?;
             (download.notify_handler)(Notification::DownloadedManifest(version, Some(&release)));
             format!("https://github.com/{}/releases/tag/{}", repo, release)
         }
         (Some(date), "nightly") =>
-            format!("https://github.com/leanprover/lean-nightly/releases/tag/nightly-{}", date),
+            format!("https://github.com/{}-nightly/releases/tag/nightly-{}", origin, date),
         (None, version) =>
-            format!("https://github.com/leanprover/lean/releases/tag/v{}", version),
+            format!("https://github.com/{}/releases/tag/v{}", origin, version),
         _ => panic!("wat"),
     })
 }

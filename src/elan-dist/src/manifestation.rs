@@ -28,6 +28,7 @@ impl Manifestation {
 
     /// Installation using the legacy v1 manifest format
     pub fn update(&self,
+                  origin: &String,
                   url: &String,
                   temp_cfg: &temp::Cfg,
                   notify_handler: &Fn(Notification)) -> Result<()> {
@@ -54,7 +55,7 @@ impl Manifestation {
         } else {
             unreachable!()
         };
-        let re = Regex::new(r#"/leanprover/[a-z-]+/releases/download/[^"]+"#).unwrap();
+        let re = Regex::new(format!(r#"/{}/releases/download/[^"]+"#, origin).as_str()).unwrap();
         let download_page_file = dlcfg.download_and_check(&url, "")?;
         let mut html = String::new();
         fs::File::open(&download_page_file as &::std::path::Path)?.read_to_string(&mut html)?;
