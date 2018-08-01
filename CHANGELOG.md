@@ -1,3 +1,9 @@
+# Unreleased
+
+## Added
+
+- Version specifiers can now point to custom forks of Lean, such as `khoek/klean:3.4.1` (#8)
+
 # 0.5.0 - 2018-04-20
 
 ## Changed

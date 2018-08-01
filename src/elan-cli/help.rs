@@ -43,7 +43,7 @@ r"DISCUSSION:
 
     Standard release channel toolchain names have the following form:
 
-        <channel>[-<date>][-<host>]
+        [<origin>:]<channel>[-<date>]
 
         <channel>       = stable|nightly|<version>
         <date>          = YYYY-MM-DD
@@ -52,6 +52,9 @@ r"DISCUSSION:
     number, such as '3.3.0'. Channel names can be optionally appended
     with an archive date, as in 'nightly-2018-04-10', in which case
     the toolchain is downloaded from the archive for that date.
+    'origin' can be used to refer to custom forks of Lean on Github;
+    the default is 'leanprover/lean'. For nightly versions, '-nightly'
+    is appended to the value of 'origin'.
 
     elan can also manage symlinked local toolchain builds, which are
     often used to for developing Lean itself. For more information see
