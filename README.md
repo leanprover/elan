@@ -35,7 +35,7 @@ master
 active toolchain
 ----------------
 
-nightly-2018-04-10-x86_64-unknown-linux-gnu (overridden by '/home/me/my/package/leanpkg.toml')
+nightly-2018-04-10 (overridden by '/home/me/my/package/leanpkg.toml')
 Lean (version 3.3.1, nightly-2018-04-10, commit d36b859c6579, Release)
 ```
 
