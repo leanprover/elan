@@ -27,9 +27,9 @@ Lean package manager, version nightly-2018-04-10
 installed toolchains
 --------------------
 
-stable-x86_64-unknown-linux-gnu
-nightly-2018-04-06-x86_64-unknown-linux-gnu
-nightly-2018-04-10-x86_64-unknown-linux-gnu
+stable
+nightly-2018-04-06
+nightly-2018-04-10
 master
 
 active toolchain
