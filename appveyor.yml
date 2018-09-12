@@ -41,7 +41,9 @@ test_script:
   # quick test, skip on deploy
   - if [%APPVEYOR_REPO_TAG%]==[false] (
       set RUST_BACKTRACE=1 &&
-      cargo run --target %TARGET% --release -- -y
+      cargo run --target %TARGET% --release -- -y &&
+      %USERPROFILE%\.elan\bin\elan which leanpkg &&
+      %USERPROFILE%\.elan\bin\leanpkg -h
     )
 
 before_deploy:
