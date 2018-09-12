@@ -307,19 +307,7 @@ impl<'a> Toolchain<'a> {
             return Err(ErrorKind::ToolchainNotInstalled(self.name.to_owned()).into());
         }
 
-        // Create the path to this binary within the current toolchain sysroot
-        let binary = if let Some(binary_str) = binary.as_ref().to_str() {
-            if binary_str.to_lowercase().ends_with(EXE_SUFFIX) {
-                binary.as_ref().to_owned()
-            } else {
-                OsString::from(format!("{}{}", binary_str, EXE_SUFFIX))
-            }
-        } else {
-            // Very weird case. Non-unicode command.
-            binary.as_ref().to_owned()
-        };
-
-        let bin_path = self.path.join("bin").join(&binary);
+        let bin_path = self.binary_file(&binary);
         let path = if utils::is_file(&bin_path) {
             &bin_path
         } else {
@@ -327,63 +315,13 @@ impl<'a> Toolchain<'a> {
                 .and_then(|s| s.parse().ok()).unwrap_or(0);
             if recursion_count > env_var::LEAN_RECURSION_COUNT_MAX - 1 {
                 return Err(ErrorKind::BinaryNotFound(self.name.clone(),
-                                                     binary.to_string_lossy()
-                                                           .into())
+                                                     bin_path.to_str().unwrap().into())
                             .into())
             }
             Path::new(&binary)
         };
         let mut cmd = Command::new(&path);
         self.set_env(&mut cmd);
-        Ok(cmd)
-    }
-
-    // Create a command as a fallback for another toolchain. This is used
-    // to give custom toolchains access to leanpkg
-    pub fn create_fallback_command<T: AsRef<OsStr>>(&self, binary: T,
-                                                    primary_toolchain: &Toolchain) -> Result<Command> {
-        // With the hacks below this only works for leanpkg atm
-        assert!(binary.as_ref() == "leanpkg" || binary.as_ref() == "leanpkg.exe");
-
-        if !self.exists() {
-            return Err(ErrorKind::ToolchainNotInstalled(self.name.to_owned()).into());
-        }
-        if !primary_toolchain.exists() {
-            return Err(ErrorKind::ToolchainNotInstalled(primary_toolchain.name.to_owned()).into());
-        }
-
-        let src_file = self.path.join("bin").join(format!("leanpkg{}", EXE_SUFFIX));
-
-        // MAJOR HACKS: Copy leanpkg.exe to its own directory on windows before
-        // running it. This is so that the fallback leanpkg, when it in turn runs
-        // lean.exe, will run the lean.exe out of the PATH environment
-        // variable, _not_ the lean.exe sitting in the same directory as the
-        // fallback. See the `fallback_leanpkg_calls_correct_lean` testcase and
-        // PR 812.
-        //
-        // On Windows, spawning a process will search the running application's
-        // directory for the exe to spawn before searching PATH, and we don't want
-        // it to do that, because leanpkg's directory contains the _wrong_ lean. See
-        // the documantation for the lpCommandLine argument of CreateProcess.
-        let exe_path = if cfg!(windows) {
-            use std::fs;
-            let fallback_dir = self.cfg.elan_dir.join("fallback");
-            try!(fs::create_dir_all(&fallback_dir)
-                 .chain_err(|| "unable to create dir to hold fallback exe"));
-            let fallback_file = fallback_dir.join("leanpkg.exe");
-            if fallback_file.exists() {
-                try!(fs::remove_file(&fallback_file)
-                     .chain_err(|| "unable to unlink old fallback exe"));
-            }
-            try!(fs::hard_link(&src_file, &fallback_file)
-                 .chain_err(|| "unable to hard link fallback exe"));
-            fallback_file
-        } else {
-            src_file
-        };
-        let mut cmd = Command::new(exe_path);
-        self.set_env(&mut cmd);
-        cmd.env("ELAN_TOOLCHAIN", &primary_toolchain.name);
         Ok(cmd)
     }
 
@@ -461,10 +399,26 @@ impl<'a> Toolchain<'a> {
         })))
     }
 
-    pub fn binary_file(&self, name: &str) -> PathBuf {
-        let mut path = self.path.clone();
-        path.push("bin");
-        path.push(name.to_owned() + env::consts::EXE_SUFFIX);
-        path
+    pub fn binary_file<T: AsRef<OsStr>>(&self, binary: T) -> PathBuf {
+        let binary = if let Some(binary_str) = binary.as_ref().to_str() {
+            let binary_str = binary_str.to_lowercase();
+            let path = Path::new(&binary_str);
+            if path.extension().is_some() {
+                binary.as_ref().to_owned()
+            } else {
+                let mut ext = EXE_SUFFIX;
+                if cfg!(windows) {
+                    if path.file_name() == Some(&OsString::from("leanpkg")) {
+                        ext = ".bat"
+                    }
+                }
+                OsString::from(format!("{}{}", binary_str, ext))
+            }
+        } else {
+            // Very weird case. Non-unicode command.
+            binary.as_ref().to_owned()
+        };
+
+        self.path.join("bin").join(&binary)
     }
 }

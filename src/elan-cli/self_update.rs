@@ -168,13 +168,13 @@ r"This will uninstall all Lean toolchains and data, and remove
     }
 }
 
+#[cfg(windows)]
+static TOOLS: &'static [&'static str]
+    = &["lean.exe", "leanpkg.bat", "leanchecker.exe"];
+
+#[cfg(not(windows))]
 static TOOLS: &'static [&'static str]
     = &["lean", "leanpkg", "leanchecker"];
-
-// Tools which are commonly installed by Leanpkg as well as elan. We take a bit
-// more care with these to ensure we don't overwrite the user's previous
-// installation.
-static DUP_TOOLS: &'static [&'static str] = &[];
 
 static UPDATE_ROOT: &'static str
     = "https://github.com/Kha/elan/releases/download";
@@ -505,7 +505,7 @@ pub fn install_proxies() -> Result<()> {
     // `tool_handles` later on. This'll allow us, afterwards, to actually
     // overwrite all the previous hard links with new ones.
     for tool in TOOLS {
-        let tool_path = bin_path.join(&format!("{}{}", tool, EXE_SUFFIX));
+        let tool_path = bin_path.join(tool);
         if let Ok(handle) = Handle::from_path(&tool_path) {
             tool_handles.push(handle);
             if elan == *tool_handles.last().unwrap() {
@@ -513,18 +513,6 @@ pub fn install_proxies() -> Result<()> {
             }
         }
         link_afterwards.push(tool_path);
-    }
-
-    for tool in DUP_TOOLS {
-        let ref tool_path = bin_path.join(&format!("{}{}", tool, EXE_SUFFIX));
-        if let Ok(handle) = Handle::from_path(tool_path) {
-            // Like above, don't clobber anything that's already hardlinked to
-            // avoid extraneous errors from being returned.
-            if elan == handle {
-                continue
-            }
-        }
-        try!(utils::hard_or_symlink_file(elan_path, tool_path));
     }
 
     drop(tool_handles);
@@ -619,7 +607,7 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
 
     // Then everything in bin except elan and tools. These can't be unlinked
     // until this process exits (on windows).
-    let tools = TOOLS.iter().chain(DUP_TOOLS.iter()).map(|t| format!("{}{}", t, EXE_SUFFIX));
+    let tools = TOOLS.iter().map(|s| s.to_string());
     let tools: Vec<_> = tools.chain(vec![format!("elan{}", EXE_SUFFIX)]).collect();
     for dirent in try!(fs::read_dir(&elan_home.join("bin")).chain_err(|| read_dir_err)) {
         let dirent = try!(dirent.chain_err(|| read_dir_err));
