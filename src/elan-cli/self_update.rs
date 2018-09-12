@@ -203,7 +203,7 @@ fn canonical_elan_home() -> Result<String> {
 pub fn install(no_prompt: bool, verbose: bool,
                mut opts: InstallOpts) -> Result<()> {
 
-    //try!(check_existence_of_lean_or_leanpkg_in_path(no_prompt));
+    try!(check_existence_of_lean_in_path(no_prompt));
     try!(do_anti_sudo_check(no_prompt));
 
     if !no_prompt {
@@ -298,11 +298,10 @@ pub fn install(no_prompt: bool, verbose: bool,
     Ok(())
 }
 
-fn _lean_or_leanpkg_exists_in_path() -> Result<()> {
-    // Ignore lean and leanpkg if present in $HOME/.leanpkg/bin or a few other directories
+fn lean_exists_in_path() -> Result<()> {
+    // Ignore lean if present in $HOME/.elan/bin
     fn ignore_paths(path: &PathBuf) -> bool {
-        !path.components().any(|c| c == Component::Normal(".leanpkg".as_ref())) &&
-            !path.components().any(|c| c == Component::Normal(".multilean".as_ref()))
+        !path.components().any(|c| c == Component::Normal(".elan".as_ref()))
     }
 
     if let Some(paths) = env::var_os("PATH") {
@@ -310,9 +309,8 @@ fn _lean_or_leanpkg_exists_in_path() -> Result<()> {
 
         for path in paths {
             let lean = path.join(format!("lean{}", EXE_SUFFIX));
-            let leanpkg = path.join(format!("leanpkg{}", EXE_SUFFIX));
 
-            if lean.exists() || leanpkg.exists() {
+            if lean.exists() {
                 return Err(path.to_str().unwrap().into());
             }
         }
@@ -320,7 +318,7 @@ fn _lean_or_leanpkg_exists_in_path() -> Result<()> {
     Ok(())
 }
 
-fn _check_existence_of_lean_or_leanpkg_in_path(no_prompt: bool) -> Result<()> {
+fn check_existence_of_lean_in_path(no_prompt: bool) -> Result<()> {
     // Only the test runner should set this
     let skip_check = env::var_os("ELAN_INIT_SKIP_PATH_CHECK");
 
@@ -329,7 +327,7 @@ fn _check_existence_of_lean_or_leanpkg_in_path(no_prompt: bool) -> Result<()> {
         return Ok(());
     }
 
-    if let Err(path) = _lean_or_leanpkg_exists_in_path() {
+    if let Err(path) = lean_exists_in_path() {
         err!("it looks like you have an existing installation of Lean at:");
         err!("{}", path);
         err!("elan cannot be installed alongside Lean. Please uninstall first");
