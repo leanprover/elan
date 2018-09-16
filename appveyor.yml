@@ -43,7 +43,7 @@ test_script:
       set RUST_BACKTRACE=1 &&
       cargo run --target %TARGET% --release -- -y &&
       %USERPROFILE%\.elan\bin\elan which leanpkg &&
-      %USERPROFILE%\.elan\bin\leanpkg -h
+      %USERPROFILE%\.elan\bin\leanpkg new foo
     )
 
 before_deploy:

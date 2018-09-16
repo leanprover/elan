@@ -18,5 +18,5 @@ then
     RUST_BACKTRACE=1 cross run --target $TARGET -- -y
     source ~/.elan/env
     elan which leanpkg
-    leanpkg -h
+    leanpkg new foo
 fi
