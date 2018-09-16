@@ -168,11 +168,6 @@ r"This will uninstall all Lean toolchains and data, and remove
     }
 }
 
-#[cfg(windows)]
-static TOOLS: &'static [&'static str]
-    = &["lean.exe", "leanpkg.bat", "leanchecker.exe"];
-
-#[cfg(not(windows))]
 static TOOLS: &'static [&'static str]
     = &["lean", "leanpkg", "leanchecker"];
 
@@ -361,7 +356,11 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
         let mut pwd = unsafe { mem::uninitialized::<c::passwd>() };
         let mut pwdp: *mut c::passwd = ptr::null_mut();
         let rv = unsafe { c::getpwuid_r(c::geteuid(), &mut pwd, mem::transmute(&mut buf), buf.len(), &mut pwdp) };
-        if rv != 0 || pwdp.is_null() {
+        if rv != 0 {
+            warn!("getpwuid_r: couldn't get user data ({})", rv);
+            return false;
+        }
+        if pwdp.is_null() {
             warn!("getpwuid_r: couldn't get user data");
             return false;
         }
@@ -505,7 +504,7 @@ pub fn install_proxies() -> Result<()> {
     // `tool_handles` later on. This'll allow us, afterwards, to actually
     // overwrite all the previous hard links with new ones.
     for tool in TOOLS {
-        let tool_path = bin_path.join(tool);
+        let tool_path = bin_path.join(&format!("{}{}", tool, EXE_SUFFIX));
         if let Ok(handle) = Handle::from_path(&tool_path) {
             tool_handles.push(handle);
             if elan == *tool_handles.last().unwrap() {
@@ -607,7 +606,7 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
 
     // Then everything in bin except elan and tools. These can't be unlinked
     // until this process exits (on windows).
-    let tools = TOOLS.iter().map(|s| s.to_string());
+    let tools = TOOLS.iter().map(|t| format!("{}{}", t, EXE_SUFFIX));
     let tools: Vec<_> = tools.chain(vec![format!("elan{}", EXE_SUFFIX)]).collect();
     for dirent in try!(fs::read_dir(&elan_home.join("bin")).chain_err(|| read_dir_err)) {
         let dirent = try!(dirent.chain_err(|| read_dir_err));
