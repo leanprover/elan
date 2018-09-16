@@ -11,6 +11,7 @@ extern crate download;
 extern crate semver;
 extern crate curl;
 extern crate regex;
+extern crate dirs;
 
 #[cfg(windows)]
 extern crate winapi;
