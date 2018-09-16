@@ -6,102 +6,25 @@ extern crate tar;
 extern crate flate2;
 extern crate filetime;
 
-use component::components::*;
-use component::transaction::*;
-
 use errors::*;
 use temp;
 
 use std::path::{Path, PathBuf};
-use std::collections::HashSet;
-use std::fmt;
 use std::io::{Read,Seek,self};
 use std::fs::{File,self};
 
 use zip::ZipArchive;
 
-/// The current metadata revision used by lean-installer
-pub const INSTALLER_VERSION: &'static str = "3";
-pub const VERSION_FILE: &'static str = "lean-installer-version";
-
-pub trait Package: fmt::Debug {
-    fn contains(&self, component: &str, short_name: Option<&str>) -> bool;
-    fn install<'a>(&self,
-                   target: &Components,
-                   component: &str,
-                   short_name: Option<&str>,
-                   tx: Transaction<'a>)
-                   -> Result<Transaction<'a>>;
-    fn components(&self) -> Vec<String>;
-}
-
 #[derive(Debug)]
-pub struct DirectoryPackage {
-    path: PathBuf,
-    components: HashSet<String>,
-}
-
-impl DirectoryPackage {
-    pub fn new(path: PathBuf) -> Result<Self> {
-        let components = vec!["lean".to_string()].into_iter().collect();
-        Ok(DirectoryPackage {
-            path: path,
-            components: components,
-        })
-    }
-}
-
-impl Package for DirectoryPackage {
-    fn contains(&self, component: &str, short_name: Option<&str>) -> bool {
-        self.components.contains(component) ||
-        if let Some(n) = short_name {
-            self.components.contains(n)
-        } else {
-            false
-        }
-    }
-    fn install<'a>(&self,
-                   target: &Components,
-                   name: &str,
-                   _short_name: Option<&str>,
-                   tx: Transaction<'a>)
-                   -> Result<Transaction<'a>> {
-        assert_eq!(name, "lean");
-
-        let mut builder = target.add(name, tx);
-
-        for entry in ::std::fs::read_dir(&self.path)? {
-            let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                builder.copy_dir(entry.path().strip_prefix(&self.path).unwrap().to_path_buf(), &self.path.join(entry.path()))?
-            } else {
-                builder.copy_file(entry.path().strip_prefix(&self.path).unwrap().to_path_buf(), &self.path.join(entry.path()))?
-            }
-        }
-
-        let tx = try!(builder.finish());
-
-        Ok(tx)
-    }
-
-    fn components(&self) -> Vec<String> {
-        self.components.iter().cloned().collect()
-    }
-}
-
-#[derive(Debug)]
-pub struct TarPackage<'a>(DirectoryPackage, temp::Dir<'a>);
+pub struct TarPackage<'a>(temp::Dir<'a>);
 
 impl<'a> TarPackage<'a> {
-    pub fn new<R: Read>(stream: R, temp_cfg: &'a temp::Cfg) -> Result<Self> {
-        let temp_dir = try!(temp_cfg.new_directory());
+    pub fn unpack<R: Read>(stream: R, path: &Path) -> Result<()> {
         let mut archive = tar::Archive::new(stream);
         // The lean-installer packages unpack to a directory called
         // $pkgname-$version-$target. Skip that directory when
         // unpacking.
-        try!(unpack_without_first_dir(&mut archive, &*temp_dir));
-
-        Ok(TarPackage(try!(DirectoryPackage::new(temp_dir.to_owned())), temp_dir))
+        unpack_without_first_dir(&mut archive, path)
     }
 }
 
@@ -132,29 +55,11 @@ fn unpack_without_first_dir<R: Read>(archive: &mut tar::Archive<R>, path: &Path)
     Ok(())
 }
 
-impl<'a> Package for TarPackage<'a> {
-    fn contains(&self, component: &str, short_name: Option<&str>) -> bool {
-        self.0.contains(component, short_name)
-    }
-    fn install<'b>(&self,
-                   target: &Components,
-                   component: &str,
-                   short_name: Option<&str>,
-                   tx: Transaction<'b>)
-                   -> Result<Transaction<'b>> {
-        self.0.install(target, component, short_name, tx)
-    }
-    fn components(&self) -> Vec<String> {
-        self.0.components()
-    }
-}
-
 #[derive(Debug)]
-pub struct ZipPackage<'a>(DirectoryPackage, temp::Dir<'a>);
+pub struct ZipPackage<'a>(temp::Dir<'a>);
 
 impl<'a> ZipPackage<'a> {
-    pub fn new<R: Read + Seek>(stream: R, temp_cfg: &'a temp::Cfg) -> Result<Self> {
-        let temp_dir = try!(temp_cfg.new_directory());
+    pub fn unpack<R: Read + Seek>(stream: R, path: &Path) -> Result<()> {
         let mut archive = ZipArchive::new(stream).chain_err(|| ErrorKind::ExtractingPackage)?;
         /*
                 let mut src = archive.by_name("elan-init.exe").chain_err(|| "failed to extract update")?;
@@ -164,13 +69,11 @@ impl<'a> ZipPackage<'a> {
         // The lean-installer packages unpack to a directory called
         // $pkgname-$version-$target. Skip that directory when
         // unpacking.
-        try!(Self::unpack_without_first_dir(&mut archive, &*temp_dir));
-
-        Ok(ZipPackage(try!(DirectoryPackage::new(temp_dir.to_owned())), temp_dir))
+        Self::unpack_without_first_dir(&mut archive, &path)
     }
-    pub fn new_file(path: &Path, temp_cfg: &'a temp::Cfg) -> Result<Self> {
+    pub fn unpack_file(path: &Path, into: &Path) -> Result<()> {
         let file = try!(File::open(path).chain_err(|| ErrorKind::ExtractingPackage));
-        Self::new(file, temp_cfg)
+        Self::unpack(file, into)
     }
 
     fn unpack_without_first_dir<R: Read + Seek>(archive: &mut ZipArchive<R>, path: &Path) -> Result<()> {
@@ -211,51 +114,17 @@ impl<'a> ZipPackage<'a> {
     }
 }
 
-impl<'a> Package for ZipPackage<'a> {
-    fn contains(&self, component: &str, short_name: Option<&str>) -> bool {
-        self.0.contains(component, short_name)
-    }
-    fn install<'b>(&self,
-                   target: &Components,
-                   component: &str,
-                   short_name: Option<&str>,
-                   tx: Transaction<'b>)
-                   -> Result<Transaction<'b>> {
-        self.0.install(target, component, short_name, tx)
-    }
-    fn components(&self) -> Vec<String> {
-        self.0.components()
-    }
-}
-
 #[derive(Debug)]
 pub struct TarGzPackage<'a>(TarPackage<'a>);
 
 impl<'a> TarGzPackage<'a> {
-    pub fn new<R: Read>(stream: R, temp_cfg: &'a temp::Cfg) -> Result<Self> {
+    pub fn unpack<R: Read>(stream: R, path: &Path) -> Result<()> {
         let stream = flate2::read::GzDecoder::new(stream);
 
-        Ok(TarGzPackage(try!(TarPackage::new(stream, temp_cfg))))
+        TarPackage::unpack(stream, path)
     }
-    pub fn new_file(path: &Path, temp_cfg: &'a temp::Cfg) -> Result<Self> {
+    pub fn unpack_file(path: &Path, into: &Path) -> Result<()> {
         let file = try!(File::open(path).chain_err(|| ErrorKind::ExtractingPackage));
-        Self::new(file, temp_cfg)
-    }
-}
-
-impl<'a> Package for TarGzPackage<'a> {
-    fn contains(&self, component: &str, short_name: Option<&str>) -> bool {
-        self.0.contains(component, short_name)
-    }
-    fn install<'b>(&self,
-                   target: &Components,
-                   component: &str,
-                   short_name: Option<&str>,
-                   tx: Transaction<'b>)
-                   -> Result<Transaction<'b>> {
-        self.0.install(target, component, short_name, tx)
-    }
-    fn components(&self) -> Vec<String> {
-        self.0.components()
+        Self::unpack(file, into)
     }
 }

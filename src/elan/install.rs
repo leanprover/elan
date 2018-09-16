@@ -4,10 +4,8 @@
 use elan_dist::{Notification};
 use elan_dist::prefix::InstallPrefix;
 use elan_utils::utils;
-use elan_dist::temp;
 use elan_dist::dist;
 use elan_dist::download::DownloadCfg;
-use elan_dist::component::{Components, TarGzPackage, Transaction, Package};
 use errors::Result;
 use std::path::Path;
 
@@ -15,7 +13,6 @@ use std::path::Path;
 pub enum InstallMethod<'a> {
     Copy(&'a Path),
     Link(&'a Path),
-    Installer(&'a Path, &'a temp::Cfg),
     // bool is whether to force an update
     Dist(&'a dist::ToolchainDesc, Option<&'a Path>, DownloadCfg<'a>, bool),
 }
@@ -25,8 +22,7 @@ impl<'a> InstallMethod<'a> {
         if path.exists() {
             // Don't uninstall first for Dist method
             match self {
-                InstallMethod::Dist(..) |
-                InstallMethod::Installer(..) => {}
+                InstallMethod::Dist(..) => {}
                 _ => {
                     try!(uninstall(path, notify_handler));
                 }
@@ -40,10 +36,6 @@ impl<'a> InstallMethod<'a> {
             }
             InstallMethod::Link(src) => {
                 try!(utils::symlink_dir(src, &path, &|n| notify_handler(n.into())));
-                Ok(true)
-            }
-            InstallMethod::Installer(src, temp_cfg) => {
-                try!(InstallMethod::tar_gz(src, path, &temp_cfg, notify_handler));
                 Ok(true)
             }
             InstallMethod::Dist(toolchain, update_hash, dl_cfg, force_update) => {
@@ -70,25 +62,6 @@ impl<'a> InstallMethod<'a> {
                 }
             }
         }
-    }
-
-    fn tar_gz(src: &Path, path: &Path, temp_cfg: &temp::Cfg,
-              notify_handler: &Fn(Notification)) -> Result<()> {
-        notify_handler(Notification::Extracting(src, path));
-
-        let prefix = InstallPrefix::from(path.to_owned());
-        let installation = try!(Components::open(prefix.clone()));
-        let package = try!(TarGzPackage::new_file(src, temp_cfg));
-
-        let mut tx = Transaction::new(prefix.clone(), temp_cfg, notify_handler);
-
-        for component in package.components() {
-            tx = try!(package.install(&installation, &component, None, tx));
-        }
-
-        tx.commit();
-
-        Ok(())
     }
 }
 

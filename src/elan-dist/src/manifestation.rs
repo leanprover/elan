@@ -1,6 +1,6 @@
 //! Manifest a particular Lean version by installing it from a distribution server.
 
-use component::{Components, Transaction, TarGzPackage, ZipPackage, Package};
+use component::{TarGzPackage, ZipPackage};
 use temp;
 use errors::*;
 use notifications::*;
@@ -9,21 +9,12 @@ use prefix::InstallPrefix;
 
 #[derive(Debug)]
 pub struct Manifestation {
-    installation: Components,
+    prefix: InstallPrefix
 }
 
 impl Manifestation {
-    /// Open the install prefix for updates from a distribution
-    /// channel.  The install prefix directory does not need to exist;
-    /// it will be created as needed. If there's an existing install
-    /// then the lean-install installation format will be verified. A
-    /// bad installer version is the only reason this will fail.
     pub fn open(prefix: InstallPrefix) -> Result<Self> {
-        // TODO: validate the triple with the existing install as well
-        // as the metadata format of the existing install
-        Ok(Manifestation {
-            installation: try!(Components::open(prefix)),
-        })
+        Ok(Manifestation { prefix })
     }
 
     /// Installation using the legacy v1 manifest format
@@ -70,33 +61,27 @@ impl Manifestation {
         let ext = if cfg!(target_os = "linux") { ".tar.gz" } else { ".zip" };
         let installer_file = try!(dlcfg.download_and_check(&url, ext));
 
-        let prefix = self.installation.prefix();
+        let prefix = self.prefix.path();
+        let prefix = &prefix;
 
         notify_handler(Notification::InstallingComponent("lean"));
 
-        // Begin transaction
-        let mut tx = Transaction::new(prefix.clone(), temp_cfg, notify_handler);
-
-        // Uninstall components
-        for component in try!(self.installation.list()) {
-            tx = try!(component.uninstall(tx));
+        // Remove old files
+        for entry in fs::read_dir(prefix)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() {
+                fs::remove_dir_all(entry.path())?
+            } else {
+                fs::remove_file(entry.path())?
+            }
         }
 
-        // Install all the components in the installer
-        let package: Box<Package> = if cfg!(target_os = "linux") {
-            Box::new(try!(TarGzPackage::new_file(&installer_file, temp_cfg)))
+        // Extract new files
+        if cfg!(target_os = "linux") {
+            TarGzPackage::unpack_file(&installer_file, prefix)?
         } else {
-            Box::new(try!(ZipPackage::new_file(&installer_file, temp_cfg)))
+            ZipPackage::unpack_file(&installer_file, prefix)?
         };
-
-        for component in package.components() {
-            tx = try!(package.install(&self.installation,
-                                      &component, None,
-                                      tx));
-        }
-
-        // End transaction
-        tx.commit();
 
         Ok(())
     }
