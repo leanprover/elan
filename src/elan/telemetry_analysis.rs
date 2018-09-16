@@ -5,7 +5,6 @@ use std::io::BufReader;
 use std::io::BufRead;
 use std::path::PathBuf;
 
-use itertools::Itertools;
 use serde_json;
 
 use errors::*;
