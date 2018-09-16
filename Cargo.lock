@@ -336,6 +336,7 @@ version = "1.11.0"
 dependencies = [
  "elan-utils 1.11.0",
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "filetime 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "flate2 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.7.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "json 0.11.13 (registry+https://github.com/rust-lang/crates.io-index)",
