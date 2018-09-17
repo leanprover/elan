@@ -95,16 +95,18 @@ impl<'a> ZipPackage<'a> {
                 _ => (),
             };
 
-            let mut dst = File::create(&full_path).chain_err(|| ErrorKind::ExtractingPackage)?;
-            io::copy(&mut entry, &mut dst).chain_err(|| ErrorKind::ExtractingPackage)?;
-            #[cfg(unix)]
             {
-                use std::os::unix::fs::PermissionsExt;
+                let mut dst = File::create(&full_path).chain_err(|| ErrorKind::ExtractingPackage)?;
+                io::copy(&mut entry, &mut dst).chain_err(|| ErrorKind::ExtractingPackage)?;
+                #[cfg(unix)]
+                    {
+                        use std::os::unix::fs::PermissionsExt;
 
-                if let Some(mode) = entry.unix_mode() {
-                    fs::set_permissions(&full_path, fs::Permissions::from_mode(mode)).unwrap();
-                }
-            }
+                        if let Some(mode) = entry.unix_mode() {
+                            fs::set_permissions(&full_path, fs::Permissions::from_mode(mode)).unwrap();
+                        }
+                    }
+            } // make sure to close `dst` before setting mtime
             let mtime = entry.last_modified().to_timespec();
             let mtime = filetime::FileTime::from_unix_time(mtime.sec, mtime.nsec as u32);
             filetime::set_file_times(&full_path, mtime, mtime).unwrap();
