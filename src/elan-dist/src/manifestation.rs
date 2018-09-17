@@ -6,6 +6,7 @@ use errors::*;
 use notifications::*;
 use download::DownloadCfg;
 use prefix::InstallPrefix;
+use elan_utils::utils;
 
 #[derive(Debug)]
 pub struct Manifestation {
@@ -62,19 +63,17 @@ impl Manifestation {
         let installer_file = try!(dlcfg.download_and_check(&url, ext));
 
         let prefix = self.prefix.path();
-        let prefix = &prefix;
 
         notify_handler(Notification::InstallingComponent("lean"));
 
         // Remove old files
-        for entry in fs::read_dir(prefix)? {
-            let entry = entry?;
-            if entry.file_type()?.is_dir() {
-                fs::remove_dir_all(entry.path())?
-            } else {
-                fs::remove_file(entry.path())?
-            }
+        if utils::is_directory(prefix) {
+            utils::remove_dir("toolchain directory", prefix,
+                              &|n| (notify_handler)(n.into()))?;
         }
+
+        utils::ensure_dir_exists("toolchain directory", prefix,
+                                 &|n| (notify_handler)(n.into()))?;
 
         // Extract new files
         if cfg!(target_os = "linux") {
