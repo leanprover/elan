@@ -351,17 +351,16 @@ impl<'a> Toolchain<'a> {
     pub fn binary_file<T: AsRef<OsStr>>(&self, binary: T) -> PathBuf {
         let binary = if let Some(binary_str) = binary.as_ref().to_str() {
             let binary_str = binary_str.to_lowercase();
-            let path = Path::new(&binary_str);
-            if path.extension().is_some() {
-                binary.as_ref().to_owned()
+            if cfg!(windows) && (binary_str == "leanpkg" || binary_str == "leanpkg.exe") {
+                OsString::from("leanpkg.bat")
             } else {
-                let mut ext = EXE_SUFFIX;
-                if cfg!(windows) {
-                    if path.file_name() == Some(&OsString::from("leanpkg")) {
-                        ext = ".bat"
-                    }
+                let path = Path::new(&binary_str);
+                if path.extension().is_some() {
+                    binary.as_ref().to_owned()
+                } else {
+                    let mut ext = EXE_SUFFIX;
+                    OsString::from(format!("{}{}", binary_str, ext))
                 }
-                OsString::from(format!("{}{}", binary_str, ext))
             }
         } else {
             // Very weird case. Non-unicode command.
