@@ -16,7 +16,7 @@ cross test --target $TARGET --release
 if [ -z $TRAVIS_TAG ]
 then
     #RUST_BACKTRACE=1 cross run --target $TARGET -- -y
-    RUST_BACKTRACE=1 target/$TARGET/release/elan-init -- -y
+    RUST_BACKTRACE=1 target/$TARGET/release/elan-init -y
     source ~/.elan/env
     elan which leanpkg
     leanpkg new foo
