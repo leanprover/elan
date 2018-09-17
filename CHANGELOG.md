@@ -1,3 +1,14 @@
+# Unreleased
+
+## Added
+
+- elan will now warn if there are other Lean installations in the PATH before installing
+
+## Changed
+
+- Fix mtimes not being restored from installation archives
+- Fix invoking leanpkg on Windows
+
 # 0.6.0 - 2018-08-01
 
 ## Added
