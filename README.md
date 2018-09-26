@@ -49,6 +49,16 @@ curl https://raw.githubusercontent.com/Kha/elan/master/elan-init.sh -sSf | sh
 
 Alternatively, **any supported platform**: Grab the [latest release](https://github.com/Kha/elan/releases/latest) for your platform, unpack it, run it in a terminal, and follow the printed instructions.
 
+# Prerequisites
+
+On some systems `elan` will not work out of the box:
+
+* Windows 10
+   * You'll need a unix-like terminal.
+      * Recommended: "git bash", available via [Git for Windows](https://gitforwindows.org/) works well, or
+      * the terminal from [MSYS2](https://www.msys2.org/), and then run `pacman -S unzip git`
+* macOS: Lean will need `libgmp`. Install [Homebrew](https://brew.sh/), then run `brew install libgmp`.
+
 # Implementation
 
 *elan* is basically a fork of [rustup](https://github.com/rust-lang-nursery/rustup.rs). Apart from new features and adaptions to the Lean infrastructure, these are the basic changes to the original code:
