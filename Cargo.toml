@@ -3,7 +3,7 @@
 name = "elan"
 version = "0.7.1-pre"
 authors = [ "Sebastian Ullrich <sebasti@nullri.ch>" ]
-description = "Manage multiple rust installations with ease"
+description = "Manage multiple Lean installations with ease"
 publish = false
 
 license = "MIT OR Apache-2.0"
