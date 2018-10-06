@@ -57,8 +57,8 @@ On some systems `elan` will not work out of the box:
    * You'll need a unix-like terminal.
       * Recommended: "git bash", available via [Git for Windows](https://gitforwindows.org/) works well, or
       * the terminal from [MSYS2](https://www.msys2.org/), and then run `pacman -S unzip git`
-* macOS: Install [Homebrew](https://brew.sh/), then run `brew install libgmp coreutils`.
-  (`libgmp` is required by `lean`, `coreutils` is required by `leanpkg`)
+* macOS: Install [Homebrew](https://brew.sh/), then run `brew install gmp coreutils`.
+  (`gmp` is required by `lean`, `coreutils` is required by `leanpkg`)
 
 # Implementation
 
