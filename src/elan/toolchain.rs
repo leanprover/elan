@@ -149,8 +149,8 @@ impl<'a> Toolchain<'a> {
     fn is_valid_install_method(&self, install_method: InstallMethod) -> bool {
         match install_method {
             InstallMethod::Copy(_) |
-            InstallMethod::Link(_) |
-            InstallMethod::Dist(..) => !self.is_custom(),
+            InstallMethod::Link(_) => self.is_custom(),
+            InstallMethod::Dist(..) => !self.is_custom()
         }
     }
     fn update_hash(&self) -> Result<Option<PathBuf>> {
