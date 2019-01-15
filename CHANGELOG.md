@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Fix name check in `elan toolchain link` (#17)
+
 # 0.7.0 - 2018-09-16
 
 ## Added
