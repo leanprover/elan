@@ -546,7 +546,7 @@ pub fn fetch_latest_release_tag(repo_slug: &str) -> Result<String> {
                 if tag.is_some() { return true }
                 if let Ok(header) = ::std::str::from_utf8(&header) {
                     let capture = re.captures(&header);
-                    tag = capture.map(|cap| cap.get(1).unwrap().as_str().to_string());
+                    tag = capture.map(|cap| cap.get(1).unwrap().as_str().trim().to_string());
                 }
                 true
             }).unwrap();

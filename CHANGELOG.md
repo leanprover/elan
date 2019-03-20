@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Fix self-update always triggering
+
 # 0.7.3 - 2019-03-20
 
 ## Changed
