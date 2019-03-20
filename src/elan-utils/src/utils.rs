@@ -532,7 +532,7 @@ pub fn toolchain_sort<T: AsRef<str>>(v: &mut Vec<T>) {
 pub fn fetch_latest_release_tag(repo_slug: &str) -> Result<String> {
     use regex::Regex;
 
-    let latest_url = format!("https://github.com/{}/releases/latest", repo_slug);
+    let latest_url = format!("https://api.github.com/repos/{}/releases", repo_slug);
 
     let mut data = Vec::new();
     ::download::curl::EASY.with(|handle| {
@@ -549,7 +549,7 @@ pub fn fetch_latest_release_tag(repo_slug: &str) -> Result<String> {
         }
     });
     let redirect = ::std::str::from_utf8(&data).chain_err(|| "failed to decode release tag response")?;
-    let re = Regex::new(r#"/tag/([^"]+)"#).unwrap();
+    let re = Regex::new(r#""tag_name": "([^"]+)"#).unwrap();
     let capture = re.captures(&redirect);
     match capture {
         Some(cap) => Ok(cap.get(1).unwrap().as_str().to_string()),
