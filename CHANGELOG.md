@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Fix lookup of latest Github release of both Lean and elan
+
 # 0.7.2 - 2019-01-15
 
 ## Changed
