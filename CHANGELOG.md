@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Fix release lookup once more with feeling
+
 # 0.7.4 - 2019-03-20
 
 ## Changed
