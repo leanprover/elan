@@ -1,4 +1,4 @@
-# Unreleased
+# 0.8.0 - 2020-03-06
 
 ## Changed
 
