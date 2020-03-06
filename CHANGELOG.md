@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- stable/nightly now refer to leanprover-community, Lean's community fork. This includes the toolchain installed by default (stable).
+
 # 0.7.5 - 2019-03-21
 
 ## Changed
