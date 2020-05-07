@@ -169,7 +169,7 @@ r"This will uninstall all Lean toolchains and data, and remove
 }
 
 static TOOLS: &'static [&'static str]
-    = &["lean", "leanpkg", "leanchecker"];
+    = &["lean", "leanpkg", "leanchecker", "leanc", "leanmake"];
 
 static UPDATE_ROOT: &'static str
     = "https://github.com/Kha/elan/releases/download";
