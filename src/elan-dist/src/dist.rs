@@ -25,20 +25,14 @@ pub struct ToolchainDesc {
     // The GitHub source repository to use (if "nightly" is specified, we append "-nightly" to this)
     // If None, we default to "leanprover/lean"
     pub origin: Option<String>,
-    // Either "nightly", "stable", or an explicit version number
+    // Either "nightly", "stable", an explicit version number, or a tag name
     pub channel: String,
     pub date: Option<String>,
 }
 
 impl ToolchainDesc {
     pub fn from_str(name: &str) -> Result<Self> {
-        let channels =
-            ["nightly", "stable", r"\d{1}\.\d{1}\.\d{1}", r"\d{1}\.\d{2}\.\d{1}"];
-
-        let pattern = format!(
-            r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?({})(?:-(\d{{4}}-\d{{2}}-\d{{2}}))?$",
-            channels.join("|"),
-            );
+        let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?(?:(nightly|stable)(?:-(\d{4}-\d{2}-\d{2}))?|([a-zA-Z0-9-.]+))$";
 
         let re = Regex::new(&pattern).unwrap();
         re.captures(name)
@@ -53,7 +47,7 @@ impl ToolchainDesc {
 
                 ToolchainDesc {
                     origin: c.get(1).map(|s| s.as_str()).and_then(fn_map),
-                    channel: c.get(2).unwrap().as_str().to_owned(),
+                    channel: c.get(2).or(c.get(4)).unwrap().as_str().to_owned(),
                     date: c.get(3).map(|s| s.as_str()).and_then(fn_map),
                 }
             })
@@ -222,8 +216,10 @@ fn toolchain_url<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Re
         }
         (Some(date), "nightly") =>
             format!("https://github.com/{}/releases/tag/nightly-{}", origin, date),
-        (None, version) =>
+        (None, version) if version.starts_with(|c: char| c.is_numeric()) =>
             format!("https://github.com/{}/releases/tag/v{}", origin, version),
+        (None, tag) =>
+            format!("https://github.com/{}/releases/tag/{}", origin, tag),
         _ => panic!("wat"),
     })
 }

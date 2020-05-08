@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Accept (almost) arbitrary release tag names in addition to version numbers
+
 # 0.9.0 - 2020-05-07
 
 ## Added
