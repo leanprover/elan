@@ -154,7 +154,7 @@ impl<'a> Toolchain<'a> {
         }
     }
     fn update_hash(&self) -> Result<Option<PathBuf>> {
-        if self.is_custom() {
+        if self.is_symlink() {
             Ok(None)
         } else {
             Ok(Some(try!(self.cfg.get_hash_file(&self.name, true))))
