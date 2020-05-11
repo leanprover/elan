@@ -63,10 +63,6 @@ r"DISCUSSION:
 pub static TOOLCHAIN_LINK_HELP: &'static str =
 r"DISCUSSION:
     'toolchain' is the custom name to be assigned to the new toolchain.
-    Any name is permitted as long as it does not fully match an initial
-    substring of a standard release channel. For example, you can use
-    the names 'latest' or '2018-04-01' but you cannot use 'stable' or
-    'nightly'.
 
     'path' specifies the directory where the binaries and libraries for
     the custom toolchain can be found. For example, when used for

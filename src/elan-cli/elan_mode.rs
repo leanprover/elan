@@ -257,10 +257,8 @@ fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
     let ref toolchain = try!(cfg.get_toolchain(toolchain, false));
 
-    let status = if !toolchain.is_custom() {
+    let status = if !toolchain.exists() || !toolchain.is_custom() {
         Some(try!(toolchain.install_from_dist_if_not_installed()))
-    } else if !toolchain.exists() {
-        return Err(ErrorKind::ToolchainNotInstalled(toolchain.name().to_string()).into());
     } else {
         None
     };
@@ -280,10 +278,8 @@ fn update(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
         for name in names {
             let toolchain = try!(cfg.get_toolchain(name, false));
 
-            let status = if !toolchain.is_custom() {
+            let status = if !toolchain.exists() || !toolchain.is_custom() {
                 Some(try!(toolchain.install_from_dist(m.is_present("force"))))
-            } else if !toolchain.exists() {
-                return Err(ErrorKind::ToolchainNotInstalled(toolchain.name().to_string()).into());
             } else {
                 None
             };
@@ -429,10 +425,8 @@ fn override_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
     let toolchain = try!(cfg.get_toolchain(toolchain, false));
 
-    let status = if !toolchain.is_custom() {
+    let status = if !toolchain.exists() || !toolchain.is_custom() {
         Some(try!(toolchain.install_from_dist_if_not_installed()))
-    } else if !toolchain.exists() {
-        return Err(ErrorKind::ToolchainNotInstalled(toolchain.name().to_string()).into());
     } else {
         None
     };

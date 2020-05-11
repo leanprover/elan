@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Hopefully actually restore `elan toolchain link` functionality
+
 # 0.10.1 - 2020-05-11
 
 ## Changed

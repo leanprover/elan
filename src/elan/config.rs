@@ -190,11 +190,6 @@ impl Cfg {
                 Ok(toolchain) => {
                     if toolchain.exists() {
                         Ok(Some((toolchain, reason)))
-                    } else if toolchain.is_custom() {
-                        // Strip the confusing NotADirectory error and only mention that the override
-                        // toolchain is not installed.
-                        Err(Error::from(reason_err))
-                            .chain_err(|| ErrorKind::OverrideToolchainNotInstalled(name.to_string()))
                     } else {
                         try!(toolchain.install_from_dist(false));
                         Ok(Some((toolchain, reason)))

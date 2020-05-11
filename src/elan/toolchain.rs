@@ -81,12 +81,11 @@ impl<'a> Toolchain<'a> {
         // HACK: linked toolchains are symlinks, and, contrary to what std docs
         // lead me to believe `fs::metadata`, used by `is_directory` does not
         // seem to follow symlinks on windows.
-        let is_symlink = if cfg!(windows) {
-            self.is_symlink()
-        } else {
-            false
-        };
-        utils::is_directory(&self.path) || is_symlink
+        utils::is_directory(&self.path) || self.is_symlink()
+    }
+    pub fn is_custom(&self) -> bool {
+        assert!(self.exists());
+        self.is_symlink()
     }
     pub fn verify(&self) -> Result<()> {
         Ok(try!(utils::assert_is_directory(&self.path)))
@@ -109,7 +108,6 @@ impl<'a> Toolchain<'a> {
         Ok(try!(result))
     }
     fn install(&self, install_method: InstallMethod) -> Result<UpdateStatus> {
-        assert!(self.is_valid_install_method(install_method));
         let exists = self.exists();
         if exists {
             (self.cfg.notify_handler)(Notification::UpdatingToolchain(&self.name));
@@ -137,20 +135,12 @@ impl<'a> Toolchain<'a> {
         Ok(status)
     }
     fn install_if_not_installed(&self, install_method: InstallMethod) -> Result<UpdateStatus> {
-        assert!(self.is_valid_install_method(install_method));
         (self.cfg.notify_handler)(Notification::LookingForToolchain(&self.name));
         if !self.exists() {
             Ok(try!(self.install(install_method)))
         } else {
             (self.cfg.notify_handler)(Notification::UsingExistingToolchain(&self.name));
             Ok(UpdateStatus::Unchanged)
-        }
-    }
-    fn is_valid_install_method(&self, install_method: InstallMethod) -> bool {
-        match install_method {
-            InstallMethod::Copy(_) |
-            InstallMethod::Link(_) => self.is_custom(),
-            InstallMethod::Dist(..) => !self.is_custom()
         }
     }
     fn update_hash(&self) -> Result<Option<PathBuf>> {
@@ -217,24 +207,11 @@ impl<'a> Toolchain<'a> {
                                                           self.download_cfg(),
                                                           false))
     }
-    pub fn is_custom(&self) -> bool {
-        ToolchainDesc::from_str(&self.raw_name).is_err()
-    }
     pub fn is_tracking(&self) -> bool {
         ToolchainDesc::from_str(&self.raw_name).ok().map(|d| d.is_tracking()) == Some(true)
     }
 
-    fn ensure_custom(&self) -> Result<()> {
-        if !self.is_custom() {
-            Err(ErrorKind::Dist(::elan_dist::ErrorKind::InvalidCustomToolchainName(self.name.to_string())).into())
-        } else {
-            Ok(())
-        }
-    }
-
     pub fn install_from_dir(&self, src: &Path, link: bool) -> Result<()> {
-        try!(self.ensure_custom());
-
         let mut pathbuf = PathBuf::from(src);
 
         pathbuf.push("bin");
