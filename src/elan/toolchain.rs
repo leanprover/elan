@@ -328,22 +328,23 @@ impl<'a> Toolchain<'a> {
     pub fn binary_file<T: AsRef<OsStr>>(&self, binary: T) -> PathBuf {
         let binary = if let Some(binary_str) = binary.as_ref().to_str() {
             let binary_str = binary_str.to_lowercase();
-            if cfg!(windows) && (binary_str == "leanpkg" || binary_str == "leanpkg.exe") {
-                OsString::from("leanpkg.bat")
+            let path = Path::new(&binary_str);
+            if path.extension().is_some() {
+                binary.as_ref().to_owned()
             } else {
-                let path = Path::new(&binary_str);
-                if path.extension().is_some() {
-                    binary.as_ref().to_owned()
-                } else {
-                    let mut ext = EXE_SUFFIX;
-                    OsString::from(format!("{}{}", binary_str, ext))
-                }
+                let mut ext = EXE_SUFFIX;
+                OsString::from(format!("{}{}", binary_str, ext))
             }
         } else {
             // Very weird case. Non-unicode command.
             binary.as_ref().to_owned()
         };
 
-        self.path.join("bin").join(&binary)
+        let path = self.path.join("bin").join(&binary);
+        if cfg!(windows) && !path.exists() && path.with_extension("bat").exists() {
+            path.with_extension("bat")
+        } else {
+            path
+        }
     }
 }
