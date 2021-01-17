@@ -20,6 +20,7 @@ pub enum OverrideReason {
     Environment,
     OverrideDB(PathBuf),
     ToolchainFile(PathBuf),
+    LeanpkgFile(PathBuf),
 }
 
 impl Display for OverrideReason {
@@ -30,6 +31,9 @@ impl Display for OverrideReason {
                 write!(f, "directory override for '{}'", path.display())
             }
             OverrideReason::ToolchainFile(ref path) => {
+                write!(f, "overridden by '{}'", path.display())
+            }
+            OverrideReason::LeanpkgFile(ref path) => {
                 write!(f, "overridden by '{}'", path.display())
             }
         }
@@ -160,7 +164,8 @@ impl Cfg {
         }
 
         // Then walk up the directory tree from 'path' looking for either the
-        // directory in override database, or a `lean-toolchain` file.
+        // directory in override database, a `lean-toolchain` file, or a
+        // `leanpkg.toml` file.
         if override_.is_none() {
             self.settings_file.with(|s| {
                 override_ = self.find_override_from_dir_walk(path, s)?;
@@ -183,6 +188,9 @@ impl Cfg {
                 }
                 OverrideReason::ToolchainFile(ref path) => {
                     format!("the toolchain file at '{}' specifies an uninstalled toolchain", path.display())
+                }
+                OverrideReason::LeanpkgFile(ref path) => {
+                    format!("the leanpkg.toml file at '{}' specifies an uninstalled toolchain", path.display())
                 }
             };
 
@@ -231,14 +239,18 @@ impl Cfg {
             }
 
             // Then look for 'leanpkg.toml'
-            let toolchain_file = d.join("leanpkg.toml");
-            if let Ok(s) = utils::read_file("leanpkg.toml", &toolchain_file) {
-                // TODO(Sebastian): better error handling, override reason
-                let toml = s.parse::<toml::Value>().unwrap();
-                if let Some(s) = toml["package"].get("lean_version").and_then(toml::Value::as_str) {
-                    let toolchain_name = s.trim();
-                    let reason = OverrideReason::ToolchainFile(toolchain_file);
-                    return Ok(Some((toolchain_name.to_string(), reason)));
+            let leanpkg_file = d.join("leanpkg.toml");
+            if let Ok(content) = utils::read_file("leanpkg.toml", &leanpkg_file) {
+                let value = content.parse::<toml::Value>()
+                    .map_err(|error| ErrorKind::InvalidLeanpkgFile(leanpkg_file.clone(), error))?;
+                match value.get("package").and_then(|package| package.get("lean_version")) {
+                    None => {}
+                    Some(toml::Value::String(s)) => {
+                        return Ok(Some((s.to_string(), OverrideReason::LeanpkgFile(leanpkg_file))))
+                    }
+                    Some(a) => {
+                        return Err(ErrorKind::InvalidLeanVersion(leanpkg_file, a.type_str()).into())
+                    }
                 }
             }
 
