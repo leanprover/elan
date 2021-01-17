@@ -1,6 +1,7 @@
 use elan_dist::{self, temp};
 use elan_utils;
 use elan_dist::manifest::Component;
+use std::path::PathBuf;
 use toml;
 
 error_chain! {
@@ -72,6 +73,14 @@ error_chain! {
         }
         TelemetryAnalysisError {
             description("error analyzing telemetry files")
+        }
+        InvalidLeanpkgFile(path: PathBuf, error: toml::de::Error) {
+            description("couldn't parse 'leanpkg.toml'")
+            display("couldn't parse '{}': '{}'", path.display(), error)
+        }
+        InvalidLeanVersion(path: PathBuf, t: &'static str) {
+            description("invalid 'package.lean_version' value")
+            display("invalid 'package.lean_version' value in '{}': expected string instead of {}", path.display(), t)
         }
     }
 }
