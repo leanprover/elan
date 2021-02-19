@@ -103,7 +103,9 @@ impl<'a> ZipPackage<'a> {
                         use std::os::unix::fs::PermissionsExt;
 
                         if let Some(mode) = entry.unix_mode() {
-                            fs::set_permissions(&full_path, fs::Permissions::from_mode(mode)).unwrap();
+                            let mut ro_mode = fs::Permissions::from_mode(mode);
+                            ro_mode.set_readonly(true);
+                            fs::set_permissions(&full_path, ro_mode).unwrap();
                         }
                     }
             } // make sure to close `dst` before setting mtime
