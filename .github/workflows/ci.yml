@@ -1,0 +1,86 @@
+name: CI
+on:
+  push:
+    branches:
+      - '*'
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  Build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - name: Linux
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            # back compat
+            release-target-name: x86_64-unknown-linux-gnu
+          - name: macOS
+            os: macos-latest
+            target: x86_64-apple-darwin
+          - name: Windows
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+      # complete all jobs
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          profile: minimal
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+          use-cross: ${{ matrix.name == 'Linux' }}
+      - name: Test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release --target ${{ matrix.target }}
+          use-cross: ${{ matrix.name == 'Linux' }}
+      - name: Install Test
+        shell: bash
+        run: |
+          RUST_BACKTRACE=1 target/${{ matrix.target }}/release/elan-init -y
+          # not created on Windows
+          [ -f ~/.elan/env ] && source ~/.elan/env || export PATH=$PATH:~/.elan/bin
+          elan which leanpkg
+          # needs `readlink -f`, haha
+          leanpkg new foo || ${{ matrix.name == 'macOS' }}
+      - name: Package
+        shell: bash
+        run: |
+          cd target/${{ matrix.target  }}/release
+          tar czf ../../../elan-${{ matrix.release-target-name || matrix.target }}.tar.gz elan-init
+        if: matrix.os != 'windows-latest'
+      - name: Package
+        run: |
+          cd target/${{ matrix.target  }}/release
+          Compress-Archive elan-init.exe ../../../elan-${{ matrix.release-target-name || matrix.target }}.zip
+        if: matrix.os == 'windows-latest'
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-${{ matrix.name }}
+          path: elan-${{ matrix.release-target-name || matrix.target }}*
+      - uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: elan-${{ matrix.release-target-name || matrix.target }}*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
