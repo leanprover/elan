@@ -40,25 +40,6 @@ impl Telemetry {
     }
 
     pub fn log_telemetry(&self, event: TelemetryEvent) -> Result<()> {
-        let current_time = time::now_utc();
-        let ln = LogMessage { log_time_s: current_time.to_timespec().sec,
-                              event: event,
-                              version: LOG_FILE_VERSION };
-
-        let json = serde_json::to_string(&ln).unwrap();
-
-        let filename = format!("log-{}-{:02}-{:02}.json", current_time.tm_year + 1900, current_time.tm_mon + 1, current_time.tm_mday);
-
-        // Check for the telemetry file. If it doesn't exist, it's a new day.
-        // If it is a new day, then attempt to clean the telemetry directory.
-        if !raw::is_file(&self.telemetry_dir.join(&filename)) {
-            try!(self.clean_telemetry_dir());
-        }
-
-        let _ = utils::append_file("telemetry",
-                                   &self.telemetry_dir.join(&filename),
-                                   &json);
-
         Ok(())
     }
 

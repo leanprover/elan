@@ -73,7 +73,7 @@ impl<'a> DownloadCfg<'a> {
                                   true,
                                   &|n| (self.notify_handler)(n.into())));
 
-        let actual_hash = format!("{:x}", hasher.result());
+        let actual_hash = format!("{:x}", hasher.finalize());
 
         if hash != actual_hash {
             // Incorrect hash
@@ -124,11 +124,11 @@ fn file_hash(path: &Path) -> Result<String> {
     loop {
         if let Ok(n) = downloaded.read(&mut buf) {
             if n == 0 { break; }
-            hasher.input(&buf[..n]);
+            hasher.update(&buf[..n]);
         } else {
             break;
         }
     }
 
-    Ok(format!("{:x}", hasher.result()))
+    Ok(format!("{:x}", hasher.finalize()))
 }

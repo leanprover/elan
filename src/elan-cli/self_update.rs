@@ -759,7 +759,7 @@ fn delete_elan_and_elan_home() -> Result<()> {
             return Err(err).chain_err(|| ErrorKind::WindowsUninstallMadness);
         }
 
-        let _g = scopeguard::guard(gc_handle, |h| { let _ = CloseHandle(*h); });
+        let _g = scopeguard::guard(gc_handle, |h| { let _ = CloseHandle(h); });
 
         try!(Command::new(gc_exe).spawn()
              .chain_err(|| ErrorKind::WindowsUninstallMadness));
@@ -827,7 +827,7 @@ fn wait_for_parent() -> Result<()> {
             return Err(err).chain_err(|| ErrorKind::WindowsUninstallMadness);
         }
 
-        let _g = scopeguard::guard(snapshot, |h| { let _ = CloseHandle(*h); });
+        let _g = scopeguard::guard(snapshot, |h| { let _ = CloseHandle(h); });
 
         let mut entry: PROCESSENTRY32 = mem::zeroed();
         entry.dwSize = mem::size_of::<PROCESSENTRY32>() as DWORD;
@@ -860,7 +860,7 @@ fn wait_for_parent() -> Result<()> {
             return Ok(());
         }
 
-        let _g = scopeguard::guard(parent, |h| { let _ = CloseHandle(*h); });
+        let _g = scopeguard::guard(parent, |h| { let _ = CloseHandle(h); });
 
         // Wait for our parent to exit
         let res = WaitForSingleObject(parent, INFINITE);

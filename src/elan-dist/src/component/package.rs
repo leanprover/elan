@@ -107,7 +107,7 @@ impl<'a> ZipPackage<'a> {
                         }
                     }
             } // make sure to close `dst` before setting mtime
-            let mtime = entry.last_modified().to_timespec();
+            let mtime = entry.last_modified().to_time().to_timespec();
             let mtime = filetime::FileTime::from_unix_time(mtime.sec, mtime.nsec as u32);
             filetime::set_file_times(&full_path, mtime, mtime).unwrap();
         }

@@ -6,7 +6,7 @@ use std::process::Command;
 use std::ffi::OsString;
 use std::env;
 use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 use notifications::{Notification};
 use raw;
 #[cfg(windows)]
@@ -204,7 +204,7 @@ fn download_file_(url: &Url,
         match msg {
             Event::DownloadDataReceived(data) => {
                 if let Some(ref mut h) = *hasher.borrow_mut() {
-                    h.input(data);
+                    h.update(data);
                 }
             }
             _ => ()

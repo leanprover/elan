@@ -184,7 +184,7 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
                 self.wrapper.write_line();
                 self.pop_attr();
             },
-            Block::CodeBlock(code) => {
+            Block::CodeBlock(_, code) => {
                 self.wrapper.write_line();
                 self.wrapper.indent += 2;
                 for line in code.lines() {
