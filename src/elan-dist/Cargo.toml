@@ -9,28 +9,28 @@ build = "build.rs"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-regex = "0.2.0"
-itertools = "0.7"
+regex = "1.4.3"
+itertools = "0.10.0"
 ole32-sys = "0.2.0"
-url = "1.1.0"
-tar = "0.4.0"
-flate2 = "1.0.1"
-walkdir = "2.0"
-toml = "0.4"
-sha2 = "0.7.0"
-remove_dir_all = "0.3"
+url = "2.2.1"
+tar = "0.4.33"
+flate2 = "1.0.14"
+walkdir = "2.3.1"
+toml = "0.5.8"
+sha2 = "0.9.3"
+remove_dir_all = "0.7.0"
 elan-utils = { path = "../elan-utils" }
-error-chain = "0.11"
-json = "0.11.13"
-zip = "0.3"
-filetime = "0.2.1"
+error-chain = "0.12.4"
+json = "0.12.4"
+zip = "0.5.11"
+filetime = "0.2.14"
 
 [target."cfg(windows)".dependencies]
-winapi = { version = "0.3", features = ["handleapi", "sysinfoapi", "tlhelp32", "winnt"] }
-winreg = "0.5"
+winapi = { version = "0.3.9", features = ["handleapi", "sysinfoapi", "tlhelp32", "winnt"] }
+winreg = "0.8.0"
 
 [target."cfg(not(windows))".dependencies]
-libc = "0.2.0"
+libc = "0.2.88"
 
 [lib]
 name = "elan_dist"
