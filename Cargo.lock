@@ -343,7 +343,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "elan"
-version = "0.11.0"
+version = "0.11.1-pre"
 dependencies = [
  "clap 2.33.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "download 0.4.0",
