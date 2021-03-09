@@ -1,3 +1,11 @@
+# Unreleased
+
+## Changed
+
+- Make `elan` a static executable on Linux
+- Improve `leanpkg.toml` error handling (#26)
+- Make downloaded files read-only (on Linux/macOS) (#27)
+
 # 0.10.3 - 2021-01-15
 
 ## Changed
