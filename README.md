@@ -49,7 +49,7 @@ curl https://raw.githubusercontent.com/Kha/elan/master/elan-init.sh -sSf | sh
 
 Alternatively, **any supported platform**: Grab the [latest release](https://github.com/Kha/elan/releases/latest) for your platform, unpack it, and run it in a terminal.
 
-The installation will tell you where it will install elan to (`~/.elan` by default), and also ask you about editing your shell config to extend `PATH`. elan can be uninstalled via `elan uninstall`, which should revert these changes.
+The installation will tell you where it will install elan to (`~/.elan` by default), and also ask you about editing your shell config to extend `PATH`. elan can be uninstalled via `elan self uninstall`, which should revert these changes.
 
 # Prerequisites
 
