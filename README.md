@@ -42,12 +42,9 @@ The installation will tell you where it will install elan to (`~/.elan` by defau
 
 # Prerequisites
 
-On some systems `elan` will not work out of the box:
+On some systems, `lean`/`leanpkg` will not work out of the box even if installed through elan:
 
-* Windows 10
-   * You'll need a unix-like terminal.
-      * Recommended: "git bash", available via [Git for Windows](https://gitforwindows.org/) works well, or
-      * the terminal from [MSYS2](https://www.msys2.org/), and then run `pacman -S unzip git`
+* You'll need [git](https://git-scm.com/download) to download dependencies through `leanpkg`.
 * macOS: Install [Homebrew](https://brew.sh/), then run `brew install gmp coreutils`.
   (`gmp` is required by `lean`, `coreutils` is required by `leanpkg`)
 
