@@ -1,4 +1,4 @@
-# Unreleased
+# 1.0.0 - 2021-04-17
 
 - Move to `leanprover/elan`
 
