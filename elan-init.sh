@@ -15,7 +15,7 @@
 
 set -u
 
-ELAN_UPDATE_ROOT="https://github.com/Kha/elan/releases"
+ELAN_UPDATE_ROOT="https://github.com/leanprover/elan/releases"
 
 #XXX: If you change anything here, please make the same changes in setup_mode.rs
 usage() {

@@ -172,7 +172,7 @@ static TOOLS: &'static [&'static str]
     = &["lean", "leanpkg", "leanchecker", "leanc", "leanmake"];
 
 static UPDATE_ROOT: &'static str
-    = "https://github.com/Kha/elan/releases/download";
+    = "https://github.com/leanprover/elan/releases/download";
 
 /// `ELAN_HOME` suitable for display, possibly with $HOME
 /// substituted for the directory prefix
@@ -1234,7 +1234,7 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
     // Download available version
     info!("checking for self-updates");
 
-    let tag = utils::fetch_latest_release_tag("Kha/elan")?;
+    let tag = utils::fetch_latest_release_tag("leanprover/elan")?;
     let available_version = &tag[1..];
 
     // If up-to-date
