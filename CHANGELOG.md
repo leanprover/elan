@@ -1,3 +1,14 @@
+# Unreleased
+
+## Changed
+
+- Fix updating channels from non-default repos (e.g. `leanprover/lean4:nightly`)
+  This change affects the store location of such toolchains, so you will have to re-install them first.
+  ```sh
+  $ elan toolchain uninstall leanprover-lean4-nightly
+  $ elan toolchain install leanprover/lean4:nightly
+  ```
+
 # 1.0.0 - 2021-04-17
 
 - Move to `leanprover/elan`

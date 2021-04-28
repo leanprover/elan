@@ -24,7 +24,6 @@ use regex::Regex;
 pub struct Toolchain<'a> {
     cfg: &'a Cfg,
     name: String,
-    raw_name: String,
     path: PathBuf,
     telemetry: telemetry::Telemetry,
     dist_handler: Box<Fn(elan_dist::Notification) + 'a>,
@@ -48,15 +47,13 @@ impl<'a> Toolchain<'a> {
     pub fn from(cfg: &'a Cfg, name: &str) -> Result<Self> {
         //We need to replace ":" and "/" with "-" in the toolchain name in order to make a name which is a valid
         //name for a directory.
-        let re = Regex::new(r"[:/]").unwrap();
-        let sane_name = re.replace_all(name, "-");
+        let dir_name = name.replace("/", "--").replace(":", "---");
 
-        let path = cfg.toolchains_dir.join(&sane_name[..]);
+        let path = cfg.toolchains_dir.join(&dir_name[..]);
 
         Ok(Toolchain {
             cfg: cfg,
-            name: sane_name.to_string(),
-            raw_name: name.to_owned(),
+            name: name.to_owned(),
             path: path.clone(),
             telemetry: Telemetry::new(cfg.elan_dir.join("telemetry")),
             dist_handler: Box::new(move |n| {
@@ -68,7 +65,7 @@ impl<'a> Toolchain<'a> {
         &self.name
     }
     pub fn desc(&self) -> Result<ToolchainDesc> {
-        Ok(try!(ToolchainDesc::from_str(&self.raw_name)))
+        Ok(try!(ToolchainDesc::from_str(&self.name)))
     }
     pub fn path(&self) -> &Path {
         &self.path
@@ -208,7 +205,7 @@ impl<'a> Toolchain<'a> {
                                                           false))
     }
     pub fn is_tracking(&self) -> bool {
-        ToolchainDesc::from_str(&self.raw_name).ok().map(|d| d.is_tracking()) == Some(true)
+        ToolchainDesc::from_str(&self.name).ok().map(|d| d.is_tracking()) == Some(true)
     }
 
     pub fn install_from_dir(&self, src: &Path, link: bool) -> Result<()> {

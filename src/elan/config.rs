@@ -278,11 +278,16 @@ impl Cfg {
     }
 
     pub fn list_toolchains(&self) -> Result<Vec<String>> {
+        // de-sanitize toolchain file names (best effort...)
+        fn insane(s: String) -> String {
+            s.replace("---", ":").replace("--", "/")
+        }
         if utils::is_directory(&self.toolchains_dir) {
             let mut toolchains: Vec<_> = try!(utils::read_dir("toolchains", &self.toolchains_dir))
                                          .filter_map(io::Result::ok)
                                          .filter(|e| e.file_type().map(|f| !f.is_file()).unwrap_or(false))
                                          .filter_map(|e| e.file_name().into_string().ok())
+                                         .map(insane)
                                          .collect();
 
             utils::toolchain_sort(&mut toolchains);
