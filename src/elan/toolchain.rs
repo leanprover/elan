@@ -24,6 +24,7 @@ use regex::Regex;
 pub struct Toolchain<'a> {
     cfg: &'a Cfg,
     name: String,
+    dir_name: String,
     path: PathBuf,
     telemetry: telemetry::Telemetry,
     dist_handler: Box<Fn(elan_dist::Notification) + 'a>,
@@ -54,6 +55,7 @@ impl<'a> Toolchain<'a> {
         Ok(Toolchain {
             cfg: cfg,
             name: name.to_owned(),
+            dir_name: dir_name,
             path: path.clone(),
             telemetry: Telemetry::new(cfg.elan_dir.join("telemetry")),
             dist_handler: Box::new(move |n| {
@@ -144,7 +146,7 @@ impl<'a> Toolchain<'a> {
         if self.is_symlink() {
             Ok(None)
         } else {
-            Ok(Some(try!(self.cfg.get_hash_file(&self.name, true))))
+            Ok(Some(try!(self.cfg.get_hash_file(&self.dir_name, true))))
         }
     }
 

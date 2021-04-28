@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Fix installation from non-default repos
+
 # 1.0.1 - 2021-04-28
 
 ## Changed

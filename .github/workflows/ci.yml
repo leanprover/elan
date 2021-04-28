@@ -63,6 +63,7 @@ jobs:
           elan which leanpkg
           # needs `readlink -f`, haha
           leanpkg new foo || ${{ matrix.name == 'macOS' }}
+          elan install leanprover/lean4:nightly
       - name: Package
         shell: bash
         run: |
