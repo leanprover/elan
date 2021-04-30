@@ -1,0 +1,2 @@
+[build.env]
+passthrough = ["RELEASE_TARGET_NAME"]

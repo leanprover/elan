@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Fix `elan self update` download URL on Linux
+
 # 1.0.2 - 2021-04-28
 
 ## Changed
