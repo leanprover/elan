@@ -1,3 +1,10 @@
+# Unreleased
+
+## Changed
+
+- Update suggestion when no default toolchain is configured (#31)
+- Fix `elan show` when no default toolchain is configured (#33)
+
 # 1.0.3 - 2021-04-30
 
 ## Changed

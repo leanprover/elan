@@ -340,7 +340,7 @@ fn show(cfg: &Cfg) -> Result<()> {
         if show_headers { print_header("installed toolchains") }
         let default_name = try!(cfg.get_default());
         for t in installed_toolchains {
-            if default_name == t {
+            if default_name.as_ref() == Some(&t) {
                 println!("{} (default)", t);
             } else {
                 println!("{}", t);

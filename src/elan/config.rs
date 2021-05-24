@@ -271,9 +271,9 @@ impl Cfg {
         })
     }
 
-    pub fn get_default(&self) -> Result<String> {
+    pub fn get_default(&self) -> Result<Option<String>> {
         self.settings_file.with(|s| { 
-            Ok(s.default_toolchain.clone().unwrap())
+            Ok(s.default_toolchain.clone())
         })
     }
 
