@@ -44,6 +44,11 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Setup macOS
+        if: matrix.name == 'macOS'
+        shell: bash
+        run: |
+          brew install coreutils
       - name: Build
         uses: actions-rs/cargo@v1
         with:
@@ -63,9 +68,12 @@ jobs:
           # not created on Windows
           [ -f ~/.elan/env ] && source ~/.elan/env || export PATH=$PATH:~/.elan/bin
           elan which leanpkg
-          # needs `readlink -f`, haha
-          leanpkg new foo || ${{ matrix.name == 'macOS' }}
-          elan install leanprover/lean4:nightly
+          leanpkg new foo
+          (cd foo; leanpkg build)
+          elan default leanprover/lean4:nightly
+          mkdir foo4; cd foo4
+          leanpkg init foo4
+          leanpkg build lib
       - name: Package
         shell: bash
         run: |
