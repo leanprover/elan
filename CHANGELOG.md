@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Fix `elan self update` on not-Linux and build from cmdline
+
 # 1.0.5 - 2021-05-25
 
 ## Changed
