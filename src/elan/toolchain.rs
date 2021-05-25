@@ -245,7 +245,13 @@ impl<'a> Toolchain<'a> {
             }
             Path::new(&binary)
         };
-        let mut cmd = Command::new(&path);
+        let mut cmd: Command;
+        if cfg!(windows) && path.extension() == None {
+            cmd = Command::new("sh");
+            cmd.arg(format!("'{}'", path.to_str().unwrap()));
+        } else {
+            cmd = Command::new(&path);
+        };
         self.set_env(&mut cmd);
         Ok(cmd)
     }
@@ -341,7 +347,11 @@ impl<'a> Toolchain<'a> {
 
         let path = self.path.join("bin").join(&binary);
         if cfg!(windows) && !path.exists() && path.with_extension("bat").exists() {
+            // leanpkg.bat
             path.with_extension("bat")
+        } else if cfg!(windows) && !path.exists() && path.with_extension("").exists() {
+            // leanc (sh script)
+            path.with_extension("")
         } else {
             path
         }
