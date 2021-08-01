@@ -43,7 +43,7 @@ use std::path::{Path, PathBuf, Component};
 use std::process::{self, Command};
 use std::fs;
 use tar;
-use tempdir::TempDir;
+use tempfile::tempdir;
 use term2;
 use regex::Regex;
 use zip;
@@ -1225,7 +1225,7 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
     let update_root = env::var("ELAN_UPDATE_ROOT")
         .unwrap_or(String::from(UPDATE_ROOT));
 
-    let tempdir = try!(TempDir::new("elan-update")
+    let tempdir = try!(tempdir()
         .chain_err(|| "error creating temp directory"));
 
     // Get current version

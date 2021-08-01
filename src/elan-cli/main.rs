@@ -28,7 +28,7 @@ extern crate time;
 extern crate rand;
 extern crate same_file;
 extern crate scopeguard;
-extern crate tempdir;
+extern crate tempfile;
 extern crate sha2;
 extern crate markdown;
 extern crate toml;
