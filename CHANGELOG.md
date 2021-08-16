@@ -1,4 +1,4 @@
-# Unreleased
+# 1.0.7 - 2021-08-16
 
 ## Changed
 
