@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Default to respective toolchain inside of `~/.elan` (#36)
+
 # 1.0.6 - 2021-05-25
 
 ## Changed
