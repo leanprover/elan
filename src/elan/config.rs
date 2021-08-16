@@ -21,6 +21,7 @@ pub enum OverrideReason {
     OverrideDB(PathBuf),
     ToolchainFile(PathBuf),
     LeanpkgFile(PathBuf),
+    InToolchainDirectory(PathBuf),
 }
 
 impl Display for OverrideReason {
@@ -32,6 +33,9 @@ impl Display for OverrideReason {
             }
             OverrideReason::ToolchainFile(ref path) => {
                 write!(f, "overridden by '{}'", path.display())
+            }
+            OverrideReason::InToolchainDirectory(ref path) => {
+                write!(f, "override because inside toolchain directory '{}'", path.display())
             }
             OverrideReason::LeanpkgFile(ref path) => {
                 write!(f, "overridden by '{}'", path.display())
@@ -192,6 +196,9 @@ impl Cfg {
                 OverrideReason::LeanpkgFile(ref path) => {
                     format!("the leanpkg.toml file at '{}' specifies an uninstalled toolchain", path.display())
                 }
+                OverrideReason::InToolchainDirectory(ref path) => {
+                    format!("could not parse toolchain directory at '{}'", path.display())
+                }
             };
 
             match self.get_toolchain(&name, false) {
@@ -255,6 +262,14 @@ impl Cfg {
             }
 
             dir = d.parent();
+
+            if dir == Some(&self.toolchains_dir) {
+                if let Some(last) = d.file_name() {
+                    if let Some(last) = last.to_str() {
+                        return Ok(Some((last.to_string(), OverrideReason::InToolchainDirectory(d.into()))))
+                    }
+                }
+            }
         }
 
         Ok(None)
@@ -272,7 +287,7 @@ impl Cfg {
     }
 
     pub fn get_default(&self) -> Result<Option<String>> {
-        self.settings_file.with(|s| { 
+        self.settings_file.with(|s| {
             Ok(s.default_toolchain.clone())
         })
     }
