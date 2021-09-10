@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Fix `elan self update` on not-Linux, again
+
 # 1.0.7 - 2021-08-16
 
 ## Changed
