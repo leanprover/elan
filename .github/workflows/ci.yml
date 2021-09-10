@@ -73,7 +73,7 @@ jobs:
           elan default leanprover/lean4:nightly
           mkdir foo4; cd foo4
           leanpkg init foo4
-          leanpkg build lib
+          leanpkg build
       - name: Package
         shell: bash
         run: |
