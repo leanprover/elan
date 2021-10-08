@@ -38,6 +38,13 @@ Lean (version 3.3.1, nightly-2018-04-10, commit d36b859c6579, Release)
 curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
 ```
 
+**Windows**: run the following commands in a terminal:
+```bash
+curl -O --location https://raw.githubusercontent.com/leanprover/elan/master/elan-init.ps1
+powershell -f elan-init.ps1
+del elan-init.ps1
+```
+
 Alternatively, on **any supported platform**: Grab the [latest release](https://github.com/leanprover/elan/releases/latest) for your platform, unpack it, and run the contained installation program.
 
 The installation will tell you where it will install elan to (`~/.elan` by default), and also ask you about editing your shell config to extend `PATH`. elan can be uninstalled via `elan self uninstall`, which should revert these changes.
