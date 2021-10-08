@@ -195,7 +195,7 @@ fn canonical_elan_home() -> Result<String> {
 /// Installing is a simple matter of coping the running binary to
 /// `ELAN_HOME`/bin, hardlinking the various Lean tools to it,
 /// and adding `ELAN_HOME`/bin to PATH.
-pub fn install(no_prompt: bool, verbose: bool,
+pub fn install(no_prompt: bool, verbose: bool, silent: bool
                mut opts: InstallOpts) -> Result<()> {
 
     try!(check_existence_of_lean_in_path(no_prompt));
@@ -228,7 +228,7 @@ pub fn install(no_prompt: bool, verbose: bool,
         if !opts.no_modify_path {
             try!(do_add_to_path(&get_add_path_methods()));
         }
-        try!(maybe_install_lean(&opts.default_toolchain, verbose));
+        try!(maybe_install_lean(&opts.default_toolchain, verbose, silent));
 
         if cfg!(unix) {
             let ref env_file = try!(utils::elan_home()).join("env");
@@ -244,16 +244,6 @@ pub fn install(no_prompt: bool, verbose: bool,
 
     if let Err(ref e) = install_res {
         common::report_error(e);
-
-        // On windows, where installation happens in a console
-        // that may have opened just for this purpose, give
-        // the user an opportunity to see the error before the
-        // window closes.
-        if cfg!(windows) && !no_prompt {
-            println!("");
-            println!("Press the Enter key to continue.");
-            try!(common::read_line());
-        }
 
         process::exit(1);
     }
@@ -522,8 +512,8 @@ pub fn install_proxies() -> Result<()> {
     Ok(())
 }
 
-fn maybe_install_lean(toolchain_str: &str, verbose: bool) -> Result<()> {
-    let ref cfg = try!(common::set_globals(verbose));
+fn maybe_install_lean(toolchain_str: &str, verbose: bool, silent: bool) -> Result<()> {
+    let ref cfg = try!(common::set_globals(verbose, silent));
 
     // If there is already an install, then `toolchain_str` may not be
     // a toolchain the user actually wants. Don't do anything.  FIXME:

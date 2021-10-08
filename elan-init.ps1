@@ -21,6 +21,7 @@ FLAGS:
         --no-modify-path    Don't configure the PATH environment variable
     -h, --help              Prints help information
     -V, --version           Prints version information
+    -s, --silent            No progress output
 
 OPTIONS:
         --default-toolchain <default-toolchain>    Choose a default toolchain to install

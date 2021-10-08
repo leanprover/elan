@@ -18,7 +18,8 @@ pub fn main() -> Result<()> {
 
     let ref matches = cli().get_matches();
     let verbose = matches.is_present("verbose");
-    let ref cfg = try!(common::set_globals(verbose));
+    let silent = matches.is_present("silent");
+    let ref cfg = try!(common::set_globals(verbose, silent));
 
     match matches.subcommand() {
         ("show", Some(_)) => try!(show(cfg)),
@@ -85,6 +86,10 @@ pub fn cli() -> App<'static, 'static> {
             .help("Enable verbose output")
             .short("v")
             .long("verbose"))
+        .arg(Arg::with_name("silent")
+            .short("s")
+            .long("silent")
+            .help("Disable progress output"))
         .subcommand(SubCommand::with_name("show")
             .about("Show the active and installed toolchains")
             .after_help(SHOW_HELP))
@@ -209,7 +214,7 @@ pub fn cli() -> App<'static, 'static> {
                  .help("Standard library API documentation"))
             .group(ArgGroup::with_name("page")
                  .args(&["book", "std"])))*/;
-    
+
     /*if cfg!(not(target_os = "windows")) {
         app = app
             .subcommand(SubCommand::with_name("man")
@@ -221,7 +226,7 @@ pub fn cli() -> App<'static, 'static> {
                          .long("toolchain")
                          .takes_value(true)));
     }*/
-    
+
     app.subcommand(SubCommand::with_name("self")
         .about("Modify the elan installation")
         .setting(AppSettings::VersionlessSubcommands)

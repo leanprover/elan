@@ -77,3 +77,27 @@ On some systems, `lean`/`leanpkg` will not work out of the box even if installed
 * Removed Windows installer... for now?
 * Merged `CARGO_HOME` and `RUSTUP_HOME`
 * Removed options to configure host triple
+
+# Build
+
+You need to set the following environment variables:
+
+```
+export OUT_DIR="~/dist/elan"
+export RELEASE_TARGET_NAME="1.0.8"
+cargo build
+```
+
+# Build on Windows
+
+The windows build requires a windows version of `perl.exe` which you can download from [https://strawberryperl.com/](https://strawberryperl.com/).
+Make sure this downloaded perl.exe is the first thing in your PATH so that the build does not try and use `c:\Program Files\Git\usr\bin\perl.exe`.
+The git provided version of perl doesn't work for some reason.
+
+Then run this:
+
+```
+set OUT_DIR=d:\dist\elan
+set RELEASE_TARGET_NAME=1.0.8
+cargo build
+```

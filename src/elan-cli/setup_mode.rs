@@ -21,6 +21,10 @@ pub fn main() -> Result<()> {
              .short("v")
              .long("verbose")
              .help("Enable verbose output"))
+        .arg(Arg::with_name("silent")
+            .short("s")
+            .long("silent")
+            .help("Disable progress output"))
         .arg(Arg::with_name("no-prompt")
              .short("y")
              .help("Disable confirmation prompt."))
@@ -35,6 +39,7 @@ pub fn main() -> Result<()> {
     let matches = cli.get_matches();
     let no_prompt = matches.is_present("no-prompt");
     let verbose = matches.is_present("verbose");
+    let silent = matches.is_present("silent");
     let default_toolchain = matches.value_of("default-toolchain").unwrap_or("stable");
     let no_modify_path = matches.is_present("no-modify-path");
 
@@ -43,7 +48,7 @@ pub fn main() -> Result<()> {
         no_modify_path: no_modify_path,
     };
 
-    try!(self_update::install(no_prompt, verbose, opts));
+    try!(self_update::install(no_prompt, verbose, silent, opts));
 
     Ok(())
 }
