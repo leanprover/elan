@@ -1,3 +1,9 @@
+# Unreleased
+
+## Added
+
+- Add `lake` Lean 4 executable
+
 # 1.0.8 - 2021-09-10
 
 ## Changed
