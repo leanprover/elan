@@ -195,7 +195,7 @@ fn canonical_elan_home() -> Result<String> {
 /// Installing is a simple matter of coping the running binary to
 /// `ELAN_HOME`/bin, hardlinking the various Lean tools to it,
 /// and adding `ELAN_HOME`/bin to PATH.
-pub fn install(no_prompt: bool, verbose: bool, silent: bool
+pub fn install(no_prompt: bool, verbose: bool, silent: bool,
                mut opts: InstallOpts) -> Result<()> {
 
     try!(check_existence_of_lean_in_path(no_prompt));
@@ -719,7 +719,6 @@ fn delete_elan_and_elan_home() -> Result<()> {
     use winapi::shared::minwindef::DWORD;
     use std::os::windows::ffi::OsStrExt;
     use std::ptr;
-    use std::io;
     use std::mem;
 
     unsafe {
