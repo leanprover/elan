@@ -32,7 +32,7 @@ pub struct DownloadTracker {
     /// If the download is quick enough, we don't have time to
     /// display the progress info.
     /// In that case, we do not want to do some cleanup stuff we normally do.
-    displayed_progress: bool,
+    displayed_progress: bool
 }
 
 impl DownloadTracker {
@@ -88,6 +88,7 @@ impl DownloadTracker {
                 let elapsed = current_time - start;
                 if elapsed >= 1.0 {
                     self.seconds_elapsed += 1;
+
                     self.display();
                     self.last_sec = Some(current_time);
                     if self.downloaded_last_few_secs.len() == DOWNLOAD_TRACK_COUNT {
