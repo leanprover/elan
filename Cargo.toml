@@ -67,3 +67,8 @@ test = false # no unit tests
 name = "elan-init"
 path = "src/elan-cli/main.rs"
 test = false # no unit tests
+
+[[bin]]
+name = "elan"
+path = "src/elan-cli/main.rs"
+test = false # no unit tests
