@@ -99,7 +99,7 @@ pub fn read_line() -> Result<String> {
         "unable to read from stdin for confirmation".into())
 }
 
-pub fn set_globals(verbose: bool, silent: bool) -> Result<Cfg> {
+pub fn set_globals(verbose: bool) -> Result<Cfg> {
     use download_tracker::DownloadTracker;
     use std::cell::RefCell;
 

@@ -18,8 +18,7 @@ pub fn main() -> Result<()> {
 
     let ref matches = cli().get_matches();
     let verbose = matches.is_present("verbose");
-    let silent = matches.is_present("silent");
-    let ref cfg = try!(common::set_globals(verbose, silent));
+    let ref cfg = try!(common::set_globals(verbose));
 
     match matches.subcommand() {
         ("show", Some(_)) => try!(show(cfg)),
@@ -86,10 +85,6 @@ pub fn cli() -> App<'static, 'static> {
             .help("Enable verbose output")
             .short("v")
             .long("verbose"))
-        .arg(Arg::with_name("silent")
-            .short("s")
-            .long("silent")
-            .help("Disable progress output"))
         .subcommand(SubCommand::with_name("show")
             .about("Show the active and installed toolchains")
             .after_help(SHOW_HELP))
