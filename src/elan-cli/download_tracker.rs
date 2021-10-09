@@ -33,8 +33,6 @@ pub struct DownloadTracker {
     /// display the progress info.
     /// In that case, we do not want to do some cleanup stuff we normally do.
     displayed_progress: bool,
-    /// Whether to show any progress
-    progress: bool
 }
 
 impl DownloadTracker {
@@ -48,8 +46,7 @@ impl DownloadTracker {
             seconds_elapsed: 0,
             last_sec: None,
             term: term::stdout(),
-            displayed_progress: false,
-            progress: true
+            displayed_progress: false
         }
     }
 
@@ -91,9 +88,7 @@ impl DownloadTracker {
                 let elapsed = current_time - start;
                 if elapsed >= 1.0 {
                     self.seconds_elapsed += 1;
-                    if (self.progress) {
-                        self.display();
-                    }
+                    self.display();
                     self.last_sec = Some(current_time);
                     if self.downloaded_last_few_secs.len() == DOWNLOAD_TRACK_COUNT {
                         self.downloaded_last_few_secs.pop_back();

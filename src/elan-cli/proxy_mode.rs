@@ -39,7 +39,7 @@ pub fn main() -> Result<()> {
         env::args_os().skip(2).collect()
     };
 
-    let cfg = try!(set_globals(false, false));
+    let cfg = try!(set_globals(false));
     try!(direct_proxy(&cfg, arg0, toolchain, &cmd_args));
 
     Ok(())
