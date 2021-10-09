@@ -209,6 +209,7 @@ pub fn cli() -> App<'static, 'static> {
                  .help("Standard library API documentation"))
             .group(ArgGroup::with_name("page")
                  .args(&["book", "std"])))*/;
+
     /*if cfg!(not(target_os = "windows")) {
         app = app
             .subcommand(SubCommand::with_name("man")
@@ -220,6 +221,7 @@ pub fn cli() -> App<'static, 'static> {
                          .long("toolchain")
                          .takes_value(true)));
     }*/
+
     app.subcommand(SubCommand::with_name("self")
         .about("Modify the elan installation")
         .setting(AppSettings::VersionlessSubcommands)
