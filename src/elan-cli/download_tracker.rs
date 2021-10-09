@@ -32,7 +32,7 @@ pub struct DownloadTracker {
     /// If the download is quick enough, we don't have time to
     /// display the progress info.
     /// In that case, we do not want to do some cleanup stuff we normally do.
-    displayed_progress: bool
+    displayed_progress: bool,
 }
 
 impl DownloadTracker {
@@ -46,7 +46,7 @@ impl DownloadTracker {
             seconds_elapsed: 0,
             last_sec: None,
             term: term::stdout(),
-            displayed_progress: false
+            displayed_progress: false,
         }
     }
 
