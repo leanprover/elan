@@ -80,15 +80,17 @@ On some systems, `lean`/`leanpkg` will not work out of the box even if installed
 # Build
 
 If you want to build elan from source, you will need to install [Rust](https://www.rust-lang.org/tools/install) and
-Cargo and then set the following environment variables:
+Cargo and run the following:
 
 ```
-export OUT_DIR="~/dist/elan"
-export RELEASE_TARGET_NAME="1.0.8"
 cargo build
 ```
 
-The built binaries will show up in `target/build/debug` folder.
+The built binaries will show up in `target/debug` folder.  You can test that it works by running the following:
+
+```
+./target/debug/elan --help
+```
 
 # Build on Windows
 
@@ -97,12 +99,4 @@ from [https://strawberryperl.com/](https://strawberryperl.com/). Make sure this 
 in your PATH so that the build does not try and use `c:\Program Files\Git\usr\bin\perl.exe`. The git provided version of
 perl doesn't work for some reason.
 
-Then run this:
-
-```
-set OUT_DIR=d:\dist\elan
-set RELEASE_TARGET_NAME=1.0.8
-cargo build
-```
-
-The built binaries will show up in `target\build\debug` folder.
+Then you can run `cargo build` as shown above.
