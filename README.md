@@ -74,7 +74,6 @@ On some systems, `lean`/`leanpkg` will not work out of the box even if installed
 *elan* is basically a fork of [rustup](https://github.com/rust-lang-nursery/rustup.rs). Apart from new features and adaptions to the Lean infrastructure, these are the basic changes to the original code:
 
 * Replaced every mention of `rustup` with `elan`, `cargo` with `leanpkg`, and `rust(c)` with `lean`
-* Removed Windows installer... for now?
 * Merged `CARGO_HOME` and `RUSTUP_HOME`
 * Removed options to configure host triple
 
