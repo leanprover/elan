@@ -74,6 +74,29 @@ On some systems, `lean`/`leanpkg` will not work out of the box even if installed
 *elan* is basically a fork of [rustup](https://github.com/rust-lang-nursery/rustup.rs). Apart from new features and adaptions to the Lean infrastructure, these are the basic changes to the original code:
 
 * Replaced every mention of `rustup` with `elan`, `cargo` with `leanpkg`, and `rust(c)` with `lean`
-* Removed Windows installer... for now?
 * Merged `CARGO_HOME` and `RUSTUP_HOME`
 * Removed options to configure host triple
+
+# Build
+
+If you want to build elan from source, you will need to install [Rust](https://www.rust-lang.org/tools/install) and
+Cargo and run the following:
+
+```
+cargo build
+```
+
+The built binaries will show up in `target/debug` folder.  You can test that it works by running the following:
+
+```
+./target/debug/elan --help
+```
+
+# Build on Windows
+
+The windows build requires a 64bit developer command prompt and a windows version of `perl.exe` which you can download
+from [https://strawberryperl.com/](https://strawberryperl.com/). Make sure this downloaded perl.exe is the first thing
+in your PATH so that the build does not try and use `c:\Program Files\Git\usr\bin\perl.exe`. The git provided version of
+perl doesn't work for some reason.
+
+Then you can run `cargo build` as shown above.

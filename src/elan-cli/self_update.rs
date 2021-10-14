@@ -245,16 +245,6 @@ pub fn install(no_prompt: bool, verbose: bool,
     if let Err(ref e) = install_res {
         common::report_error(e);
 
-        // On windows, where installation happens in a console
-        // that may have opened just for this purpose, give
-        // the user an opportunity to see the error before the
-        // window closes.
-        if cfg!(windows) && !no_prompt {
-            println!("");
-            println!("Press the Enter key to continue.");
-            try!(common::read_line());
-        }
-
         process::exit(1);
     }
 
@@ -729,7 +719,6 @@ fn delete_elan_and_elan_home() -> Result<()> {
     use winapi::shared::minwindef::DWORD;
     use std::os::windows::ffi::OsStrExt;
     use std::ptr;
-    use std::io;
     use std::mem;
 
     unsafe {
