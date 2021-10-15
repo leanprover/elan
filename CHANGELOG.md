@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Remove "press any key to exit" step from Windows installation not needed for VS Code or PowerShell method
+
 # 1.1.0 - 2021-10-08
 
 ## Added
