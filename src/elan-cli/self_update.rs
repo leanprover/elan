@@ -269,15 +269,6 @@ pub fn install(no_prompt: bool, verbose: bool,
             }
         };
         term2::stdout().md(msg);
-
-        // On windows, where installation happens in a console
-        // that may have opened just for this purpose, require
-        // the user to press a key to continue.
-        if cfg!(windows) {
-            println!("");
-            println!("Press the Enter key to continue.");
-            try!(common::read_line());
-        }
     }
 
     Ok(())
