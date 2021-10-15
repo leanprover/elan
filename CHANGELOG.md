@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Remove another "press any key to exit"
+
 # 1.1.1 - 2021-10-15
 
 ## Changed
