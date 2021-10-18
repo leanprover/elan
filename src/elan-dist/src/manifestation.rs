@@ -47,12 +47,21 @@ impl Manifestation {
         } else {
             unreachable!()
         };
+        let informal_target = informal_target.to_owned();
+        let informal_target =
+            if cfg!(target_arch = "x86_64") {
+                informal_target
+            } else if cfg!(target_arch = "aarch64") {
+                informal_target + "-aarch64"
+            } else {
+                unreachable!();
+            };
         let re = Regex::new(format!(r#"/{}/releases/download/[^"]+"#, origin).as_str()).unwrap();
         let download_page_file = dlcfg.download_and_check(&url, "")?;
         let mut html = String::new();
         fs::File::open(&download_page_file as &::std::path::Path)?.read_to_string(&mut html)?;
         let url = re.find_iter(&html).map(|m| m.as_str().to_string()).find(|m|
-            m.contains(informal_target));
+            m.contains(&informal_target));
         if url.is_none() {
             return Err(format!("binary package was not provided for '{}'",
                                informal_target).into());
