@@ -20,6 +20,11 @@ jobs:
             target: x86_64-unknown-linux-musl
             # back compat
             release-target-name: x86_64-unknown-linux-gnu
+          - name: Linux aarch64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            # back compat
+            release-target-name: aarch64-unknown-linux-gnu
           - name: macOS
             os: macos-latest
             target: x86_64-apple-darwin
@@ -54,14 +59,16 @@ jobs:
         with:
           command: build
           args: --release --target ${{ matrix.target }}
-          use-cross: ${{ matrix.name == 'Linux' }}
+          use-cross: ${{ matrix.name == 'Linux' || matrix.target == 'aarch64-unknown-linux-musl' }}
       - name: Test
+        if: matrix.target != 'aarch64-unknown-linux-musl'
         uses: actions-rs/cargo@v1
         with:
           command: test
           args: --release --target ${{ matrix.target }}
           use-cross: ${{ matrix.name == 'Linux' }}
       - name: Install Test
+        if: matrix.target != 'aarch64-unknown-linux-musl'
         shell: bash
         run: |
           RUST_BACKTRACE=1 target/${{ matrix.target }}/release/elan-init -y
