@@ -52,7 +52,7 @@ impl Manifestation {
             if cfg!(target_arch = "x86_64") {
                 informal_target
             } else if cfg!(target_arch = "aarch64") {
-                "aarch64-".to_owned() + &informal_target
+                informal_target + "_aarch64"
             } else {
                 unreachable!();
             };
