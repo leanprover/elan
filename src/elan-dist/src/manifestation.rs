@@ -56,19 +56,20 @@ impl Manifestation {
             } else {
                 unreachable!();
             };
+        let ext = if cfg!(target_os = "linux") { ".tar.gz" } else { ".zip" };
+        let url_suffix = informal_target.clone() + ext;
         let re = Regex::new(format!(r#"/{}/releases/download/[^"]+"#, origin).as_str()).unwrap();
         let download_page_file = dlcfg.download_and_check(&url, "")?;
         let mut html = String::new();
         fs::File::open(&download_page_file as &::std::path::Path)?.read_to_string(&mut html)?;
         let url = re.find_iter(&html).map(|m| m.as_str().to_string()).find(|m|
-            m.contains(&informal_target));
+            m.contains(&url_suffix));
         if url.is_none() {
             return Err(format!("binary package was not provided for '{}'",
                                informal_target).into());
         }
         let url = format!("https://github.com/{}", url.unwrap());
 
-        let ext = if cfg!(target_os = "linux") { ".tar.gz" } else { ".zip" };
         let installer_file = try!(dlcfg.download_and_check(&url, ext));
 
         let prefix = self.prefix.path();
