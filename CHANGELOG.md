@@ -1,3 +1,9 @@
+# Unreleased
+
+## Added
+
+- Support for ARM64 Linux
+
 # 1.1.2 - 2021-10-15
 
 ## Changed
