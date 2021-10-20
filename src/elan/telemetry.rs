@@ -1,16 +1,27 @@
-use errors::*;
-use time;
 use elan_utils::{raw, utils};
+use errors::*;
 use serde_json;
+use time;
 
 use std::fs;
 use std::path::PathBuf;
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub enum TelemetryEvent {
-    LeanRun { duration_ms: u64, exit_code: i32, errors: Option<Vec<String>> },
-    ToolchainUpdate { toolchain: String, success: bool } ,
-    TargetAdd { toolchain: String, target: String, success: bool },
+    LeanRun {
+        duration_ms: u64,
+        exit_code: i32,
+        errors: Option<Vec<String>>,
+    },
+    ToolchainUpdate {
+        toolchain: String,
+        success: bool,
+    },
+    TargetAdd {
+        toolchain: String,
+        target: String,
+        success: bool,
+    },
 }
 
 #[derive(Deserialize, Serialize, Debug)]
@@ -28,7 +39,7 @@ impl LogMessage {
 
 #[derive(Debug)]
 pub struct Telemetry {
-    telemetry_dir: PathBuf
+    telemetry_dir: PathBuf,
 }
 
 const LOG_FILE_VERSION: i32 = 1;
@@ -36,7 +47,9 @@ const MAX_TELEMETRY_FILES: usize = 100;
 
 impl Telemetry {
     pub fn new(telemetry_dir: PathBuf) -> Telemetry {
-        Telemetry { telemetry_dir: telemetry_dir }
+        Telemetry {
+            telemetry_dir: telemetry_dir,
+        }
     }
 
     pub fn log_telemetry(&self, event: TelemetryEvent) -> Result<()> {
@@ -46,7 +59,7 @@ impl Telemetry {
     pub fn clean_telemetry_dir(&self) -> Result<()> {
         let telemetry_dir_contents = self.telemetry_dir.read_dir();
 
-        let contents = try!(telemetry_dir_contents.chain_err(|| ErrorKind::TelemetryCleanupError));
+        let contents = telemetry_dir_contents.chain_err(|| ErrorKind::TelemetryCleanupError)?;
 
         let mut telemetry_files: Vec<PathBuf> = Vec::new();
 
@@ -70,7 +83,7 @@ impl Telemetry {
 
         for i in 0..dl {
             let i = i as usize;
-            try!(fs::remove_file(&telemetry_files[i]).chain_err(|| ErrorKind::TelemetryCleanupError));
+            fs::remove_file(&telemetry_files[i]).chain_err(|| ErrorKind::TelemetryCleanupError)?;
         }
 
         Ok(())

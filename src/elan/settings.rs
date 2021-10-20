@@ -1,32 +1,31 @@
 use errors::*;
 use notifications::*;
-use toml_utils::*;
-use utils;
-use toml;
+use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::cell::RefCell;
+use toml;
+use toml_utils::*;
+use utils;
 
 pub const SUPPORTED_METADATA_VERSIONS: [&'static str; 2] = ["2", "12"];
 pub const DEFAULT_METADATA_VERSION: &'static str = "12";
 
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct SettingsFile {
     path: PathBuf,
-    cache: RefCell<Option<Settings>>
+    cache: RefCell<Option<Settings>>,
 }
 
 impl SettingsFile {
     pub fn new(path: PathBuf) -> Self {
         SettingsFile {
             path: path,
-            cache: RefCell::new(None)
+            cache: RefCell::new(None),
         }
     }
     fn write_settings(&self) -> Result<()> {
         let s = self.cache.borrow().as_ref().unwrap().clone();
-        try!(utils::write_file("settings", &self.path, &s.stringify()));
+        utils::write_file("settings", &self.path, &s.stringify())?;
         Ok(())
     }
     fn read_settings(&self) -> Result<()> {
@@ -35,8 +34,8 @@ impl SettingsFile {
             let mut b = self.cache.borrow_mut();
             if b.is_none() {
                 *b = Some(if utils::is_file(&self.path) {
-                    let content = try!(utils::read_file("settings", &self.path));
-                    try!(Settings::parse(&content))
+                    let content = utils::read_file("settings", &self.path)?;
+                    Settings::parse(&content)?
                 } else {
                     needs_save = true;
                     Default::default()
@@ -44,28 +43,25 @@ impl SettingsFile {
             }
         }
         if needs_save {
-            try!(self.write_settings());
+            self.write_settings()?;
         }
         Ok(())
     }
     pub fn with<T, F: FnOnce(&Settings) -> Result<T>>(&self, f: F) -> Result<T> {
-        try!(self.read_settings());
+        self.read_settings()?;
 
         // Settings can no longer be None so it's OK to unwrap
         f(self.cache.borrow().as_ref().unwrap())
     }
     pub fn with_mut<T, F: FnOnce(&mut Settings) -> Result<T>>(&self, f: F) -> Result<T> {
-        try!(self.read_settings());
+        self.read_settings()?;
 
         // Settings can no longer be None so it's OK to unwrap
-        let result = {
-            try!(f(self.cache.borrow_mut().as_mut().unwrap()))
-        };
-        try!(self.write_settings());
+        let result = { f(self.cache.borrow_mut().as_mut().unwrap())? };
+        self.write_settings()?;
         Ok(result)
     }
 }
-
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TelemetryMode {
@@ -78,7 +74,7 @@ pub struct Settings {
     pub version: String,
     pub default_toolchain: Option<String>,
     pub overrides: BTreeMap<String, String>,
-    pub telemetry: TelemetryMode
+    pub telemetry: TelemetryMode,
 }
 
 impl Default for Settings {
@@ -87,7 +83,7 @@ impl Default for Settings {
             version: DEFAULT_METADATA_VERSION.to_owned(),
             default_toolchain: None,
             overrides: BTreeMap::new(),
-            telemetry: TelemetryMode::Off
+            telemetry: TelemetryMode::Off,
         }
     }
 }
@@ -95,7 +91,9 @@ impl Default for Settings {
 impl Settings {
     fn path_to_key(path: &Path, notify_handler: &Fn(Notification)) -> String {
         if path.exists() {
-            utils::canonicalize_path(path, &|n| notify_handler(n.into())).display().to_string()
+            utils::canonicalize_path(path, &|n| notify_handler(n.into()))
+                .display()
+                .to_string()
         } else {
             path.display().to_string()
         }
@@ -106,7 +104,12 @@ impl Settings {
         self.overrides.remove(&key).is_some()
     }
 
-    pub fn add_override(&mut self, path: &Path, toolchain: String, notify_handler: &Fn(Notification)) {
+    pub fn add_override(
+        &mut self,
+        path: &Path,
+        toolchain: String,
+        notify_handler: &Fn(Notification),
+    ) {
         let key = Self::path_to_key(path, notify_handler);
         notify_handler(Notification::SetOverrideToolchain(path, &toolchain));
         self.overrides.insert(key, toolchain);
@@ -126,26 +129,25 @@ impl Settings {
     }
 
     pub fn from_toml(mut table: toml::value::Table, path: &str) -> Result<Self> {
-        let version = try!(get_string(&mut table, "version", path));
+        let version = get_string(&mut table, "version", path)?;
         if !SUPPORTED_METADATA_VERSIONS.contains(&&*version) {
             return Err(ErrorKind::UnknownMetadataVersion(version).into());
         }
         Ok(Settings {
             version: version,
-            default_toolchain: try!(get_opt_string(&mut table, "default_toolchain", path)),
-            overrides: try!(Self::table_to_overrides(&mut table, path)),
-            telemetry: if try!(get_opt_bool(&mut table, "telemetry", path)).unwrap_or(false) {
+            default_toolchain: get_opt_string(&mut table, "default_toolchain", path)?,
+            overrides: Self::table_to_overrides(&mut table, path)?,
+            telemetry: if get_opt_bool(&mut table, "telemetry", path)?.unwrap_or(false) {
                 TelemetryMode::On
             } else {
                 TelemetryMode::Off
-            }
+            },
         })
     }
     pub fn to_toml(self) -> toml::value::Table {
         let mut result = toml::value::Table::new();
 
-        result.insert("version".to_owned(),
-                      toml::Value::String(self.version));
+        result.insert("version".to_owned(), toml::Value::String(self.version));
 
         if let Some(v) = self.default_toolchain {
             result.insert("default_toolchain".to_owned(), toml::Value::String(v));
@@ -160,9 +162,12 @@ impl Settings {
         result
     }
 
-    fn table_to_overrides(table: &mut toml::value::Table, path: &str) -> Result<BTreeMap<String, String>> {
+    fn table_to_overrides(
+        table: &mut toml::value::Table,
+        path: &str,
+    ) -> Result<BTreeMap<String, String>> {
         let mut result = BTreeMap::new();
-        let pkg_table = try!(get_table(table, "overrides", path));
+        let pkg_table = get_table(table, "overrides", path)?;
 
         for (k, v) in pkg_table {
             if let toml::Value::String(t) = v {

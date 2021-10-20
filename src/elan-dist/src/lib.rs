@@ -1,37 +1,37 @@
 #![recursion_limit = "1024"]
 
-extern crate regex;
-extern crate itertools;
-extern crate walkdir;
-extern crate toml;
-extern crate flate2;
-extern crate tar;
-extern crate url;
 extern crate elan_utils;
+extern crate flate2;
+extern crate itertools;
+extern crate regex;
+extern crate tar;
+extern crate toml;
+extern crate url;
+extern crate walkdir;
 #[macro_use]
 extern crate error_chain;
-extern crate sha2;
 extern crate json;
+extern crate sha2;
 extern crate zip;
 
+#[cfg(not(windows))]
+extern crate libc;
 #[cfg(windows)]
 extern crate winapi;
 #[cfg(windows)]
 extern crate winreg;
-#[cfg(not(windows))]
-extern crate libc;
 
 pub use errors::*;
-pub use notifications::{Notification};
+pub use notifications::Notification;
 
 pub mod temp;
 
+mod component;
+pub mod config;
 pub mod dist;
+pub mod download;
 pub mod errors;
+pub mod manifest;
+mod manifestation;
 pub mod notifications;
 pub mod prefix;
-mod component;
-mod manifestation;
-pub mod download;
-pub mod manifest;
-pub mod config;

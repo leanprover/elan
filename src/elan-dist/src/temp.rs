@@ -1,29 +1,20 @@
 extern crate remove_dir_all;
 
+use elan_utils::raw;
 use std::error;
+use std::fmt::{self, Display};
 use std::fs;
-use std::path::{Path, PathBuf};
 use std::io;
 use std::ops;
-use std::fmt::{self, Display};
-use elan_utils::raw;
+use std::path::{Path, PathBuf};
 
 use elan_utils::notify::NotificationLevel;
 
 #[derive(Debug)]
 pub enum Error {
-    CreatingRoot {
-        path: PathBuf,
-        error: io::Error,
-    },
-    CreatingFile {
-        path: PathBuf,
-        error: io::Error,
-    },
-    CreatingDirectory {
-        path: PathBuf,
-        error: io::Error,
-    },
+    CreatingRoot { path: PathBuf, error: io::Error },
+    CreatingFile { path: PathBuf, error: io::Error },
+    CreatingDirectory { path: PathBuf, error: io::Error },
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;
@@ -99,18 +90,18 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         use self::Error::*;
         match *self {
-            CreatingRoot {..} => "could not create temp root",
-            CreatingFile {..} => "could not create temp file",
-            CreatingDirectory {..} => "could not create temp directory",
+            CreatingRoot { .. } => "could not create temp root",
+            CreatingFile { .. } => "could not create temp file",
+            CreatingDirectory { .. } => "could not create temp directory",
         }
     }
 
     fn cause(&self) -> Option<&error::Error> {
         use self::Error::*;
         match *self {
-            CreatingRoot { ref error, .. } |
-            CreatingFile { ref error, .. } |
-            CreatingDirectory { ref error, .. } => Some(error),
+            CreatingRoot { ref error, .. }
+            | CreatingFile { ref error, .. }
+            | CreatingDirectory { ref error, .. } => Some(error),
         }
     }
 }
@@ -144,16 +135,14 @@ impl Cfg {
         raw::ensure_dir_exists(&self.root_directory, |p| {
             (self.notify_handler)(Notification::CreatingRoot(p));
         })
-            .map_err(|e| {
-                Error::CreatingRoot {
-                    path: PathBuf::from(&self.root_directory),
-                    error: e,
-                }
-            })
+        .map_err(|e| Error::CreatingRoot {
+            path: PathBuf::from(&self.root_directory),
+            error: e,
+        })
     }
 
     pub fn new_directory(&self) -> Result<Dir> {
-        try!(self.create_root());
+        self.create_root()?;
 
         loop {
             let temp_name = raw::random_string(16) + "_dir";
@@ -164,12 +153,10 @@ impl Cfg {
             // random names at exactly the same time is... low.
             if !raw::path_exists(&temp_dir) {
                 (self.notify_handler)(Notification::CreatingDirectory(&temp_dir));
-                try!(fs::create_dir(&temp_dir).map_err(|e| {
-                    Error::CreatingDirectory {
-                        path: PathBuf::from(&temp_dir),
-                        error: e,
-                    }
-                }));
+                fs::create_dir(&temp_dir).map_err(|e| Error::CreatingDirectory {
+                    path: PathBuf::from(&temp_dir),
+                    error: e,
+                })?;
                 return Ok(Dir {
                     cfg: self,
                     path: temp_dir,
@@ -183,7 +170,7 @@ impl Cfg {
     }
 
     pub fn new_file_with_ext(&self, prefix: &str, ext: &str) -> Result<File> {
-        try!(self.create_root());
+        self.create_root()?;
 
         loop {
             let temp_name = prefix.to_owned() + &raw::random_string(16) + "_file" + ext;
@@ -194,12 +181,10 @@ impl Cfg {
             // random names at exactly the same time is... low.
             if !raw::path_exists(&temp_file) {
                 (self.notify_handler)(Notification::CreatingFile(&temp_file));
-                try!(fs::File::create(&temp_file).map_err(|e| {
-                    Error::CreatingFile {
-                        path: PathBuf::from(&temp_file),
-                        error: e,
-                    }
-                }));
+                fs::File::create(&temp_file).map_err(|e| Error::CreatingFile {
+                    path: PathBuf::from(&temp_file),
+                    error: e,
+                })?;
                 return Ok(File {
                     cfg: self,
                     path: temp_file,
@@ -212,9 +197,9 @@ impl Cfg {
 impl fmt::Debug for Cfg {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_struct("Cfg")
-         .field("root_directory", &self.root_directory)
-         .field("notify_handler", &"...")
-         .finish()
+            .field("root_directory", &self.root_directory)
+            .field("notify_handler", &"...")
+            .finish()
     }
 }
 
@@ -237,7 +222,10 @@ impl<'a> ops::Deref for File<'a> {
 impl<'a> Drop for Dir<'a> {
     fn drop(&mut self) {
         if raw::is_directory(&self.path) {
-            let n = Notification::DirectoryDeletion(&self.path, remove_dir_all::remove_dir_all(&self.path));
+            let n = Notification::DirectoryDeletion(
+                &self.path,
+                remove_dir_all::remove_dir_all(&self.path),
+            );
             (self.cfg.notify_handler)(n);
         }
     }

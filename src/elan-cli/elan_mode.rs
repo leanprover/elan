@@ -1,70 +1,66 @@
-use clap::{App, Arg, AppSettings, SubCommand, ArgMatches, Shell};
+use clap::{App, AppSettings, Arg, ArgMatches, Shell, SubCommand};
 use common;
-use elan::{Cfg, Toolchain, command};
 use elan::settings::TelemetryMode;
-use errors::*;
+use elan::{command, Cfg, Toolchain};
 use elan_utils::utils;
+use errors::*;
+use help::*;
 use self_update;
+use std::error::Error;
+use std::io::{self, Write};
+use std::iter;
 use std::path::Path;
 use std::process::Command;
-use std::iter;
-use std::error::Error;
 use term2;
-use std::io::{self, Write};
-use help::*;
 
 pub fn main() -> Result<()> {
-    try!(::self_update::cleanup_self_updater());
+    ::self_update::cleanup_self_updater()?;
 
     let ref matches = cli().get_matches();
     let verbose = matches.is_present("verbose");
-    let ref cfg = try!(common::set_globals(verbose));
+    let ref cfg = common::set_globals(verbose)?;
 
     match matches.subcommand() {
-        ("show", Some(_)) => try!(show(cfg)),
-        ("install", Some(m)) => try!(update(cfg, m)),
-        ("update", Some(m)) => try!(update(cfg, m)),
-        ("uninstall", Some(m)) => try!(toolchain_remove(cfg, m)),
-        ("default", Some(m)) => try!(default_(cfg, m)),
-        ("toolchain", Some(c)) => {
-            match c.subcommand() {
-                ("install", Some(m)) => try!(update(cfg, m)),
-                ("list", Some(_)) => try!(common::list_toolchains(cfg)),
-                ("link", Some(m)) => try!(toolchain_link(cfg, m)),
-                ("uninstall", Some(m)) => try!(toolchain_remove(cfg, m)),
-                (_, _) => unreachable!(),
-            }
-        }
-        ("override", Some(c)) => {
-            match c.subcommand() {
-                ("list", Some(_)) => try!(common::list_overrides(cfg)),
-                ("set", Some(m)) => try!(override_add(cfg, m)),
-                ("unset", Some(m)) => try!(override_remove(cfg, m)),
-                (_ ,_) => unreachable!(),
-            }
-        }
-        ("run", Some(m)) => try!(run(cfg, m)),
-        ("which", Some(m)) => try!(which(cfg, m)),
-        ("doc", Some(m)) => try!(doc(cfg, m)),
-        ("man", Some(m)) => try!(man(cfg,m)),
-        ("self", Some(c)) => {
-            match c.subcommand() {
-                ("update", Some(_)) => try!(self_update::update()),
-                ("uninstall", Some(m)) => try!(self_uninstall(m)),
-                (_ ,_) => unreachable!(),
-            }
-        }
-        ("telemetry", Some(c)) => {
-            match c.subcommand() {
-                ("enable", Some(_)) => try!(set_telemetry(&cfg, TelemetryMode::On)),
-                ("disable", Some(_)) => try!(set_telemetry(&cfg, TelemetryMode::Off)),
-                ("analyze", Some(_)) => try!(analyze_telemetry(&cfg)),
-                (_, _) => unreachable!(),
-            }
-        }
+        ("show", Some(_)) => show(cfg)?,
+        ("install", Some(m)) => update(cfg, m)?,
+        ("update", Some(m)) => update(cfg, m)?,
+        ("uninstall", Some(m)) => toolchain_remove(cfg, m)?,
+        ("default", Some(m)) => default_(cfg, m)?,
+        ("toolchain", Some(c)) => match c.subcommand() {
+            ("install", Some(m)) => update(cfg, m)?,
+            ("list", Some(_)) => common::list_toolchains(cfg)?,
+            ("link", Some(m)) => toolchain_link(cfg, m)?,
+            ("uninstall", Some(m)) => toolchain_remove(cfg, m)?,
+            (_, _) => unreachable!(),
+        },
+        ("override", Some(c)) => match c.subcommand() {
+            ("list", Some(_)) => common::list_overrides(cfg)?,
+            ("set", Some(m)) => override_add(cfg, m)?,
+            ("unset", Some(m)) => override_remove(cfg, m)?,
+            (_, _) => unreachable!(),
+        },
+        ("run", Some(m)) => run(cfg, m)?,
+        ("which", Some(m)) => which(cfg, m)?,
+        ("doc", Some(m)) => doc(cfg, m)?,
+        ("man", Some(m)) => man(cfg, m)?,
+        ("self", Some(c)) => match c.subcommand() {
+            ("update", Some(_)) => self_update::update()?,
+            ("uninstall", Some(m)) => self_uninstall(m)?,
+            (_, _) => unreachable!(),
+        },
+        ("telemetry", Some(c)) => match c.subcommand() {
+            ("enable", Some(_)) => set_telemetry(&cfg, TelemetryMode::On)?,
+            ("disable", Some(_)) => set_telemetry(&cfg, TelemetryMode::Off)?,
+            ("analyze", Some(_)) => analyze_telemetry(&cfg)?,
+            (_, _) => unreachable!(),
+        },
         ("completions", Some(c)) => {
             if let Some(shell) = c.value_of("shell") {
-                cli().gen_completions_to("elan", shell.parse::<Shell>().unwrap(), &mut io::stdout());
+                cli().gen_completions_to(
+                    "elan",
+                    shell.parse::<Shell>().unwrap(),
+                    &mut io::stdout(),
+                );
             }
         }
         (_, _) => unreachable!(),
@@ -222,52 +218,57 @@ pub fn cli() -> App<'static, 'static> {
                          .takes_value(true)));
     }*/
 
-    app.subcommand(SubCommand::with_name("self")
-        .about("Modify the elan installation")
-        .setting(AppSettings::VersionlessSubcommands)
-        .setting(AppSettings::DeriveDisplayOrder)
-        .setting(AppSettings::SubcommandRequiredElseHelp)
-        .subcommand(SubCommand::with_name("update")
-            .about("Download and install updates to elan"))
-        .subcommand(SubCommand::with_name("uninstall")
-            .about("Uninstall elan.")
-            .arg(Arg::with_name("no-prompt")
-                    .short("y"))))
+    app.subcommand(
+        SubCommand::with_name("self")
+            .about("Modify the elan installation")
+            .setting(AppSettings::VersionlessSubcommands)
+            .setting(AppSettings::DeriveDisplayOrder)
+            .setting(AppSettings::SubcommandRequiredElseHelp)
+            .subcommand(
+                SubCommand::with_name("update").about("Download and install updates to elan"),
+            )
+            .subcommand(
+                SubCommand::with_name("uninstall")
+                    .about("Uninstall elan.")
+                    .arg(Arg::with_name("no-prompt").short("y")),
+            ),
+    )
     /*.subcommand(SubCommand::with_name("telemetry")
-        .about("elan telemetry commands")
-        .setting(AppSettings::Hidden)
-        .setting(AppSettings::VersionlessSubcommands)
-        .setting(AppSettings::DeriveDisplayOrder)
-        .setting(AppSettings::SubcommandRequiredElseHelp)
-        .subcommand(SubCommand::with_name("enable")
-                        .about("Enable elan telemetry"))
-        .subcommand(SubCommand::with_name("disable")
-                        .about("Disable elan telemetry"))
-        .subcommand(SubCommand::with_name("analyze")
-                        .about("Analyze stored telemetry")))*/
-    .subcommand(SubCommand::with_name("completions")
-        .about("Generate completion scripts for your shell")
-        .after_help(COMPLETIONS_HELP)
-        .setting(AppSettings::ArgRequiredElseHelp)
-        .arg(Arg::with_name("shell")
-            .possible_values(&Shell::variants())))
+    .about("elan telemetry commands")
+    .setting(AppSettings::Hidden)
+    .setting(AppSettings::VersionlessSubcommands)
+    .setting(AppSettings::DeriveDisplayOrder)
+    .setting(AppSettings::SubcommandRequiredElseHelp)
+    .subcommand(SubCommand::with_name("enable")
+                    .about("Enable elan telemetry"))
+    .subcommand(SubCommand::with_name("disable")
+                    .about("Disable elan telemetry"))
+    .subcommand(SubCommand::with_name("analyze")
+                    .about("Analyze stored telemetry")))*/
+    .subcommand(
+        SubCommand::with_name("completions")
+            .about("Generate completion scripts for your shell")
+            .after_help(COMPLETIONS_HELP)
+            .setting(AppSettings::ArgRequiredElseHelp)
+            .arg(Arg::with_name("shell").possible_values(&Shell::variants())),
+    )
 }
 
 fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
-    let ref toolchain = try!(cfg.get_toolchain(toolchain, false));
+    let ref toolchain = cfg.get_toolchain(toolchain, false)?;
 
     let status = if !toolchain.exists() || !toolchain.is_custom() {
-        Some(try!(toolchain.install_from_dist_if_not_installed()))
+        Some(toolchain.install_from_dist_if_not_installed()?)
     } else {
         None
     };
 
-    try!(toolchain.make_default());
+    toolchain.make_default()?;
 
     if let Some(status) = status {
         println!("");
-        try!(common::show_channel_update(cfg, toolchain.name(), Ok(status)));
+        common::show_channel_update(cfg, toolchain.name(), Ok(status))?;
     }
 
     Ok(())
@@ -276,25 +277,25 @@ fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 fn update(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     if let Some(names) = m.values_of("toolchain") {
         for name in names {
-            let toolchain = try!(cfg.get_toolchain(name, false));
+            let toolchain = cfg.get_toolchain(name, false)?;
 
             let status = if !toolchain.exists() || !toolchain.is_custom() {
-                Some(try!(toolchain.install_from_dist(m.is_present("force"))))
+                Some(toolchain.install_from_dist(m.is_present("force"))?)
             } else {
                 None
             };
 
             if let Some(status) = status {
                 println!("");
-                try!(common::show_channel_update(cfg, toolchain.name(), Ok(status)));
+                common::show_channel_update(cfg, toolchain.name(), Ok(status))?;
             }
         }
     } else {
-        try!(common::update_all_channels(
+        common::update_all_channels(
             cfg,
             !m.is_present("no-self-update") && !self_update::NEVER_SELF_UPDATE,
             m.is_present("force"),
-        ));
+        )?;
     }
 
     Ok(())
@@ -304,18 +305,24 @@ fn run(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
     let args = m.values_of("command").unwrap();
     let args: Vec<_> = args.collect();
-    let cmd = try!(cfg.create_command_for_toolchain(toolchain, m.is_present("install"), args[0]));
+    let cmd = cfg.create_command_for_toolchain(toolchain, m.is_present("install"), args[0])?;
 
-    Ok(try!(command::run_command_for_dir(cmd, args[0], &args[1..], &cfg)))
+    Ok(command::run_command_for_dir(
+        cmd,
+        args[0],
+        &args[1..],
+        &cfg,
+    )?)
 }
 
 fn which(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let binary = m.value_of("command").expect("");
 
-    let binary_path = try!(cfg.which_binary(&try!(utils::current_dir()), binary))
-                          .expect("binary not found");
+    let binary_path = cfg
+        .which_binary(&utils::current_dir()?, binary)?
+        .expect("binary not found");
 
-    try!(utils::assert_is_file(&binary_path));
+    utils::assert_is_file(&binary_path)?;
 
     println!("{}", binary_path.display());
 
@@ -323,22 +330,25 @@ fn which(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 }
 
 fn show(cfg: &Cfg) -> Result<()> {
-    let ref cwd = try!(utils::current_dir());
-    let installed_toolchains = try!(cfg.list_toolchains());
+    let ref cwd = utils::current_dir()?;
+    let installed_toolchains = cfg.list_toolchains()?;
     let active_toolchain = cfg.find_override_toolchain_or_default(cwd);
 
     let show_installed_toolchains = installed_toolchains.len() > 1;
     let show_active_toolchain = true;
 
     // Only need to display headers if we have multiple sections
-    let show_headers = [
-        show_installed_toolchains,
-        show_active_toolchain
-    ].iter().filter(|x| **x).count() > 1;
+    let show_headers = [show_installed_toolchains, show_active_toolchain]
+        .iter()
+        .filter(|x| **x)
+        .count()
+        > 1;
 
     if show_installed_toolchains {
-        if show_headers { print_header("installed toolchains") }
-        let default_name = try!(cfg.get_default());
+        if show_headers {
+            print_header("installed toolchains")
+        }
+        let default_name = cfg.get_default()?;
         for t in installed_toolchains {
             if default_name.as_ref() == Some(&t) {
                 println!("{} (default)", t);
@@ -346,28 +356,30 @@ fn show(cfg: &Cfg) -> Result<()> {
                 println!("{}", t);
             }
         }
-        if show_headers { println!("") };
+        if show_headers {
+            println!("")
+        };
     }
 
     if show_active_toolchain {
-        if show_headers { print_header("active toolchain") }
+        if show_headers {
+            print_header("active toolchain")
+        }
 
         match active_toolchain {
-            Ok(atc) => {
-                match atc {
-                    Some((ref toolchain, Some(ref reason))) => {
-                        println!("{} ({})", toolchain.name(), reason);
-                        println!("{}", common::lean_version(toolchain));
-                    }
-                    Some((ref toolchain, None)) => {
-                        println!("{} (default)", toolchain.name());
-                        println!("{}", common::lean_version(toolchain));
-                    }
-                    None => {
-                        println!("no active toolchain");
-                    }
+            Ok(atc) => match atc {
+                Some((ref toolchain, Some(ref reason))) => {
+                    println!("{} ({})", toolchain.name(), reason);
+                    println!("{}", common::lean_version(toolchain));
                 }
-            }
+                Some((ref toolchain, None)) => {
+                    println!("{} (default)", toolchain.name());
+                    println!("{}", common::lean_version(toolchain));
+                }
+                None => {
+                    println!("no active toolchain");
+                }
+            },
             Err(err) => {
                 if let Some(cause) = err.cause() {
                     println!("(error: {}, {})", err, cause);
@@ -377,7 +389,9 @@ fn show(cfg: &Cfg) -> Result<()> {
             }
         }
 
-        if show_headers { println!("") };
+        if show_headers {
+            println!("")
+        };
     }
 
     fn print_header(s: &str) {
@@ -395,12 +409,12 @@ fn show(cfg: &Cfg) -> Result<()> {
 fn explicit_or_dir_toolchain<'a>(cfg: &'a Cfg, m: &ArgMatches) -> Result<Toolchain<'a>> {
     let toolchain = m.value_of("toolchain");
     if let Some(toolchain) = toolchain {
-        let toolchain = try!(cfg.get_toolchain(toolchain, false));
+        let toolchain = cfg.get_toolchain(toolchain, false)?;
         return Ok(toolchain);
     }
 
-    let ref cwd = try!(utils::current_dir());
-    let (toolchain, _) = try!(cfg.toolchain_for_dir(cwd));
+    let ref cwd = utils::current_dir()?;
+    let (toolchain, _) = cfg.toolchain_for_dir(cwd)?;
 
     Ok(toolchain)
 }
@@ -408,34 +422,34 @@ fn explicit_or_dir_toolchain<'a>(cfg: &'a Cfg, m: &ArgMatches) -> Result<Toolcha
 fn toolchain_link(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
     let ref path = m.value_of("path").expect("");
-    let toolchain = try!(cfg.get_toolchain(toolchain, true));
+    let toolchain = cfg.get_toolchain(toolchain, true)?;
 
-    Ok(try!(toolchain.install_from_dir(Path::new(path), true)))
+    Ok(toolchain.install_from_dir(Path::new(path), true)?)
 }
 
 fn toolchain_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     for toolchain in m.values_of("toolchain").expect("") {
-        let toolchain = try!(cfg.get_toolchain(toolchain, false));
-        try!(toolchain.remove());
+        let toolchain = cfg.get_toolchain(toolchain, false)?;
+        toolchain.remove()?;
     }
     Ok(())
 }
 
 fn override_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
-    let toolchain = try!(cfg.get_toolchain(toolchain, false));
+    let toolchain = cfg.get_toolchain(toolchain, false)?;
 
     let status = if !toolchain.exists() || !toolchain.is_custom() {
-        Some(try!(toolchain.install_from_dist_if_not_installed()))
+        Some(toolchain.install_from_dist_if_not_installed()?)
     } else {
         None
     };
 
-    try!(toolchain.make_override(&try!(utils::current_dir())));
+    toolchain.make_override(&utils::current_dir()?)?;
 
     if let Some(status) = status {
         println!("");
-        try!(common::show_channel_update(cfg, toolchain.name(), Ok(status)));
+        common::show_channel_update(cfg, toolchain.name(), Ok(status))?;
     }
 
     Ok(())
@@ -443,13 +457,18 @@ fn override_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 
 fn override_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let paths = if m.is_present("nonexistent") {
-        let list: Vec<_> = try!(cfg.settings_file.with(|s| Ok(s.overrides.iter().filter_map(|(k, _)|
-            if Path::new(k).is_dir() {
-                None
-            } else {
-                Some(k.clone())
-            }
-        ).collect())));
+        let list: Vec<_> = cfg.settings_file.with(|s| {
+            Ok(s.overrides
+                .iter()
+                .filter_map(|(k, _)| {
+                    if Path::new(k).is_dir() {
+                        None
+                    } else {
+                        Some(k.clone())
+                    }
+                })
+                .collect())
+        })?;
         if list.is_empty() {
             info!("no nonexistent paths detected");
         }
@@ -458,20 +477,23 @@ fn override_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
         if m.is_present("path") {
             vec![m.value_of("path").unwrap().to_string()]
         } else {
-            vec![try!(utils::current_dir()).to_str().unwrap().to_string()]
+            vec![utils::current_dir()?.to_str().unwrap().to_string()]
         }
     };
 
     for path in paths {
-        if try!(cfg.settings_file.with_mut(|s| {
-            Ok(s.remove_override(&Path::new(&path), cfg.notify_handler.as_ref()))
-        })) {
+        if cfg
+            .settings_file
+            .with_mut(|s| Ok(s.remove_override(&Path::new(&path), cfg.notify_handler.as_ref())))?
+        {
             info!("override toolchain for '{}' removed", path);
         } else {
             info!("no override toolchain for '{}'", path);
             if !m.is_present("path") && !m.is_present("nonexistent") {
-                info!("you may use `--path <path>` option to remove override toolchain \
-                       for a specific path");
+                info!(
+                    "you may use `--path <path>` option to remove override toolchain \
+                       for a specific path"
+                );
             }
         }
     }
@@ -487,18 +509,18 @@ fn doc(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
         "index.html"
     };
 
-    Ok(try!(cfg.open_docs_for_dir(&try!(utils::current_dir()), doc_url)))
+    Ok(cfg.open_docs_for_dir(&utils::current_dir()?, doc_url)?)
 }
 
 fn man(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let manpage = m.value_of("command").expect("");
-    let toolchain = try!(explicit_or_dir_toolchain(cfg, m));
+    let toolchain = explicit_or_dir_toolchain(cfg, m)?;
     let mut man_path = toolchain.path().to_path_buf();
     man_path.push("share");
     man_path.push("man");
     man_path.push("man1");
     man_path.push(manpage.to_owned() + ".1");
-    try!(utils::assert_is_file(&man_path));
+    utils::assert_is_file(&man_path)?;
     Command::new("man")
         .arg(man_path)
         .status()
@@ -514,12 +536,12 @@ fn self_uninstall(m: &ArgMatches) -> Result<()> {
 
 fn set_telemetry(cfg: &Cfg, t: TelemetryMode) -> Result<()> {
     match t {
-        TelemetryMode::On => Ok(try!(cfg.set_telemetry(true))),
-        TelemetryMode::Off => Ok(try!(cfg.set_telemetry(false))),
+        TelemetryMode::On => Ok(cfg.set_telemetry(true)?),
+        TelemetryMode::Off => Ok(cfg.set_telemetry(false)?),
     }
 }
 
 fn analyze_telemetry(cfg: &Cfg) -> Result<()> {
-    let analysis = try!(cfg.analyze_telemetry());
+    let analysis = cfg.analyze_telemetry()?;
     common::show_telemetry(analysis)
 }

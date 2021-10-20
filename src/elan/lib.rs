@@ -4,31 +4,31 @@ extern crate elan_dist;
 extern crate elan_utils;
 #[macro_use]
 extern crate error_chain;
-extern crate url;
-extern crate regex;
 extern crate itertools;
+extern crate regex;
+extern crate url;
 #[macro_use]
 extern crate serde_derive;
+#[cfg(unix)]
+extern crate libc;
 extern crate serde_json;
 extern crate tempfile;
 extern crate time;
 extern crate toml;
-#[cfg(unix)]
-extern crate libc;
 
+pub use config::*;
+pub use elan_utils::{notify, toml_utils, utils};
 pub use errors::*;
 pub use notifications::*;
-pub use config::*;
 pub use toolchain::*;
-pub use elan_utils::{utils, notify, toml_utils};
 
-mod errors;
-mod notifications;
-mod toolchain;
+pub mod command;
 mod config;
+pub mod env_var;
+mod errors;
 mod install;
+mod notifications;
 pub mod settings;
 pub mod telemetry;
-pub mod command;
 pub mod telemetry_analysis;
-pub mod env_var;
+mod toolchain;

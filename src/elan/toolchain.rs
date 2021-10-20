@@ -1,22 +1,22 @@
-use errors::*;
-use notifications::*;
-use elan_dist;
-use elan_dist::download::DownloadCfg;
-use elan_utils::utils;
-use elan_dist::dist::{ToolchainDesc};
-use elan_dist::manifest::Component;
 use config::Cfg;
+use elan_dist;
+use elan_dist::dist::ToolchainDesc;
+use elan_dist::download::DownloadCfg;
+use elan_dist::manifest::Component;
+use elan_utils::utils;
 use env_var;
+use errors::*;
 use install::{self, InstallMethod};
+use notifications::*;
 use telemetry;
 use telemetry::{Telemetry, TelemetryEvent};
 
-use std::env::consts::EXE_SUFFIX;
-use std::ffi::OsString;
-use std::process::Command;
-use std::path::{Path, PathBuf};
-use std::ffi::OsStr;
 use std::env;
+use std::env::consts::EXE_SUFFIX;
+use std::ffi::OsStr;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 
 use regex::Regex;
 
@@ -58,23 +58,23 @@ impl<'a> Toolchain<'a> {
             dir_name: dir_name,
             path: path.clone(),
             telemetry: Telemetry::new(cfg.elan_dir.join("telemetry")),
-            dist_handler: Box::new(move |n| {
-                (cfg.notify_handler)(n.into())
-            })
+            dist_handler: Box::new(move |n| (cfg.notify_handler)(n.into())),
         })
     }
     pub fn name(&self) -> &str {
         &self.name
     }
     pub fn desc(&self) -> Result<ToolchainDesc> {
-        Ok(try!(ToolchainDesc::from_str(&self.name)))
+        Ok(ToolchainDesc::from_str(&self.name)?)
     }
     pub fn path(&self) -> &Path {
         &self.path
     }
     fn is_symlink(&self) -> bool {
         use std::fs;
-        fs::symlink_metadata(&self.path).map(|m| m.file_type().is_symlink()).unwrap_or(false)
+        fs::symlink_metadata(&self.path)
+            .map(|m| m.file_type().is_symlink())
+            .unwrap_or(false)
     }
     pub fn exists(&self) -> bool {
         // HACK: linked toolchains are symlinks, and, contrary to what std docs
@@ -87,7 +87,7 @@ impl<'a> Toolchain<'a> {
         self.is_symlink()
     }
     pub fn verify(&self) -> Result<()> {
-        Ok(try!(utils::assert_is_directory(&self.path)))
+        Ok(utils::assert_is_directory(&self.path)?)
     }
     pub fn remove(&self) -> Result<()> {
         if self.exists() || self.is_symlink() {
@@ -96,15 +96,14 @@ impl<'a> Toolchain<'a> {
             (self.cfg.notify_handler)(Notification::ToolchainNotInstalled(&self.name));
             return Ok(());
         }
-        if let Some(update_hash) = try!(self.update_hash()) {
-            try!(utils::remove_file("update hash", &update_hash));
+        if let Some(update_hash) = self.update_hash()? {
+            utils::remove_file("update hash", &update_hash)?;
         }
-        let result = install::uninstall(&self.path,
-                                        &|n| (self.cfg.notify_handler)(n.into()));
+        let result = install::uninstall(&self.path, &|n| (self.cfg.notify_handler)(n.into()));
         if !self.exists() {
             (self.cfg.notify_handler)(Notification::UninstalledToolchain(&self.name));
         }
-        Ok(try!(result))
+        Ok(result?)
     }
     fn install(&self, install_method: InstallMethod) -> Result<UpdateStatus> {
         let exists = self.exists();
@@ -113,10 +112,8 @@ impl<'a> Toolchain<'a> {
         } else {
             (self.cfg.notify_handler)(Notification::InstallingToolchain(&self.name));
         }
-        (self.cfg.notify_handler)
-            (Notification::ToolchainDirectory(&self.path, &self.name));
-        let updated = try!(install_method.run(&self.path,
-                                              &|n| (self.cfg.notify_handler)(n.into())));
+        (self.cfg.notify_handler)(Notification::ToolchainDirectory(&self.path, &self.name));
+        let updated = install_method.run(&self.path, &|n| (self.cfg.notify_handler)(n.into()))?;
 
         if !updated {
             (self.cfg.notify_handler)(Notification::UpdateHashMatches);
@@ -136,7 +133,7 @@ impl<'a> Toolchain<'a> {
     fn install_if_not_installed(&self, install_method: InstallMethod) -> Result<UpdateStatus> {
         (self.cfg.notify_handler)(Notification::LookingForToolchain(&self.name));
         if !self.exists() {
-            Ok(try!(self.install(install_method)))
+            Ok(self.install(install_method)?)
         } else {
             (self.cfg.notify_handler)(Notification::UsingExistingToolchain(&self.name));
             Ok(UpdateStatus::Unchanged)
@@ -146,7 +143,7 @@ impl<'a> Toolchain<'a> {
         if self.is_symlink() {
             Ok(None)
         } else {
-            Ok(Some(try!(self.cfg.get_hash_file(&self.dir_name, true))))
+            Ok(Some(self.cfg.get_hash_file(&self.dir_name, true)?))
         }
     }
 
@@ -159,18 +156,20 @@ impl<'a> Toolchain<'a> {
     }
 
     pub fn install_from_dist(&self, force_update: bool) -> Result<UpdateStatus> {
-        if try!(self.cfg.telemetry_enabled()) {
+        if self.cfg.telemetry_enabled()? {
             return self.install_from_dist_with_telemetry(force_update);
         }
         self.install_from_dist_inner(force_update)
     }
 
     pub fn install_from_dist_inner(&self, force_update: bool) -> Result<UpdateStatus> {
-        let update_hash = try!(self.update_hash());
-        self.install(InstallMethod::Dist(&try!(self.desc()),
-                                         update_hash.as_ref().map(|p| &**p),
-                                         self.download_cfg(),
-                                         force_update))
+        let update_hash = self.update_hash()?;
+        self.install(InstallMethod::Dist(
+            &self.desc()?,
+            update_hash.as_ref().map(|p| &**p),
+            self.download_cfg(),
+            force_update,
+        ))
     }
 
     pub fn install_from_dist_with_telemetry(&self, force_update: bool) -> Result<UpdateStatus> {
@@ -178,8 +177,10 @@ impl<'a> Toolchain<'a> {
 
         match result {
             Ok(us) => {
-                let te = TelemetryEvent::ToolchainUpdate { toolchain: self.name().to_string() ,
-                                                           success: true };
+                let te = TelemetryEvent::ToolchainUpdate {
+                    toolchain: self.name().to_string(),
+                    success: true,
+                };
                 match self.telemetry.log_telemetry(te) {
                     Ok(_) => Ok(us),
                     Err(e) => {
@@ -189,8 +190,10 @@ impl<'a> Toolchain<'a> {
                 }
             }
             Err(e) => {
-                let te = TelemetryEvent::ToolchainUpdate { toolchain: self.name().to_string() ,
-                                                           success: true };
+                let te = TelemetryEvent::ToolchainUpdate {
+                    toolchain: self.name().to_string(),
+                    success: true,
+                };
                 let _ = self.telemetry.log_telemetry(te).map_err(|xe| {
                     (self.cfg.notify_handler)(Notification::TelemetryCleanupError(&xe));
                 });
@@ -200,28 +203,33 @@ impl<'a> Toolchain<'a> {
     }
 
     pub fn install_from_dist_if_not_installed(&self) -> Result<UpdateStatus> {
-        let update_hash = try!(self.update_hash());
-        self.install_if_not_installed(InstallMethod::Dist(&try!(self.desc()),
-                                                          update_hash.as_ref().map(|p| &**p),
-                                                          self.download_cfg(),
-                                                          false))
+        let update_hash = self.update_hash()?;
+        self.install_if_not_installed(InstallMethod::Dist(
+            &self.desc()?,
+            update_hash.as_ref().map(|p| &**p),
+            self.download_cfg(),
+            false,
+        ))
     }
     pub fn is_tracking(&self) -> bool {
-        ToolchainDesc::from_str(&self.name).ok().map(|d| d.is_tracking()) == Some(true)
+        ToolchainDesc::from_str(&self.name)
+            .ok()
+            .map(|d| d.is_tracking())
+            == Some(true)
     }
 
     pub fn install_from_dir(&self, src: &Path, link: bool) -> Result<()> {
         let mut pathbuf = PathBuf::from(src);
 
         pathbuf.push("bin");
-        try!(utils::assert_is_directory(&pathbuf));
+        utils::assert_is_directory(&pathbuf)?;
         pathbuf.push(format!("lean{}", EXE_SUFFIX));
-        try!(utils::assert_is_file(&pathbuf));
+        utils::assert_is_file(&pathbuf)?;
 
         if link {
-            try!(self.install(InstallMethod::Link(&try!(utils::to_absolute(src)))));
+            self.install(InstallMethod::Link(&utils::to_absolute(src)?))?;
         } else {
-            try!(self.install(InstallMethod::Copy(src)));
+            self.install(InstallMethod::Copy(src))?;
         }
 
         Ok(())
@@ -236,12 +244,16 @@ impl<'a> Toolchain<'a> {
         let path = if utils::is_file(&bin_path) {
             &bin_path
         } else {
-            let recursion_count = env::var("LEAN_RECURSION_COUNT").ok()
-                .and_then(|s| s.parse().ok()).unwrap_or(0);
+            let recursion_count = env::var("LEAN_RECURSION_COUNT")
+                .ok()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
             if recursion_count > env_var::LEAN_RECURSION_COUNT_MAX - 1 {
-                return Err(ErrorKind::BinaryNotFound(self.name.clone(),
-                                                     bin_path.to_str().unwrap().into())
-                            .into())
+                return Err(ErrorKind::BinaryNotFound(
+                    self.name.clone(),
+                    bin_path.to_str().unwrap().into(),
+                )
+                .into());
             }
             Path::new(&binary)
         };
@@ -303,7 +315,7 @@ impl<'a> Toolchain<'a> {
     }
 
     pub fn doc_path(&self, relative: &str) -> Result<PathBuf> {
-        try!(self.verify());
+        self.verify()?;
 
         let parts = vec!["share", "doc", "lean", "html"];
         let mut doc_dir = self.path.clone();
@@ -315,19 +327,19 @@ impl<'a> Toolchain<'a> {
         Ok(doc_dir)
     }
     pub fn open_docs(&self, relative: &str) -> Result<()> {
-        try!(self.verify());
+        self.verify()?;
 
-        Ok(try!(utils::open_browser(&try!(self.doc_path(relative)))))
+        Ok(utils::open_browser(&self.doc_path(relative)?)?)
     }
 
     pub fn make_default(&self) -> Result<()> {
         self.cfg.set_default(&self.name)
     }
     pub fn make_override(&self, path: &Path) -> Result<()> {
-        Ok(try!(self.cfg.settings_file.with_mut(|s| {
+        Ok(self.cfg.settings_file.with_mut(|s| {
             s.add_override(path, self.name.clone(), self.cfg.notify_handler.as_ref());
             Ok(())
-        })))
+        })?)
     }
 
     pub fn binary_file<T: AsRef<OsStr>>(&self, binary: T) -> PathBuf {

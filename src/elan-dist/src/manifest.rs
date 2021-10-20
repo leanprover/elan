@@ -10,10 +10,9 @@
 //!
 //! See tests/channel-lean-nightly-example.toml for an example.
 
+use elan_utils::toml_utils::*;
 use errors::*;
 use toml;
-use elan_utils::toml_utils::*;
-
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Component {
@@ -23,7 +22,7 @@ pub struct Component {
 impl Component {
     pub fn from_toml(mut table: toml::value::Table, path: &str) -> Result<Self> {
         Ok(Component {
-            pkg: try!(get_string(&mut table, "pkg", path)),
+            pkg: get_string(&mut table, "pkg", path)?,
         })
     }
     pub fn to_toml(self) -> toml::value::Table {

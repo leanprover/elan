@@ -1,6 +1,6 @@
-use term2;
 use std::fmt;
 use std::io::Write;
+use term2;
 
 macro_rules! warn {
     ( $ ( $ arg : tt ) * ) => ( $crate::log::warn_fmt ( format_args ! ( $ ( $ arg ) * ) ) )
