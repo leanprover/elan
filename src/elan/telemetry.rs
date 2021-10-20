@@ -50,7 +50,7 @@ impl Telemetry {
         }
     }
 
-    pub fn log_telemetry(&self, event: TelemetryEvent) -> Result<()> {
+    pub fn log_telemetry(&self, _event: TelemetryEvent) -> Result<()> {
         Ok(())
     }
 

@@ -333,7 +333,7 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
         extern crate libc as c;
 
         use std::ffi::CStr;
-        use std::mem;
+        use std::mem::{self, MaybeUninit};
         use std::ops::Deref;
         use std::ptr;
 
@@ -347,12 +347,12 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
             return false;
         }
         let mut buf = [0u8; 1024];
-        let mut pwd = unsafe { mem::uninitialized::<c::passwd>() };
+        let mut pwd = MaybeUninit::<c::passwd>::uninit();
         let mut pwdp: *mut c::passwd = ptr::null_mut();
         let rv = unsafe {
             c::getpwuid_r(
                 c::geteuid(),
-                &mut pwd,
+                pwd.as_mut_ptr(),
                 mem::transmute(&mut buf),
                 buf.len(),
                 &mut pwdp,
@@ -366,7 +366,9 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
             warn!("getpwuid_r: couldn't get user data");
             return false;
         }
-        let pw_dir = unsafe { CStr::from_ptr(pwd.pw_dir) }.to_str().ok();
+        let pw_dir = unsafe { CStr::from_ptr(pwd.assume_init().pw_dir) }
+            .to_str()
+            .ok();
         let env_home = env::var_os("HOME");
         let env_home = env_home.as_ref().map(Deref::deref);
         match (env_home, pw_dir) {
