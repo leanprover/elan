@@ -1,7 +1,4 @@
-use elan_utils::{raw, utils};
 use errors::*;
-use serde_json;
-use time;
 
 use std::fs;
 use std::path::PathBuf;
@@ -42,6 +39,7 @@ pub struct Telemetry {
     telemetry_dir: PathBuf,
 }
 
+#[allow(dead_code)]
 const LOG_FILE_VERSION: i32 = 1;
 const MAX_TELEMETRY_FILES: usize = 100;
 

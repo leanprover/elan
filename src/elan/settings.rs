@@ -89,7 +89,7 @@ impl Default for Settings {
 }
 
 impl Settings {
-    fn path_to_key(path: &Path, notify_handler: &Fn(Notification)) -> String {
+    fn path_to_key(path: &Path, notify_handler: &dyn Fn(Notification)) -> String {
         if path.exists() {
             utils::canonicalize_path(path, &|n| notify_handler(n.into()))
                 .display()
@@ -99,7 +99,7 @@ impl Settings {
         }
     }
 
-    pub fn remove_override(&mut self, path: &Path, notify_handler: &Fn(Notification)) -> bool {
+    pub fn remove_override(&mut self, path: &Path, notify_handler: &dyn Fn(Notification)) -> bool {
         let key = Self::path_to_key(path, notify_handler);
         self.overrides.remove(&key).is_some()
     }
@@ -108,14 +108,18 @@ impl Settings {
         &mut self,
         path: &Path,
         toolchain: String,
-        notify_handler: &Fn(Notification),
+        notify_handler: &dyn Fn(Notification),
     ) {
         let key = Self::path_to_key(path, notify_handler);
         notify_handler(Notification::SetOverrideToolchain(path, &toolchain));
         self.overrides.insert(key, toolchain);
     }
 
-    pub fn dir_override(&self, dir: &Path, notify_handler: &Fn(Notification)) -> Option<String> {
+    pub fn dir_override(
+        &self,
+        dir: &Path,
+        notify_handler: &dyn Fn(Notification),
+    ) -> Option<String> {
         let key = Self::path_to_key(dir, notify_handler);
         self.overrides.get(&key).map(|s| s.clone())
     }

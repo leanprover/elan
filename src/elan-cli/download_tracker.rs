@@ -81,7 +81,7 @@ impl DownloadTracker {
         self.downloaded_this_sec += len;
 
         let current_time: f64 =
-            (OffsetDateTime::now() - OffsetDateTime::unix_epoch()).as_seconds_f64();
+            (OffsetDateTime::now_utc() - OffsetDateTime::unix_epoch()).as_seconds_f64();
 
         match self.last_sec {
             None => self.last_sec = Some(current_time),

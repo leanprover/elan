@@ -18,8 +18,6 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use regex::Regex;
-
 /// A fully resolved reference to a toolchain which may or may not exist
 pub struct Toolchain<'a> {
     cfg: &'a Cfg,
@@ -27,7 +25,7 @@ pub struct Toolchain<'a> {
     dir_name: String,
     path: PathBuf,
     telemetry: telemetry::Telemetry,
-    dist_handler: Box<Fn(elan_dist::Notification) + 'a>,
+    dist_handler: Box<dyn Fn(elan_dist::Notification) + 'a>,
 }
 
 /// Used by the `list_component` function

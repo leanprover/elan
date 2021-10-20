@@ -332,7 +332,6 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
     pub fn home_mismatch() -> bool {
         extern crate libc as c;
 
-        use std::env;
         use std::ffi::CStr;
         use std::mem;
         use std::ops::Deref;

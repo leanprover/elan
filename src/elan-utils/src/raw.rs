@@ -278,7 +278,7 @@ impl error::Error for CommandError {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         use self::CommandError::*;
         match *self {
             Io(ref e) => Some(e),
