@@ -35,7 +35,7 @@ fn download_with_backend(
     backend: Backend,
     url: &Url,
     resume_from: u64,
-    callback: &Fn(Event) -> Result<()>,
+    callback: &dyn Fn(Event) -> Result<()>,
 ) -> Result<()> {
     match backend {
         Backend::Curl => curl::download(url, resume_from, callback),

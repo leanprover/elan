@@ -349,7 +349,7 @@ impl<'a> Toolchain<'a> {
             if path.extension().is_some() {
                 binary.as_ref().to_owned()
             } else {
-                let mut ext = EXE_SUFFIX;
+                let ext = EXE_SUFFIX;
                 OsString::from(format!("{}{}", binary_str, ext))
             }
         } else {
