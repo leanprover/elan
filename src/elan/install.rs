@@ -1,11 +1,11 @@
 //! Installation and upgrade of both distribution-managed and local
 //! toolchains
 
-use elan_dist::{Notification};
-use elan_dist::prefix::InstallPrefix;
-use elan_utils::utils;
 use elan_dist::dist;
 use elan_dist::download::DownloadCfg;
+use elan_dist::prefix::InstallPrefix;
+use elan_dist::Notification;
+use elan_utils::utils;
 use errors::Result;
 use std::path::Path;
 
@@ -14,7 +14,12 @@ pub enum InstallMethod<'a> {
     Copy(&'a Path),
     Link(&'a Path),
     // bool is whether to force an update
-    Dist(&'a dist::ToolchainDesc, Option<&'a Path>, DownloadCfg<'a>, bool),
+    Dist(
+        &'a dist::ToolchainDesc,
+        Option<&'a Path>,
+        DownloadCfg<'a>,
+        bool,
+    ),
 }
 
 impl<'a> InstallMethod<'a> {
@@ -24,36 +29,35 @@ impl<'a> InstallMethod<'a> {
             match self {
                 InstallMethod::Dist(..) => {}
                 _ => {
-                    try!(uninstall(path, notify_handler));
+                    uninstall(path, notify_handler)?;
                 }
             }
         }
 
         match self {
             InstallMethod::Copy(src) => {
-                try!(utils::copy_dir(src, path, &|n| notify_handler(n.into())));
+                utils::copy_dir(src, path, &|n| notify_handler(n.into()))?;
                 Ok(true)
             }
             InstallMethod::Link(src) => {
-                try!(utils::symlink_dir(src, &path, &|n| notify_handler(n.into())));
+                utils::symlink_dir(src, &path, &|n| notify_handler(n.into()))?;
                 Ok(true)
             }
             InstallMethod::Dist(toolchain, update_hash, dl_cfg, force_update) => {
                 let prefix = &InstallPrefix::from(path.to_owned());
-                let maybe_new_hash =
-                    try!(dist::update_from_dist(
-                        dl_cfg,
-                        update_hash,
-                        toolchain,
-                        prefix,
-                        &[],
-                        &[],
-                        force_update,
-                    ));
+                let maybe_new_hash = dist::update_from_dist(
+                    dl_cfg,
+                    update_hash,
+                    toolchain,
+                    prefix,
+                    &[],
+                    &[],
+                    force_update,
+                )?;
 
                 if let Some(hash) = maybe_new_hash {
                     if let Some(hash_file) = update_hash {
-                        try!(utils::write_file("update hash", hash_file, &hash));
+                        utils::write_file("update hash", hash_file, &hash)?;
                     }
 
                     Ok(true)
@@ -66,6 +70,7 @@ impl<'a> InstallMethod<'a> {
 }
 
 pub fn uninstall(path: &Path, notify_handler: &Fn(Notification)) -> Result<()> {
-    Ok(try!(utils::remove_dir("install", path,
-                              &|n| notify_handler(n.into()))))
+    Ok(utils::remove_dir("install", path, &|n| {
+        notify_handler(n.into())
+    })?)
 }

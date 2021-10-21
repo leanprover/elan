@@ -4,14 +4,14 @@ extern crate rand;
 extern crate scopeguard;
 #[macro_use]
 extern crate error_chain;
-extern crate sha2;
-extern crate url;
-extern crate toml;
-extern crate download;
-extern crate semver;
 extern crate curl;
-extern crate regex;
 extern crate dirs;
+extern crate download;
+extern crate regex;
+extern crate semver;
+extern crate sha2;
+extern crate toml;
+extern crate url;
 
 #[cfg(windows)]
 extern crate winapi;
@@ -24,10 +24,10 @@ extern crate libc;
 pub mod errors;
 pub mod notifications;
 pub mod raw;
+pub mod toml_utils;
 pub mod tty;
 pub mod utils;
-pub mod toml_utils;
 
 pub use errors::*;
-pub use notifications::{Notification};
+pub use notifications::Notification;
 pub mod notify;

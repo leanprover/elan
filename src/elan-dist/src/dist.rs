@@ -1,15 +1,14 @@
-
-use temp;
-use errors::*;
+use download::DownloadCfg;
 use elan_utils::{self, utils};
-use prefix::InstallPrefix;
+use errors::*;
 use manifest::Component;
-use manifestation::{Manifestation};
-use download::{DownloadCfg};
+use manifestation::Manifestation;
 use notifications::Notification;
+use prefix::InstallPrefix;
+use temp;
 
-use std::path::Path;
 use std::fmt;
+use std::path::Path;
 
 use regex::Regex;
 
@@ -89,49 +88,51 @@ pub struct Manifest<'a>(temp::File<'a>, String);
 impl fmt::Display for ToolchainDesc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(ref origin) = self.origin {
-            try!(write!(f, "{}-", str::replace(origin, "/", "-")));
+            write!(f, "{}-", str::replace(origin, "/", "-"))?;
         }
 
-        try!(write!(f, "{}", &self.channel));
+        write!(f, "{}", &self.channel)?;
 
         if let Some(ref date) = self.date {
-            try!(write!(f, "-{}", date));
+            write!(f, "-{}", date)?;
         }
 
         Ok(())
     }
 }
 
-
 // Installs or updates a toolchain from a dist server. If an initial
 // install then it will be installed with the default components. If
 // an upgrade then all the existing components will be upgraded.
 //
 // Returns the manifest's hash if anything changed.
-pub fn update_from_dist<'a>(download: DownloadCfg<'a>,
-                            update_hash: Option<&Path>,
-                            toolchain: &ToolchainDesc,
-                            prefix: &InstallPrefix,
-                            add: &[Component],
-                            remove: &[Component],
-                            force_update: bool)
-                            -> Result<Option<String>> {
-
+pub fn update_from_dist<'a>(
+    download: DownloadCfg<'a>,
+    update_hash: Option<&Path>,
+    toolchain: &ToolchainDesc,
+    prefix: &InstallPrefix,
+    add: &[Component],
+    remove: &[Component],
+    force_update: bool,
+) -> Result<Option<String>> {
     let fresh_install = !prefix.path().exists();
 
-    let res = update_from_dist_(download,
-                                update_hash,
-                                toolchain,
-                                prefix,
-                                add,
-                                remove,
-                                force_update);
+    let res = update_from_dist_(
+        download,
+        update_hash,
+        toolchain,
+        prefix,
+        add,
+        remove,
+        force_update,
+    );
 
     // Don't leave behind an empty / broken installation directory
     if res.is_err() && fresh_install {
         // FIXME Ignoring cascading errors
-        let _ = utils::remove_dir("toolchain", prefix.path(),
-                                  &|n| (download.notify_handler)(n.into()));
+        let _ = utils::remove_dir("toolchain", prefix.path(), &|n| {
+            (download.notify_handler)(n.into())
+        });
     }
 
     res
@@ -141,23 +142,33 @@ pub fn update_from_dist<'a>(download: DownloadCfg<'a>,
 //If origin is None use DEFAULT_ORIGIN.
 fn build_origin_name(origin: Option<&String>, version: &str) -> String {
     let repo = match origin {
-        None => if version == "stable" || version == "nightly" { DEFAULT_CHANNEL_ORIGIN } else { DEFAULT_ORIGIN },
-        Some (repo) => repo
+        None => {
+            if version == "stable" || version == "nightly" {
+                DEFAULT_CHANNEL_ORIGIN
+            } else {
+                DEFAULT_ORIGIN
+            }
+        }
+        Some(repo) => repo,
     };
-    format!("{}{}", repo, if version == "nightly" { "-nightly" } else { "" })
+    format!(
+        "{}{}",
+        repo,
+        if version == "nightly" { "-nightly" } else { "" }
+    )
 }
 
-pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
-                             update_hash: Option<&Path>,
-                             toolchain: &ToolchainDesc,
-                             prefix: &InstallPrefix,
-                             _add: &[Component],
-                             _remove: &[Component],
-                             _force_update: bool)
-                             -> Result<Option<String>> {
-
+pub fn update_from_dist_<'a>(
+    download: DownloadCfg<'a>,
+    update_hash: Option<&Path>,
+    toolchain: &ToolchainDesc,
+    prefix: &InstallPrefix,
+    _add: &[Component],
+    _remove: &[Component],
+    _force_update: bool,
+) -> Result<Option<String>> {
     let toolchain_str = toolchain.to_string();
-    let manifestation = try!(Manifestation::open(prefix.clone()));
+    let manifestation = Manifestation::open(prefix.clone())?;
 
     let url = match toolchain_url(download, toolchain) {
         Ok(url) => url,
@@ -169,8 +180,10 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
         }
         Err(e) => {
             return Err(e).chain_err(|| {
-                format!("failed to resolve latest version of '{}'",
-                        toolchain.manifest_name())
+                format!(
+                    "failed to resolve latest version of '{}'",
+                    toolchain.manifest_name()
+                )
             });
         }
     };
@@ -183,45 +196,56 @@ pub fn update_from_dist_<'a>(download: DownloadCfg<'a>,
                     return Ok(None);
                 }
             } /*else {
-                (self.notify_handler)(Notification::CantReadUpdateHash(hash_file));
-            }*/
+                  (self.notify_handler)(Notification::CantReadUpdateHash(hash_file));
+              }*/
         } /*else {
-            (self.notify_handler)(Notification::NoUpdateHash(hash_file));
-        }*/
+              (self.notify_handler)(Notification::NoUpdateHash(hash_file));
+          }*/
     }
 
-    match manifestation.update(&build_origin_name(toolchain.origin.as_ref(), &toolchain.channel),
-                               &url,
-                               &download.temp_cfg,
-                               download.notify_handler.clone()) {
+    match manifestation.update(
+        &build_origin_name(toolchain.origin.as_ref(), &toolchain.channel),
+        &url,
+        &download.temp_cfg,
+        download.notify_handler.clone(),
+    ) {
         Ok(()) => Ok(()),
-        e @ Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
-            e.chain_err(|| {
-                format!("could not download nonexistent lean version `{}`",
-                        toolchain_str)
-            })
-        }
+        e @ Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => e
+            .chain_err(|| {
+                format!(
+                    "could not download nonexistent lean version `{}`",
+                    toolchain_str
+                )
+            }),
         Err(e) => Err(e),
-    }.map(|()| Some(url))
+    }
+    .map(|()| Some(url))
 }
 
 fn toolchain_url<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Result<String> {
     let origin = build_origin_name(toolchain.origin.as_ref(), toolchain.channel.as_ref());
-    Ok(match (toolchain.date.as_ref(), toolchain.channel.as_str()) {
-        (None, version) if version == "stable" || version == "nightly" => {
-            (download.notify_handler)(Notification::DownloadingManifest(version));
-            let release = utils::fetch_latest_release_tag(&origin)?;
-            (download.notify_handler)(Notification::DownloadedManifest(version, Some(&release)));
-            format!("https://github.com/{}/releases/tag/{}", origin, release)
-        }
-        (Some(date), "nightly") =>
-            format!("https://github.com/{}/releases/tag/nightly-{}", origin, date),
-        (None, version) if version.starts_with(|c: char| c.is_numeric()) =>
-            format!("https://github.com/{}/releases/tag/v{}", origin, version),
-        (None, tag) =>
-            format!("https://github.com/{}/releases/tag/{}", origin, tag),
-        _ => panic!("wat"),
-    })
+    Ok(
+        match (toolchain.date.as_ref(), toolchain.channel.as_str()) {
+            (None, version) if version == "stable" || version == "nightly" => {
+                (download.notify_handler)(Notification::DownloadingManifest(version));
+                let release = utils::fetch_latest_release_tag(&origin)?;
+                (download.notify_handler)(Notification::DownloadedManifest(
+                    version,
+                    Some(&release),
+                ));
+                format!("https://github.com/{}/releases/tag/{}", origin, release)
+            }
+            (Some(date), "nightly") => format!(
+                "https://github.com/{}/releases/tag/nightly-{}",
+                origin, date
+            ),
+            (None, version) if version.starts_with(|c: char| c.is_numeric()) => {
+                format!("https://github.com/{}/releases/tag/v{}", origin, version)
+            }
+            (None, tag) => format!("https://github.com/{}/releases/tag/{}", origin, tag),
+            _ => panic!("wat"),
+        },
+    )
 }
 
 pub fn host_triple() -> &'static str {

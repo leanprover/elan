@@ -1,9 +1,9 @@
-use std::path::PathBuf;
-use std::io::{self, Write};
-use temp;
-use toml;
 use elan_utils;
 use manifest::Component;
+use std::io::{self, Write};
+use std::path::PathBuf;
+use temp;
+use toml;
 
 error_chain! {
     links {
@@ -114,13 +114,16 @@ fn component_unavailable_msg(cs: &[Component]) -> String {
     }
 
     if cs.len() == 1 {
-        let _ = write!(buf, "component {} is unavailable for download", format_component(&cs[0]));
+        let _ = write!(
+            buf,
+            "component {} is unavailable for download",
+            format_component(&cs[0])
+        );
     } else {
         use itertools::Itertools;
         let mut cs_strs = cs.iter().map(|c| format!("'{}'", c.pkg));
         let cs_str = cs_strs.join(", ");
-        let _ = write!(buf, "some components unavailable for download: {}",
-                       cs_str);
+        let _ = write!(buf, "some components unavailable for download: {}", cs_str);
     }
 
     String::from_utf8(buf).expect("")

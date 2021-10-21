@@ -1,25 +1,25 @@
 //! Just a dumping ground for cli stuff
 
-use elan::{self, Cfg, Notification, Toolchain, UpdateStatus};
 use elan::telemetry_analysis::TelemetryAnalysis;
-use errors::*;
-use elan_utils::utils;
+use elan::{self, Cfg, Notification, Toolchain, UpdateStatus};
 use elan_utils::notify::NotificationLevel;
+use elan_utils::utils;
+use errors::*;
 use self_update;
-use std::io::{Write, BufRead, BufReader};
-use std::process::{Command, Stdio};
+use std;
+use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use std::{cmp, iter};
+use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::Duration;
-use std;
+use std::{cmp, iter};
 use term2;
 use wait_timeout::ChildExt;
 
 pub fn confirm(question: &str, default: bool) -> Result<bool> {
     print!("{} ", question);
     let _ = std::io::stdout().flush();
-    let input = try!(read_line());
+    let input = read_line()?;
 
     let r = match &*input {
         "y" | "Y" => true,
@@ -34,7 +34,9 @@ pub fn confirm(question: &str, default: bool) -> Result<bool> {
 }
 
 pub enum Confirm {
-    Yes, No, Advanced
+    Yes,
+    No,
+    Advanced,
 }
 
 pub fn confirm_advanced() -> Result<Confirm> {
@@ -44,10 +46,10 @@ pub fn confirm_advanced() -> Result<Confirm> {
     println!("3) Cancel installation");
 
     let _ = std::io::stdout().flush();
-    let input = try!(read_line());
+    let input = read_line()?;
 
     let r = match &*input {
-        "1"|"" => Confirm::Yes,
+        "1" | "" => Confirm::Yes,
         "2" => Confirm::Advanced,
         _ => Confirm::No,
     };
@@ -60,7 +62,7 @@ pub fn confirm_advanced() -> Result<Confirm> {
 pub fn question_str(question: &str, default: &str) -> Result<String> {
     println!("{}", question);
     let _ = std::io::stdout().flush();
-    let input = try!(read_line());
+    let input = read_line()?;
 
     println!("");
 
@@ -75,7 +77,7 @@ pub fn question_bool(question: &str, default: bool) -> Result<bool> {
     println!("{}", question);
 
     let _ = std::io::stdout().flush();
-    let input = try!(read_line());
+    let input = read_line()?;
 
     println!("");
 
@@ -85,18 +87,19 @@ pub fn question_bool(question: &str, default: bool) -> Result<bool> {
         match &*input {
             "y" | "Y" | "yes" => Ok(true),
             "n" | "N" | "no" => Ok(false),
-            _ => Ok(default)
+            _ => Ok(default),
         }
     }
-
 }
 
 pub fn read_line() -> Result<String> {
     let stdin = std::io::stdin();
     let stdin = stdin.lock();
     let mut lines = stdin.lines();
-    lines.next().and_then(|l| l.ok()).ok_or(
-        "unable to read from stdin for confirmation".into())
+    lines
+        .next()
+        .and_then(|l| l.ok())
+        .ok_or("unable to read from stdin for confirmation".into())
 }
 
 pub fn set_globals(verbose: bool) -> Result<Cfg> {
@@ -105,8 +108,8 @@ pub fn set_globals(verbose: bool) -> Result<Cfg> {
 
     let download_tracker = RefCell::new(DownloadTracker::new());
 
-    Ok(try!(Cfg::from_env(Arc::new(move |n: Notification| {
-       if download_tracker.borrow_mut().handle_notification(&n) {
+    Ok(Cfg::from_env(Arc::new(move |n: Notification| {
+        if download_tracker.borrow_mut().handle_notification(&n) {
             return;
         }
 
@@ -126,16 +129,21 @@ pub fn set_globals(verbose: bool) -> Result<Cfg> {
                 err!("{}", n);
             }
         }
-    }))))
-
+    }))?)
 }
 
-pub fn show_channel_update(cfg: &Cfg, name: &str,
-                           updated: elan::Result<UpdateStatus>) -> Result<()> {
+pub fn show_channel_update(
+    cfg: &Cfg,
+    name: &str,
+    updated: elan::Result<UpdateStatus>,
+) -> Result<()> {
     show_channel_updates(cfg, vec![(name.to_string(), updated)])
 }
 
-fn show_channel_updates(cfg: &Cfg, toolchains: Vec<(String, elan::Result<UpdateStatus>)>) -> Result<()> {
+fn show_channel_updates(
+    cfg: &Cfg,
+    toolchains: Vec<(String, elan::Result<UpdateStatus>)>,
+) -> Result<()> {
     let data = toolchains.into_iter().map(|(name, result)| {
         let ref toolchain = cfg.get_toolchain(&name, false).expect("");
         let version = lean_version(toolchain);
@@ -169,7 +177,9 @@ fn show_channel_updates(cfg: &Cfg, toolchains: Vec<(String, elan::Result<UpdateS
     let mut t = term2::stdout();
 
     let data: Vec<_> = data.collect();
-    let max_width = data.iter().fold(0, |a, &(_, _, width, _, _)| cmp::max(a, width));
+    let max_width = data
+        .iter()
+        .fold(0, |a, &(_, _, width, _, _)| cmp::max(a, width));
 
     for (name, banner, width, color, version) in data {
         let padding = max_width - width;
@@ -190,15 +200,14 @@ fn show_channel_updates(cfg: &Cfg, toolchains: Vec<(String, elan::Result<UpdateS
 }
 
 pub fn update_all_channels(cfg: &Cfg, self_update: bool, force_update: bool) -> Result<()> {
-
-    let toolchains = try!(cfg.update_all_channels(force_update));
+    let toolchains = cfg.update_all_channels(force_update)?;
 
     if toolchains.is_empty() {
         info!("no updatable toolchains installed");
     }
 
     let setup_path = if self_update {
-        try!(self_update::prepare_update())
+        self_update::prepare_update()?
     } else {
         None
     };
@@ -206,11 +215,11 @@ pub fn update_all_channels(cfg: &Cfg, self_update: bool, force_update: bool) -> 
     if !toolchains.is_empty() {
         println!("");
 
-        try!(show_channel_updates(cfg, toolchains));
+        show_channel_updates(cfg, toolchains)?;
     }
 
     if let Some(ref setup_path) = setup_path {
-        try!(self_update::run_update(setup_path));
+        self_update::run_update(setup_path)?;
 
         unreachable!(); // update exits on success
     } else if self_update {
@@ -241,7 +250,9 @@ pub fn lean_version(toolchain: &Toolchain) -> String {
                 let timeout = Duration::new(10, 0);
                 match child.wait_timeout(timeout) {
                     Ok(Some(status)) if status.success() => {
-                        let out = child.stdout.expect("Child::stdout requested but not present");
+                        let out = child
+                            .stdout
+                            .expect("Child::stdout requested but not present");
                         let mut line = String::new();
                         if BufReader::new(out).read_line(&mut line).is_ok() {
                             let lineend = line.trim_right_matches(&['\r', '\n'][..]).len();
@@ -251,7 +262,7 @@ pub fn lean_version(toolchain: &Toolchain) -> String {
                     }
                     Ok(None) => {
                         let _ = child.kill();
-                        return String::from("(timeout reading lean version)")
+                        return String::from("(timeout reading lean version)");
                     }
                     Ok(Some(_)) | Err(_) => {}
                 }
@@ -271,7 +282,7 @@ pub fn lean_version(toolchain: &Toolchain) -> String {
 }
 
 pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
-    let toolchains = try!(cfg.list_toolchains());
+    let toolchains = cfg.list_toolchains()?;
 
     if toolchains.is_empty() {
         println!("no installed toolchains");
@@ -285,7 +296,6 @@ pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
                 };
                 println!("{}{}", &toolchain, if_default);
             }
-
         } else {
             for toolchain in toolchains {
                 println!("{}", &toolchain);
@@ -296,7 +306,7 @@ pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
 }
 
 pub fn list_overrides(cfg: &Cfg) -> Result<()> {
-    let overrides = try!(cfg.settings_file.with(|s| Ok(s.overrides.clone())));
+    let overrides = cfg.settings_file.with(|s| Ok(s.overrides.clone()))?;
 
     if overrides.is_empty() {
         println!("no overrides");
@@ -307,29 +317,30 @@ pub fn list_overrides(cfg: &Cfg) -> Result<()> {
             if !dir_exists {
                 any_not_exist = true;
             }
-            println!("{:<40}\t{:<20}",
-                     utils::format_path_for_display(&k) +
-                     if dir_exists {
-                         ""
-                     } else {
-                         " (not a directory)"
-                     },
-                     v)
+            println!(
+                "{:<40}\t{:<20}",
+                utils::format_path_for_display(&k)
+                    + if dir_exists { "" } else { " (not a directory)" },
+                v
+            )
         }
         if any_not_exist {
             println!("");
-            info!("you may remove overrides for non-existent directories with
-`elan override unset --nonexistent`");
+            info!(
+                "you may remove overrides for non-existent directories with
+`elan override unset --nonexistent`"
+            );
         }
     }
     Ok(())
 }
 
-
 pub fn version() -> &'static str {
-    concat!(env!("CARGO_PKG_VERSION"), include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt")))
+    concat!(
+        env!("CARGO_PKG_VERSION"),
+        include_str!(concat!(env!("OUT_DIR"), "/commit-info.txt"))
+    )
 }
-
 
 pub fn report_error(e: &Error) {
     err!("{}", e);

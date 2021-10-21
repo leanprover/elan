@@ -1,8 +1,8 @@
-use std::env;
-use self_update::{self, InstallOpts};
-use errors::*;
-use clap::{App, Arg, AppSettings};
+use clap::{App, AppSettings, Arg};
 use common;
+use errors::*;
+use self_update::{self, InstallOpts};
+use std::env;
 
 pub fn main() -> Result<()> {
     let args: Vec<_> = env::args().collect();
@@ -17,20 +17,28 @@ pub fn main() -> Result<()> {
         .version(common::version())
         .about("The installer for elan")
         .setting(AppSettings::DeriveDisplayOrder)
-        .arg(Arg::with_name("verbose")
-             .short("v")
-             .long("verbose")
-             .help("Enable verbose output"))
-        .arg(Arg::with_name("no-prompt")
-             .short("y")
-             .help("Disable confirmation prompt."))
-        .arg(Arg::with_name("default-toolchain")
-             .long("default-toolchain")
-             .takes_value(true)
-             .help("Choose a default toolchain to install"))
-        .arg(Arg::with_name("no-modify-path")
-             .long("no-modify-path")
-             .help("Don't configure the PATH environment variable"));
+        .arg(
+            Arg::with_name("verbose")
+                .short("v")
+                .long("verbose")
+                .help("Enable verbose output"),
+        )
+        .arg(
+            Arg::with_name("no-prompt")
+                .short("y")
+                .help("Disable confirmation prompt."),
+        )
+        .arg(
+            Arg::with_name("default-toolchain")
+                .long("default-toolchain")
+                .takes_value(true)
+                .help("Choose a default toolchain to install"),
+        )
+        .arg(
+            Arg::with_name("no-modify-path")
+                .long("no-modify-path")
+                .help("Don't configure the PATH environment variable"),
+        );
 
     let matches = cli.get_matches();
     let no_prompt = matches.is_present("no-prompt");
@@ -43,7 +51,7 @@ pub fn main() -> Result<()> {
         no_modify_path: no_modify_path,
     };
 
-    try!(self_update::install(no_prompt, verbose, opts));
+    self_update::install(no_prompt, verbose, opts)?;
 
     Ok(())
 }

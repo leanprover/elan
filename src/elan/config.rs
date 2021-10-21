@@ -1,17 +1,17 @@
-use std::path::{Path, PathBuf};
 use std::env;
-use std::io;
-use std::process::Command;
 use std::fmt::{self, Display};
+use std::io;
+use std::path::{Path, PathBuf};
+use std::process::Command;
 use std::sync::Arc;
 
+use elan_dist::temp;
+use elan_utils::utils;
 use errors::*;
 use notifications::*;
-use elan_dist::{temp};
-use elan_utils::utils;
-use toolchain::{Toolchain, UpdateStatus};
+use settings::{Settings, SettingsFile, TelemetryMode};
 use telemetry_analysis::*;
-use settings::{TelemetryMode, SettingsFile, Settings};
+use toolchain::{Toolchain, UpdateStatus};
 
 use toml;
 
@@ -35,7 +35,11 @@ impl Display for OverrideReason {
                 write!(f, "overridden by '{}'", path.display())
             }
             OverrideReason::InToolchainDirectory(ref path) => {
-                write!(f, "override because inside toolchain directory '{}'", path.display())
+                write!(
+                    f,
+                    "override because inside toolchain directory '{}'",
+                    path.display()
+                )
             }
             OverrideReason::LeanpkgFile(ref path) => {
                 write!(f, "overridden by '{}'", path.display())
@@ -59,10 +63,9 @@ pub struct Cfg {
 impl Cfg {
     pub fn from_env(notify_handler: Arc<Fn(Notification)>) -> Result<Self> {
         // Set up the elan home directory
-        let elan_dir = try!(utils::elan_home());
+        let elan_dir = utils::elan_home()?;
 
-        try!(utils::ensure_dir_exists("home", &elan_dir,
-                                      &|n| notify_handler(n.into())));
+        utils::ensure_dir_exists("home", &elan_dir, &|n| notify_handler(n.into()))?;
 
         let settings_file = SettingsFile::new(elan_dir.join("settings.toml"));
 
@@ -80,14 +83,14 @@ impl Cfg {
 
         // Environment override
         let env_override = env::var("ELAN_TOOLCHAIN")
-                               .ok()
-                               .and_then(utils::if_not_empty);
+            .ok()
+            .and_then(utils::if_not_empty);
 
         let notify_clone = notify_handler.clone();
-        let temp_cfg = temp::Cfg::new(elan_dir.join("tmp"),
-                                      Box::new(move |n| {
-                                          (notify_clone)(n.into())
-                                      }));
+        let temp_cfg = temp::Cfg::new(
+            elan_dir.join("tmp"),
+            Box::new(move |n| (notify_clone)(n.into())),
+        );
 
         Ok(Cfg {
             elan_dir: elan_dir,
@@ -103,43 +106,42 @@ impl Cfg {
     }
 
     pub fn set_default(&self, toolchain: &str) -> Result<()> {
-        try!(self.settings_file.with_mut(|s| {
+        self.settings_file.with_mut(|s| {
             s.default_toolchain = Some(toolchain.to_owned());
             Ok(())
-        }));
+        })?;
         (self.notify_handler)(Notification::SetDefaultToolchain(toolchain));
         Ok(())
     }
 
     pub fn get_toolchain(&self, name: &str, create_parent: bool) -> Result<Toolchain> {
         if create_parent {
-            try!(utils::ensure_dir_exists("toolchains",
-                                          &self.toolchains_dir,
-                                          &|n| (self.notify_handler)(n.into())));
+            utils::ensure_dir_exists("toolchains", &self.toolchains_dir, &|n| {
+                (self.notify_handler)(n.into())
+            })?;
         }
 
         Toolchain::from(self, name)
     }
 
     pub fn verify_toolchain(&self, name: &str) -> Result<Toolchain> {
-        let toolchain = try!(self.get_toolchain(name, false));
-        try!(toolchain.verify());
+        let toolchain = self.get_toolchain(name, false)?;
+        toolchain.verify()?;
         Ok(toolchain)
     }
 
     pub fn get_hash_file(&self, toolchain: &str, create_parent: bool) -> Result<PathBuf> {
         if create_parent {
-            try!(utils::ensure_dir_exists("update-hash",
-                                          &self.update_hash_dir,
-                                          &|n| (self.notify_handler)(n.into())));
+            utils::ensure_dir_exists("update-hash", &self.update_hash_dir, &|n| {
+                (self.notify_handler)(n.into())
+            })?;
         }
 
         Ok(self.update_hash_dir.join(toolchain))
     }
 
     pub fn which_binary(&self, path: &Path, binary: &str) -> Result<Option<PathBuf>> {
-
-        if let Some((toolchain, _)) = try!(self.find_override_toolchain_or_default(path)) {
+        if let Some((toolchain, _)) = self.find_override_toolchain_or_default(path)? {
             Ok(Some(toolchain.binary_file(binary)))
         } else {
             Ok(None)
@@ -147,11 +149,14 @@ impl Cfg {
     }
 
     pub fn find_default(&self) -> Result<Option<Toolchain>> {
-        let opt_name = try!(self.settings_file.with(|s| Ok(s.default_toolchain.clone())));
+        let opt_name = self
+            .settings_file
+            .with(|s| Ok(s.default_toolchain.clone()))?;
 
         if let Some(name) = opt_name {
-            let toolchain = try!(self.verify_toolchain(&name)
-                                 .chain_err(|| ErrorKind::ToolchainNotInstalled(name.to_string())));
+            let toolchain = self
+                .verify_toolchain(&name)
+                .chain_err(|| ErrorKind::ToolchainNotInstalled(name.to_string()))?;
 
             Ok(Some(toolchain))
         } else {
@@ -188,16 +193,28 @@ impl Cfg {
                     format!("the ELAN_TOOLCHAIN environment variable specifies an uninstalled toolchain")
                 }
                 OverrideReason::OverrideDB(ref path) => {
-                    format!("the directory override for '{}' specifies an uninstalled toolchain", path.display())
+                    format!(
+                        "the directory override for '{}' specifies an uninstalled toolchain",
+                        path.display()
+                    )
                 }
                 OverrideReason::ToolchainFile(ref path) => {
-                    format!("the toolchain file at '{}' specifies an uninstalled toolchain", path.display())
+                    format!(
+                        "the toolchain file at '{}' specifies an uninstalled toolchain",
+                        path.display()
+                    )
                 }
                 OverrideReason::LeanpkgFile(ref path) => {
-                    format!("the leanpkg.toml file at '{}' specifies an uninstalled toolchain", path.display())
+                    format!(
+                        "the leanpkg.toml file at '{}' specifies an uninstalled toolchain",
+                        path.display()
+                    )
                 }
                 OverrideReason::InToolchainDirectory(ref path) => {
-                    format!("could not parse toolchain directory at '{}'", path.display())
+                    format!(
+                        "could not parse toolchain directory at '{}'",
+                        path.display()
+                    )
                 }
             };
 
@@ -206,24 +223,24 @@ impl Cfg {
                     if toolchain.exists() {
                         Ok(Some((toolchain, reason)))
                     } else {
-                        try!(toolchain.install_from_dist(false));
+                        toolchain.install_from_dist(false)?;
                         Ok(Some((toolchain, reason)))
                     }
                 }
-                Err(e) => {
-                    Err(e)
-                        .chain_err(|| Error::from(reason_err))
-                        .chain_err(|| ErrorKind::OverrideToolchainNotInstalled(name.to_string()))
-                }
+                Err(e) => Err(e)
+                    .chain_err(|| Error::from(reason_err))
+                    .chain_err(|| ErrorKind::OverrideToolchainNotInstalled(name.to_string())),
             }
         } else {
             Ok(None)
         }
     }
 
-    fn find_override_from_dir_walk(&self, dir: &Path, settings: &Settings)
-                                   -> Result<Option<(String, OverrideReason)>>
-    {
+    fn find_override_from_dir_walk(
+        &self,
+        dir: &Path,
+        settings: &Settings,
+    ) -> Result<Option<(String, OverrideReason)>> {
         let notify = self.notify_handler.as_ref();
         let dir = utils::canonicalize_path(dir, &|n| notify(n.into()));
         let mut dir = Some(&*dir);
@@ -248,12 +265,19 @@ impl Cfg {
             // Then look for 'leanpkg.toml'
             let leanpkg_file = d.join("leanpkg.toml");
             if let Ok(content) = utils::read_file("leanpkg.toml", &leanpkg_file) {
-                let value = content.parse::<toml::Value>()
+                let value = content
+                    .parse::<toml::Value>()
                     .map_err(|error| ErrorKind::InvalidLeanpkgFile(leanpkg_file.clone(), error))?;
-                match value.get("package").and_then(|package| package.get("lean_version")) {
+                match value
+                    .get("package")
+                    .and_then(|package| package.get("lean_version"))
+                {
                     None => {}
                     Some(toml::Value::String(s)) => {
-                        return Ok(Some((s.to_string(), OverrideReason::LeanpkgFile(leanpkg_file))))
+                        return Ok(Some((
+                            s.to_string(),
+                            OverrideReason::LeanpkgFile(leanpkg_file),
+                        )))
                     }
                     Some(a) => {
                         return Err(ErrorKind::InvalidLeanVersion(leanpkg_file, a.type_str()).into())
@@ -266,7 +290,10 @@ impl Cfg {
             if dir == Some(&self.toolchains_dir) {
                 if let Some(last) = d.file_name() {
                     if let Some(last) = last.to_str() {
-                        return Ok(Some((last.to_string(), OverrideReason::InToolchainDirectory(d.into()))))
+                        return Ok(Some((
+                            last.to_string(),
+                            OverrideReason::InToolchainDirectory(d.into()),
+                        )));
                     }
                 }
             }
@@ -275,21 +302,21 @@ impl Cfg {
         Ok(None)
     }
 
-    pub fn find_override_toolchain_or_default
-        (&self,
-         path: &Path)
-         -> Result<Option<(Toolchain, Option<OverrideReason>)>> {
-        Ok(if let Some((toolchain, reason)) = try!(self.find_override(path)) {
-            Some((toolchain, Some(reason)))
-        } else {
-            try!(self.find_default()).map(|toolchain| (toolchain, None))
-        })
+    pub fn find_override_toolchain_or_default(
+        &self,
+        path: &Path,
+    ) -> Result<Option<(Toolchain, Option<OverrideReason>)>> {
+        Ok(
+            if let Some((toolchain, reason)) = self.find_override(path)? {
+                Some((toolchain, Some(reason)))
+            } else {
+                self.find_default()?.map(|toolchain| (toolchain, None))
+            },
+        )
     }
 
     pub fn get_default(&self) -> Result<Option<String>> {
-        self.settings_file.with(|s| {
-            Ok(s.default_toolchain.clone())
-        })
+        self.settings_file.with(|s| Ok(s.default_toolchain.clone()))
     }
 
     pub fn list_toolchains(&self) -> Result<Vec<String>> {
@@ -298,12 +325,12 @@ impl Cfg {
             s.replace("---", ":").replace("--", "/")
         }
         if utils::is_directory(&self.toolchains_dir) {
-            let mut toolchains: Vec<_> = try!(utils::read_dir("toolchains", &self.toolchains_dir))
-                                         .filter_map(io::Result::ok)
-                                         .filter(|e| e.file_type().map(|f| !f.is_file()).unwrap_or(false))
-                                         .filter_map(|e| e.file_name().into_string().ok())
-                                         .map(insane)
-                                         .collect();
+            let mut toolchains: Vec<_> = utils::read_dir("toolchains", &self.toolchains_dir)?
+                .filter_map(io::Result::ok)
+                .filter(|e| e.file_type().map(|f| !f.is_file()).unwrap_or(false))
+                .filter_map(|e| e.file_name().into_string().ok())
+                .map(insane)
+                .collect();
 
             utils::toolchain_sort(&mut toolchains);
 
@@ -313,17 +340,19 @@ impl Cfg {
         }
     }
 
-    pub fn update_all_channels(&self, force_update: bool) -> Result<Vec<(String, Result<UpdateStatus>)>> {
-        let toolchains = try!(self.list_toolchains());
+    pub fn update_all_channels(
+        &self,
+        force_update: bool,
+    ) -> Result<Vec<(String, Result<UpdateStatus>)>> {
+        let toolchains = self.list_toolchains()?;
 
         // Convert the toolchain strings to Toolchain values
         let toolchains = toolchains.into_iter();
         let toolchains = toolchains.map(|n| (n.clone(), self.get_toolchain(&n, true)));
 
         // Filter out toolchains that don't track a release channel
-        let toolchains = toolchains.filter(|&(_, ref t)| {
-            t.as_ref().map(|t| t.is_tracking()).unwrap_or(false)
-        });
+        let toolchains =
+            toolchains.filter(|&(_, ref t)| t.as_ref().map(|t| t.is_tracking()).unwrap_or(false));
 
         // Update toolchains and collect the results
         let toolchains = toolchains.map(|(n, t)| {
@@ -347,43 +376,50 @@ impl Cfg {
     }
 
     pub fn create_command_for_dir(&self, path: &Path, binary: &str) -> Result<Command> {
-        let (ref toolchain, _) = try!(self.toolchain_for_dir(path));
+        let (ref toolchain, _) = self.toolchain_for_dir(path)?;
 
         toolchain.create_command(binary)
     }
 
-    pub fn create_command_for_toolchain(&self, toolchain: &str, install_if_missing: bool,
-                                        binary: &str) -> Result<Command> {
-        let ref toolchain = try!(self.get_toolchain(toolchain, false));
+    pub fn create_command_for_toolchain(
+        &self,
+        toolchain: &str,
+        install_if_missing: bool,
+        binary: &str,
+    ) -> Result<Command> {
+        let ref toolchain = self.get_toolchain(toolchain, false)?;
         if install_if_missing && !toolchain.exists() {
-            try!(toolchain.install_from_dist(false));
+            toolchain.install_from_dist(false)?;
         }
 
         toolchain.create_command(binary)
     }
 
     pub fn doc_path_for_dir(&self, path: &Path, relative: &str) -> Result<PathBuf> {
-        let (toolchain, _) = try!(self.toolchain_for_dir(path));
+        let (toolchain, _) = self.toolchain_for_dir(path)?;
         toolchain.doc_path(relative)
     }
 
     pub fn open_docs_for_dir(&self, path: &Path, relative: &str) -> Result<()> {
-        let (toolchain, _) = try!(self.toolchain_for_dir(path));
+        let (toolchain, _) = self.toolchain_for_dir(path)?;
         toolchain.open_docs(relative)
     }
 
     pub fn set_telemetry(&self, telemetry_enabled: bool) -> Result<()> {
-        if telemetry_enabled { self.enable_telemetry() } else { self.disable_telemetry() }
+        if telemetry_enabled {
+            self.enable_telemetry()
+        } else {
+            self.disable_telemetry()
+        }
     }
 
     fn enable_telemetry(&self) -> Result<()> {
-        try!(self.settings_file.with_mut(|s| {
+        self.settings_file.with_mut(|s| {
             s.telemetry = TelemetryMode::On;
             Ok(())
-        }));
+        })?;
 
-        let _ = utils::ensure_dir_exists("telemetry", &self.elan_dir.join("telemetry"),
-                                         &|_| ());
+        let _ = utils::ensure_dir_exists("telemetry", &self.elan_dir.join("telemetry"), &|_| ());
 
         (self.notify_handler)(Notification::SetTelemetry("on"));
 
@@ -391,10 +427,10 @@ impl Cfg {
     }
 
     fn disable_telemetry(&self) -> Result<()> {
-        try!(self.settings_file.with_mut(|s| {
+        self.settings_file.with_mut(|s| {
             s.telemetry = TelemetryMode::Off;
             Ok(())
-        }));
+        })?;
 
         (self.notify_handler)(Notification::SetTelemetry("off"));
 
@@ -402,7 +438,7 @@ impl Cfg {
     }
 
     pub fn telemetry_enabled(&self) -> Result<bool> {
-        Ok(match try!(self.settings_file.with(|s| Ok(s.telemetry))) {
+        Ok(match self.settings_file.with(|s| Ok(s.telemetry))? {
             TelemetryMode::On => true,
             TelemetryMode::Off => false,
         })
@@ -411,8 +447,8 @@ impl Cfg {
     pub fn analyze_telemetry(&self) -> Result<TelemetryAnalysis> {
         let mut t = TelemetryAnalysis::new(self.elan_dir.join("telemetry"));
 
-        let events = try!(t.import_telemery());
-        try!(t.analyze_telemetry_events(&events));
+        let events = t.import_telemery()?;
+        t.analyze_telemetry_events(&events)?;
 
         Ok(t)
     }

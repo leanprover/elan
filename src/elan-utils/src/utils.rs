@@ -1,127 +1,112 @@
+use dirs;
 use errors::*;
-use std::path::{Path, PathBuf};
+use notifications::Notification;
+use raw;
+use sha2::{Digest, Sha256};
+use std::cmp::Ord;
+use std::env;
+use std::ffi::OsString;
 use std::fs::{self, File};
 use std::io::{self, Write};
+use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::ffi::OsString;
-use std::env;
-use std::sync::atomic::{AtomicBool, ATOMIC_BOOL_INIT, Ordering};
-use sha2::{Digest, Sha256};
-use notifications::{Notification};
-use raw;
+use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
+use url::Url;
 #[cfg(windows)]
 use winapi::shared::minwindef::DWORD;
 #[cfg(windows)]
 use winreg;
-use std::cmp::Ord;
-use url::Url;
-use dirs;
 
-pub use raw::{is_directory, is_file, path_exists, if_not_empty, random_string, prefix_arg,
-                    has_cmd, find_cmd};
+pub use raw::{
+    find_cmd, has_cmd, if_not_empty, is_directory, is_file, path_exists, prefix_arg, random_string,
+};
 
-pub fn ensure_dir_exists(name: &'static str,
-                         path: &Path,
-                         notify_handler: &Fn(Notification))
-                         -> Result<bool> {
-    raw::ensure_dir_exists(path,
-                           |p| notify_handler(Notification::CreatingDirectory(name, p)))
-        .chain_err(|| {
-            ErrorKind::CreatingDirectory {
-                name: name,
-                path: PathBuf::from(path),
-            }
-        })
+pub fn ensure_dir_exists(
+    name: &'static str,
+    path: &Path,
+    notify_handler: &Fn(Notification),
+) -> Result<bool> {
+    raw::ensure_dir_exists(path, |p| {
+        notify_handler(Notification::CreatingDirectory(name, p))
+    })
+    .chain_err(|| ErrorKind::CreatingDirectory {
+        name: name,
+        path: PathBuf::from(path),
+    })
 }
 
 pub fn read_file(name: &'static str, path: &Path) -> Result<String> {
-    raw::read_file(path).chain_err(|| {
-        ErrorKind::ReadingFile {
-            name: name,
-            path: PathBuf::from(path),
-        }
+    raw::read_file(path).chain_err(|| ErrorKind::ReadingFile {
+        name: name,
+        path: PathBuf::from(path),
     })
 }
 
 pub fn write_file(name: &'static str, path: &Path, contents: &str) -> Result<()> {
-    raw::write_file(path, contents).chain_err(|| {
-        ErrorKind::WritingFile {
-            name: name,
-            path: PathBuf::from(path),
-        }
+    raw::write_file(path, contents).chain_err(|| ErrorKind::WritingFile {
+        name: name,
+        path: PathBuf::from(path),
     })
 }
 
 pub fn append_file(name: &'static str, path: &Path, line: &str) -> Result<()> {
-    raw::append_file(path, line).chain_err(|| {
-        ErrorKind::WritingFile {
-            name: name,
-            path: PathBuf::from(path),
-        }
+    raw::append_file(path, line).chain_err(|| ErrorKind::WritingFile {
+        name: name,
+        path: PathBuf::from(path),
     })
 }
 
 pub fn write_line(name: &'static str, file: &mut File, path: &Path, line: &str) -> Result<()> {
-    writeln!(file, "{}", line).chain_err(|| {
-        ErrorKind::WritingFile {
-            name: name,
-            path: path.to_path_buf(),
-        }
+    writeln!(file, "{}", line).chain_err(|| ErrorKind::WritingFile {
+        name: name,
+        path: path.to_path_buf(),
     })
 }
 
 pub fn write_str(name: &'static str, file: &mut File, path: &Path, s: &str) -> Result<()> {
-    write!(file, "{}", s).chain_err(|| {
-        ErrorKind::WritingFile {
-            name: name,
-            path: path.to_path_buf(),
-        }
+    write!(file, "{}", s).chain_err(|| ErrorKind::WritingFile {
+        name: name,
+        path: path.to_path_buf(),
     })
 }
 
 pub fn rename_file(name: &'static str, src: &Path, dest: &Path) -> Result<()> {
-    fs::rename(src, dest).chain_err(|| {
-        ErrorKind::RenamingFile {
-            name: name,
-            src: PathBuf::from(src),
-            dest: PathBuf::from(dest),
-        }
+    fs::rename(src, dest).chain_err(|| ErrorKind::RenamingFile {
+        name: name,
+        src: PathBuf::from(src),
+        dest: PathBuf::from(dest),
     })
 }
 
 pub fn rename_dir(name: &'static str, src: &Path, dest: &Path) -> Result<()> {
-    fs::rename(src, dest).chain_err(|| {
-        ErrorKind::RenamingDirectory {
-            name: name,
-            src: PathBuf::from(src),
-            dest: PathBuf::from(dest),
-        }
+    fs::rename(src, dest).chain_err(|| ErrorKind::RenamingDirectory {
+        name: name,
+        src: PathBuf::from(src),
+        dest: PathBuf::from(dest),
     })
 }
 
-pub fn filter_file<F: FnMut(&str) -> bool>(name: &'static str,
-                                           src: &Path,
-                                           dest: &Path,
-                                           filter: F)
-                                           -> Result<usize> {
-    raw::filter_file(src, dest, filter).chain_err(|| {
-        ErrorKind::FilteringFile {
-            name: name,
-            src: PathBuf::from(src),
-            dest: PathBuf::from(dest),
-        }
+pub fn filter_file<F: FnMut(&str) -> bool>(
+    name: &'static str,
+    src: &Path,
+    dest: &Path,
+    filter: F,
+) -> Result<usize> {
+    raw::filter_file(src, dest, filter).chain_err(|| ErrorKind::FilteringFile {
+        name: name,
+        src: PathBuf::from(src),
+        dest: PathBuf::from(dest),
     })
 }
 
-pub fn match_file<T, F: FnMut(&str) -> Option<T>>(name: &'static str,
-                                                  src: &Path,
-                                                  f: F)
-                                                  -> Result<Option<T>> {
-    raw::match_file(src, f).chain_err(|| {
-        ErrorKind::ReadingFile {
-            name: name,
-            path: PathBuf::from(src),
-        }
+pub fn match_file<T, F: FnMut(&str) -> Option<T>>(
+    name: &'static str,
+    src: &Path,
+    f: F,
+) -> Result<Option<T>> {
+    raw::match_file(src, f).chain_err(|| ErrorKind::ReadingFile {
+        name: name,
+        path: PathBuf::from(src),
     })
 }
 
@@ -133,47 +118,49 @@ pub fn canonicalize_path(path: &Path, notify_handler: &Fn(Notification)) -> Path
 }
 
 pub fn tee_file<W: io::Write>(name: &'static str, path: &Path, w: &mut W) -> Result<()> {
-    raw::tee_file(path, w).chain_err(|| {
-        ErrorKind::ReadingFile {
-            name: name,
-            path: PathBuf::from(path),
-        }
+    raw::tee_file(path, w).chain_err(|| ErrorKind::ReadingFile {
+        name: name,
+        path: PathBuf::from(path),
     })
 }
 
-pub fn download_file(url: &Url,
-                     path: &Path,
-                     hasher: Option<&mut Sha256>,
-                     notify_handler: &Fn(Notification))
-                     -> Result<()> {
-     download_file_with_resume(&url, &path, hasher, false, &notify_handler)
+pub fn download_file(
+    url: &Url,
+    path: &Path,
+    hasher: Option<&mut Sha256>,
+    notify_handler: &Fn(Notification),
+) -> Result<()> {
+    download_file_with_resume(&url, &path, hasher, false, &notify_handler)
 }
 
-pub fn download_file_with_resume(url: &Url,
-                     path: &Path,
-                     hasher: Option<&mut Sha256>,
-                     resume_from_partial: bool,
-                     notify_handler: &Fn(Notification))
-                     -> Result<()> {
+pub fn download_file_with_resume(
+    url: &Url,
+    path: &Path,
+    hasher: Option<&mut Sha256>,
+    resume_from_partial: bool,
+    notify_handler: &Fn(Notification),
+) -> Result<()> {
     use download::ErrorKind as DEK;
     match download_file_(url, path, hasher, resume_from_partial, notify_handler) {
         Ok(_) => Ok(()),
         Err(e) => {
             println!("{:?}", e);
             let is_client_error = match e.kind() {
-                &ErrorKind::Download(DEK::HttpStatus(400 ... 499)) => true,
+                &ErrorKind::Download(DEK::HttpStatus(400...499)) => true,
                 &ErrorKind::Download(DEK::FileNotFound) => true,
-                _ => false
+                _ => false,
             };
-            Err(e).chain_err(|| if is_client_error {
-                ErrorKind::DownloadNotExists {
-                    url: url.clone(),
-                    path: path.to_path_buf(),
-                }
-            } else {
-                ErrorKind::DownloadingFile {
-                    url: url.clone(),
-                    path: path.to_path_buf(),
+            Err(e).chain_err(|| {
+                if is_client_error {
+                    ErrorKind::DownloadNotExists {
+                        url: url.clone(),
+                        path: path.to_path_buf(),
+                    }
+                } else {
+                    ErrorKind::DownloadingFile {
+                        url: url.clone(),
+                        path: path.to_path_buf(),
+                    }
                 }
             })
         }
@@ -182,17 +169,17 @@ pub fn download_file_with_resume(url: &Url,
 
 static DEPRECATED_HYPER_WARNED: AtomicBool = ATOMIC_BOOL_INIT;
 
-fn download_file_(url: &Url,
-                  path: &Path,
-                  hasher: Option<&mut Sha256>,
-                  resume_from_partial: bool,
-                  notify_handler: &Fn(Notification))
-                  -> Result<()> {
-
+fn download_file_(
+    url: &Url,
+    path: &Path,
+    hasher: Option<&mut Sha256>,
+    resume_from_partial: bool,
+    notify_handler: &Fn(Notification),
+) -> Result<()> {
+    use download::download_to_path_with_backend;
+    use download::{self, Backend, Event};
     use sha2::Digest;
     use std::cell::RefCell;
-    use download::download_to_path_with_backend;
-    use download::{self, Event, Backend};
 
     notify_handler(Notification::DownloadingFile(url, path));
 
@@ -207,7 +194,7 @@ fn download_file_(url: &Url,
                     h.update(data);
                 }
             }
-            _ => ()
+            _ => (),
         }
 
         match msg {
@@ -239,7 +226,7 @@ fn download_file_(url: &Url,
         (Backend::Curl, Notification::UsingCurl)
     };
     notify_handler(notification);
-    try!(download_to_path_with_backend(backend, url, path, resume_from_partial, Some(callback)));
+    download_to_path_with_backend(backend, url, path, resume_from_partial, Some(callback))?;
 
     notify_handler(Notification::DownloadFinished);
 
@@ -251,16 +238,17 @@ pub fn parse_url(url: &str) -> Result<Url> {
 }
 
 pub fn cmd_status(name: &'static str, cmd: &mut Command) -> Result<()> {
-    raw::cmd_status(cmd).chain_err(|| {
-        ErrorKind::RunningCommand {
-            name: OsString::from(name),
-        }
+    raw::cmd_status(cmd).chain_err(|| ErrorKind::RunningCommand {
+        name: OsString::from(name),
     })
 }
 
 pub fn assert_is_file(path: &Path) -> Result<()> {
     if !is_file(path) {
-        Err(ErrorKind::NotAFile { path: PathBuf::from(path) }.into())
+        Err(ErrorKind::NotAFile {
+            path: PathBuf::from(path),
+        }
+        .into())
     } else {
         Ok(())
     }
@@ -268,7 +256,10 @@ pub fn assert_is_file(path: &Path) -> Result<()> {
 
 pub fn assert_is_directory(path: &Path) -> Result<()> {
     if !is_directory(path) {
-        Err(ErrorKind::NotADirectory { path: PathBuf::from(path) }.into())
+        Err(ErrorKind::NotADirectory {
+            path: PathBuf::from(path),
+        }
+        .into())
     } else {
         Ok(())
     }
@@ -276,11 +267,9 @@ pub fn assert_is_directory(path: &Path) -> Result<()> {
 
 pub fn symlink_dir(src: &Path, dest: &Path, notify_handler: &Fn(Notification)) -> Result<()> {
     notify_handler(Notification::LinkingDirectory(src, dest));
-    raw::symlink_dir(src, dest).chain_err(|| {
-        ErrorKind::LinkingDirectory {
-            src: PathBuf::from(src),
-            dest: PathBuf::from(dest),
-        }
+    raw::symlink_dir(src, dest).chain_err(|| ErrorKind::LinkingDirectory {
+        src: PathBuf::from(src),
+        dest: PathBuf::from(dest),
     })
 }
 
@@ -292,21 +281,17 @@ pub fn hard_or_symlink_file(src: &Path, dest: &Path) -> Result<()> {
 }
 
 pub fn hardlink_file(src: &Path, dest: &Path) -> Result<()> {
-    raw::hardlink(src, dest).chain_err(|| {
-        ErrorKind::LinkingFile {
-            src: PathBuf::from(src),
-            dest: PathBuf::from(dest),
-        }
+    raw::hardlink(src, dest).chain_err(|| ErrorKind::LinkingFile {
+        src: PathBuf::from(src),
+        dest: PathBuf::from(dest),
     })
 }
 
 #[cfg(unix)]
 pub fn symlink_file(src: &Path, dest: &Path) -> Result<()> {
-    ::std::os::unix::fs::symlink(src, dest).chain_err(|| {
-        ErrorKind::LinkingFile {
-            src: PathBuf::from(src),
-            dest: PathBuf::from(dest),
-        }
+    ::std::os::unix::fs::symlink(src, dest).chain_err(|| ErrorKind::LinkingFile {
+        src: PathBuf::from(src),
+        dest: PathBuf::from(dest),
     })
 }
 
@@ -314,58 +299,52 @@ pub fn symlink_file(src: &Path, dest: &Path) -> Result<()> {
 pub fn symlink_file(src: &Path, dest: &Path) -> Result<()> {
     // we are supposed to not use symlink on windows
     Err(ErrorKind::LinkingFile {
-            src: PathBuf::from(src),
-            dest: PathBuf::from(dest),
-        }.into()
-    )
+        src: PathBuf::from(src),
+        dest: PathBuf::from(dest),
+    }
+    .into())
 }
 
 pub fn copy_dir(src: &Path, dest: &Path, notify_handler: &Fn(Notification)) -> Result<()> {
     notify_handler(Notification::CopyingDirectory(src, dest));
-    raw::copy_dir(src, dest).chain_err(|| {
-        ErrorKind::CopyingDirectory {
-            src: PathBuf::from(src),
-            dest: PathBuf::from(dest),
-        }
+    raw::copy_dir(src, dest).chain_err(|| ErrorKind::CopyingDirectory {
+        src: PathBuf::from(src),
+        dest: PathBuf::from(dest),
     })
 }
 
 pub fn copy_file(src: &Path, dest: &Path) -> Result<()> {
     fs::copy(src, dest)
-        .chain_err(|| {
-            ErrorKind::CopyingFile {
-                src: PathBuf::from(src),
-                dest: PathBuf::from(dest),
-            }
+        .chain_err(|| ErrorKind::CopyingFile {
+            src: PathBuf::from(src),
+            dest: PathBuf::from(dest),
         })
         .map(|_| ())
 }
 
-pub fn remove_dir(name: &'static str, path: &Path, notify_handler: &Fn(Notification)) -> Result<()> {
+pub fn remove_dir(
+    name: &'static str,
+    path: &Path,
+    notify_handler: &Fn(Notification),
+) -> Result<()> {
     notify_handler(Notification::RemovingDirectory(name, path));
-    raw::remove_dir(path).chain_err(|| {
-        ErrorKind::RemovingDirectory {
-            name: name,
-            path: PathBuf::from(path),
-        }
+    raw::remove_dir(path).chain_err(|| ErrorKind::RemovingDirectory {
+        name: name,
+        path: PathBuf::from(path),
     })
 }
 
 pub fn remove_file(name: &'static str, path: &Path) -> Result<()> {
-    fs::remove_file(path).chain_err(|| {
-        ErrorKind::RemovingFile {
-            name: name,
-            path: PathBuf::from(path),
-        }
+    fs::remove_file(path).chain_err(|| ErrorKind::RemovingFile {
+        name: name,
+        path: PathBuf::from(path),
     })
 }
 
 pub fn read_dir(name: &'static str, path: &Path) -> Result<fs::ReadDir> {
-    fs::read_dir(path).chain_err(|| {
-        ErrorKind::ReadingDirectory {
-            name: name,
-            path: PathBuf::from(path),
-        }
+    fs::read_dir(path).chain_err(|| ErrorKind::ReadingDirectory {
+        name: name,
+        path: PathBuf::from(path),
     })
 }
 
@@ -373,24 +352,20 @@ pub fn open_browser(path: &Path) -> Result<()> {
     match raw::open_browser(path) {
         Ok(true) => Ok(()),
         Ok(false) => Err("no browser installed".into()),
-        Err(e) => Err(e).chain_err(|| "could not open browser")
+        Err(e) => Err(e).chain_err(|| "could not open browser"),
     }
 }
 
 pub fn set_permissions(path: &Path, perms: fs::Permissions) -> Result<()> {
-    fs::set_permissions(path, perms).chain_err(|| {
-        ErrorKind::SettingPermissions {
-            path: PathBuf::from(path),
-        }
+    fs::set_permissions(path, perms).chain_err(|| ErrorKind::SettingPermissions {
+        path: PathBuf::from(path),
     })
 }
 
 pub fn file_size(path: &Path) -> Result<u64> {
-    let metadata = fs::metadata(path).chain_err(|| {
-        ErrorKind::ReadingFile {
-            name: "metadata for",
-            path: PathBuf::from(path),
-        }
+    let metadata = fs::metadata(path).chain_err(|| ErrorKind::ReadingFile {
+        name: "metadata for",
+        path: PathBuf::from(path),
     })?;
     Ok(metadata.len())
 }
@@ -404,11 +379,9 @@ pub fn make_executable(path: &Path) -> Result<()> {
     fn inner(path: &Path) -> Result<()> {
         use std::os::unix::fs::PermissionsExt;
 
-        let metadata = try!(fs::metadata(path).chain_err(|| {
-            ErrorKind::SettingPermissions {
-                path: PathBuf::from(path),
-            }
-        }));
+        let metadata = fs::metadata(path).chain_err(|| ErrorKind::SettingPermissions {
+            path: PathBuf::from(path),
+        })?;
         let mut perms = metadata.permissions();
         let new_mode = (perms.mode() & !0o777) | 0o755;
         perms.set_mode(new_mode);
@@ -441,10 +414,8 @@ pub fn home_dir() -> Option<PathBuf> {
 pub fn elan_home() -> Result<PathBuf> {
     let env_var = env::var_os("ELAN_HOME");
 
-    let cwd = try!(env::current_dir().chain_err(|| ErrorKind::ElanHome));
-    let elan_home = env_var.clone().map(|home| {
-        cwd.join(home)
-    });
+    let cwd = env::current_dir().chain_err(|| ErrorKind::ElanHome)?;
+    let elan_home = env_var.clone().map(|home| cwd.join(home));
     let user_home = home_dir().map(|p| p.join(".elan"));
     elan_home.or(user_home).ok_or(ErrorKind::ElanHome.into())
 }
@@ -473,8 +444,8 @@ pub fn string_to_winreg_bytes(s: &str) -> Vec<u8> {
 // conversion.
 #[cfg(windows)]
 pub fn string_from_winreg_value(val: &winreg::RegValue) -> Option<String> {
-    use winreg::enums::RegType;
     use std::slice;
+    use winreg::enums::RegType;
 
     match val.vtype {
         RegType::REG_SZ | RegType::REG_EXPAND_SZ => {
@@ -487,15 +458,17 @@ pub fn string_from_winreg_value(val: &winreg::RegValue) -> Option<String> {
             } else {
                 return None;
             };
-            while s.ends_with('\u{0}') {s.pop();}
+            while s.ends_with('\u{0}') {
+                s.pop();
+            }
             Some(s)
         }
-        _ => None
+        _ => None,
     }
 }
 
 pub fn toolchain_sort<T: AsRef<str>>(v: &mut Vec<T>) {
-    use semver::{Version, Identifier};
+    use semver::{Identifier, Version};
 
     fn special_version(ord: u64, s: &str) -> Version {
         Version {
@@ -541,14 +514,17 @@ pub fn fetch_latest_release_tag(repo_slug: &str) -> Result<String> {
         handle.follow_location(true).unwrap();
         {
             let mut transfer = handle.transfer();
-            transfer.write_function(|new_data| {
-                data.extend_from_slice(new_data);
-                Ok(new_data.len())
-            }).unwrap();
+            transfer
+                .write_function(|new_data| {
+                    data.extend_from_slice(new_data);
+                    Ok(new_data.len())
+                })
+                .unwrap();
             transfer.perform().unwrap();
         }
     });
-    let redirect = ::std::str::from_utf8(&data).chain_err(|| "failed to decode release tag response")?;
+    let redirect =
+        ::std::str::from_utf8(&data).chain_err(|| "failed to decode release tag response")?;
     let re = Regex::new(r#"/tag/([-a-z0-9.]+)"#).unwrap();
     let capture = re.captures(&redirect);
     match capture {

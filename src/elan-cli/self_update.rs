@@ -31,21 +31,21 @@
 //! and racy on Windows.
 
 use common::{self, Confirm};
-use errors::*;
 use elan_dist::dist;
 use elan_utils::utils;
+use errors::*;
 use flate2;
+use regex::Regex;
 use same_file::Handle;
 use std::env;
 use std::env::consts::EXE_SUFFIX;
-use std::io;
-use std::path::{Path, PathBuf, Component};
-use std::process::{self, Command};
 use std::fs;
+use std::io;
+use std::path::{Component, Path, PathBuf};
+use std::process::{self, Command};
 use tar;
 use tempfile::tempdir;
 use term2;
-use regex::Regex;
 use zip;
 
 pub struct InstallOpts {
@@ -63,8 +63,8 @@ pub const NEVER_SELF_UPDATE: bool = false;
 
 macro_rules! pre_install_msg_template {
     ($platform_msg: expr) => {
-concat!(
-r"
+        concat!(
+            r"
 # Welcome to Lean!
 
 This will download and install Elan, a tool for managing different Lean versions used in
@@ -77,45 +77,48 @@ Elan's bin directory, located at:
     {elan_home_bin}
 
 ",
-$platform_msg
-,
-r#"
+            $platform_msg,
+            r#"
 
 You can uninstall at any time with `elan self uninstall` and
 these changes will be reverted.
 "#
-    )};
+        )
+    };
 }
 
 macro_rules! pre_install_msg_unix {
     () => {
-pre_install_msg_template!(
-"This path will then be added to your `PATH` environment variable by
+        pre_install_msg_template!(
+            "This path will then be added to your `PATH` environment variable by
 modifying the profile file{plural} located at:
 
 {rcfiles}"
-    )};
+        )
+    };
 }
 
 macro_rules! pre_install_msg_win {
     () => {
-pre_install_msg_template!(
-"This path will then be added to your `PATH` environment variable by
+        pre_install_msg_template!(
+            "This path will then be added to your `PATH` environment variable by
 modifying the `HKEY_CURRENT_USER/Environment/PATH` registry key."
-    )};
+        )
+    };
 }
 
 macro_rules! pre_install_msg_no_modify_path {
     () => {
-pre_install_msg_template!(
-"This path needs to be in your `PATH` environment variable,
+        pre_install_msg_template!(
+            "This path needs to be in your `PATH` environment variable,
 but will not be added automatically."
-    )};
+        )
+    };
 }
 
 macro_rules! post_install_msg_unix {
     () => {
-r"# Elan is installed now. Great!
+        r"# Elan is installed now. Great!
 
 To get started you need Elan's bin directory ({elan_home}/bin) in your `PATH`
 environment variable. Next time you log in this will be done
@@ -128,7 +131,7 @@ To configure your current shell run `source {elan_home}/env`
 
 macro_rules! post_install_msg_win {
     () => {
-r"# Elan is installed now. Great!
+        r"# Elan is installed now. Great!
 
 To get started you need Elan's bin directory ({elan_home}\bin) in your `PATH`
 environment variable. Future applications will automatically have the
@@ -139,7 +142,7 @@ correct environment, but you may need to restart your current shell.
 
 macro_rules! post_install_msg_unix_no_modify_path {
     () => {
-r"# Elan is installed now. Great!
+        r"# Elan is installed now. Great!
 
 To get started you need Elan's bin directory ({elan_home}/bin) in your `PATH`
 environment variable.
@@ -151,7 +154,7 @@ To configure your current shell run `source {elan_home}/env`
 
 macro_rules! post_install_msg_win_no_modify_path {
     () => {
-r"# Elan is installed now. Great!
+        r"# Elan is installed now. Great!
 
 To get started you need Elan's bin directory ({elan_home}\bin) in your `PATH`
 environment variable. This has not been done automatically.
@@ -161,26 +164,33 @@ environment variable. This has not been done automatically.
 
 macro_rules! pre_uninstall_msg {
     () => {
-r"This will uninstall all Lean toolchains and data, and remove
+        r"This will uninstall all Lean toolchains and data, and remove
 `{elan_home}/bin` from your `PATH` environment variable.
 
 "
-    }
+    };
 }
 
-static TOOLS: &'static [&'static str]
-    = &["lean", "leanpkg", "leanchecker", "leanc", "leanmake", "lake"];
+static TOOLS: &'static [&'static str] = &[
+    "lean",
+    "leanpkg",
+    "leanchecker",
+    "leanc",
+    "leanmake",
+    "lake",
+];
 
-static UPDATE_ROOT: &'static str
-    = "https://github.com/leanprover/elan/releases/download";
+static UPDATE_ROOT: &'static str = "https://github.com/leanprover/elan/releases/download";
 
 /// `ELAN_HOME` suitable for display, possibly with $HOME
 /// substituted for the directory prefix
 fn canonical_elan_home() -> Result<String> {
-    let path = try!(utils::elan_home());
+    let path = utils::elan_home()?;
     let mut path_str = path.to_string_lossy().to_string();
 
-    let default_elan_home = utils::home_dir().unwrap_or(PathBuf::from(".")).join(".elan");
+    let default_elan_home = utils::home_dir()
+        .unwrap_or(PathBuf::from("."))
+        .join(".elan");
     if default_elan_home == path {
         if cfg!(unix) {
             path_str = String::from("$HOME/.elan");
@@ -195,52 +205,47 @@ fn canonical_elan_home() -> Result<String> {
 /// Installing is a simple matter of coping the running binary to
 /// `ELAN_HOME`/bin, hardlinking the various Lean tools to it,
 /// and adding `ELAN_HOME`/bin to PATH.
-pub fn install(no_prompt: bool, verbose: bool,
-               mut opts: InstallOpts) -> Result<()> {
-
-    try!(check_existence_of_lean_in_path(no_prompt));
-    try!(do_anti_sudo_check(no_prompt));
+pub fn install(no_prompt: bool, verbose: bool, mut opts: InstallOpts) -> Result<()> {
+    check_existence_of_lean_in_path(no_prompt)?;
+    do_anti_sudo_check(no_prompt)?;
 
     if !no_prompt {
-        let ref msg = try!(pre_install_msg(opts.no_modify_path));
+        let ref msg = pre_install_msg(opts.no_modify_path)?;
 
         term2::stdout().md(msg);
 
         loop {
             term2::stdout().md(current_install_opts(&opts));
-            match try!(common::confirm_advanced()) {
+            match common::confirm_advanced()? {
                 Confirm::No => {
                     info!("aborting installation");
                     return Ok(());
-                },
+                }
                 Confirm::Yes => {
                     break;
-                },
+                }
                 Confirm::Advanced => {
-                    opts = try!(customize_install(opts));
+                    opts = customize_install(opts)?;
                 }
             }
         }
     }
 
     let install_res: Result<()> = (|| {
-        try!(install_bins());
+        install_bins()?;
         if !opts.no_modify_path {
-            try!(do_add_to_path(&get_add_path_methods()));
+            do_add_to_path(&get_add_path_methods())?;
         }
-        try!(maybe_install_lean(&opts.default_toolchain, verbose));
+        maybe_install_lean(&opts.default_toolchain, verbose)?;
 
         if cfg!(unix) {
-            let ref env_file = try!(utils::elan_home()).join("env");
-            let ref env_str = format!(
-                "{}\n",
-                try!(shell_export_string()));
-            try!(utils::write_file("env", env_file, env_str));
+            let ref env_file = utils::elan_home()?.join("env");
+            let ref env_str = format!("{}\n", shell_export_string()?);
+            utils::write_file("env", env_file, env_str)?;
         }
 
         Ok(())
     })();
-
 
     if let Err(ref e) = install_res {
         common::report_error(e);
@@ -250,22 +255,24 @@ pub fn install(no_prompt: bool, verbose: bool,
 
     // More helpful advice, skip if -y
     if !no_prompt {
-        let elan_home = try!(canonical_elan_home());
+        let elan_home = canonical_elan_home()?;
         let msg = if !opts.no_modify_path {
             if cfg!(unix) {
-                format!(post_install_msg_unix!(),
-                         elan_home = elan_home)
+                format!(post_install_msg_unix!(), elan_home = elan_home)
             } else {
-                format!(post_install_msg_win!(),
-                        elan_home = elan_home)
+                format!(post_install_msg_win!(), elan_home = elan_home)
             }
         } else {
             if cfg!(unix) {
-                format!(post_install_msg_unix_no_modify_path!(),
-                         elan_home = elan_home)
+                format!(
+                    post_install_msg_unix_no_modify_path!(),
+                    elan_home = elan_home
+                )
             } else {
-                format!(post_install_msg_win_no_modify_path!(),
-                        elan_home = elan_home)
+                format!(
+                    post_install_msg_win_no_modify_path!(),
+                    elan_home = elan_home
+                )
             }
         };
         term2::stdout().md(msg);
@@ -277,7 +284,9 @@ pub fn install(no_prompt: bool, verbose: bool,
 fn lean_exists_in_path() -> Result<()> {
     // Ignore lean if present in $HOME/.elan/bin
     fn ignore_paths(path: &PathBuf) -> bool {
-        !path.components().any(|c| c == Component::Normal(".elan".as_ref()))
+        !path
+            .components()
+            .any(|c| c == Component::Normal(".elan".as_ref()))
     }
 
     if let Some(paths) = env::var_os("PATH") {
@@ -330,13 +339,26 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
         use std::ptr;
 
         // test runner should set this, nothing else
-        if env::var("ELAN_INIT_SKIP_SUDO_CHECK").as_ref().map(Deref::deref).ok() == Some("yes") {
+        if env::var("ELAN_INIT_SKIP_SUDO_CHECK")
+            .as_ref()
+            .map(Deref::deref)
+            .ok()
+            == Some("yes")
+        {
             return false;
         }
         let mut buf = [0u8; 1024];
         let mut pwd = unsafe { mem::uninitialized::<c::passwd>() };
         let mut pwdp: *mut c::passwd = ptr::null_mut();
-        let rv = unsafe { c::getpwuid_r(c::geteuid(), &mut pwd, mem::transmute(&mut buf), buf.len(), &mut pwdp) };
+        let rv = unsafe {
+            c::getpwuid_r(
+                c::geteuid(),
+                &mut pwd,
+                mem::transmute(&mut buf),
+                buf.len(),
+                &mut pwdp,
+            )
+        };
         if rv != 0 {
             warn!("getpwuid_r: couldn't get user data ({})", rv);
             return false;
@@ -350,7 +372,7 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
         let env_home = env_home.as_ref().map(Deref::deref);
         match (env_home, pw_dir) {
             (None, _) | (_, None) => false,
-            (Some(eh), Some(pd)) => eh != pd
+            (Some(eh), Some(pd)) => eh != pd,
         }
     }
 
@@ -365,7 +387,7 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
             err!("$HOME differs from euid-obtained home directory: you may be using sudo");
             err!("if this is what you want, restart the installation with `-y'");
             process::exit(1);
-        },
+        }
         (true, true) => {
             warn!("$HOME differs from euid-obtained home directory: you may be using sudo");
         }
@@ -375,34 +397,45 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
 }
 
 fn pre_install_msg(no_modify_path: bool) -> Result<String> {
-    let elan_home = try!(utils::elan_home());
+    let elan_home = utils::elan_home()?;
     let elan_home_bin = elan_home.join("bin");
 
     if !no_modify_path {
         if cfg!(unix) {
             let add_path_methods = get_add_path_methods();
-            let rcfiles = add_path_methods.into_iter()
+            let rcfiles = add_path_methods
+                .into_iter()
                 .filter_map(|m| {
                     if let PathUpdateMethod::RcFile(path) = m {
                         Some(format!("{}", path.display()))
                     } else {
                         None
                     }
-                }).collect::<Vec<_>>();
+                })
+                .collect::<Vec<_>>();
             let plural = if rcfiles.len() > 1 { "s" } else { "" };
-            let rcfiles = rcfiles.into_iter().map(|f| format!("    {}", f)).collect::<Vec<_>>();
+            let rcfiles = rcfiles
+                .into_iter()
+                .map(|f| format!("    {}", f))
+                .collect::<Vec<_>>();
             let rcfiles = rcfiles.join("\n");
-            Ok(format!(pre_install_msg_unix!(),
-                       elan_home_bin = elan_home_bin.display(),
-                       plural = plural,
-                       rcfiles = rcfiles))
+            Ok(format!(
+                pre_install_msg_unix!(),
+                elan_home_bin = elan_home_bin.display(),
+                plural = plural,
+                rcfiles = rcfiles
+            ))
         } else {
-            Ok(format!(pre_install_msg_win!(),
-                       elan_home_bin = elan_home_bin.display()))
+            Ok(format!(
+                pre_install_msg_win!(),
+                elan_home_bin = elan_home_bin.display()
+            ))
         }
     } else {
-        Ok(format!(pre_install_msg_no_modify_path!(),
-                   elan_home_bin = elan_home_bin.display()))
+        Ok(format!(
+            pre_install_msg_no_modify_path!(),
+            elan_home_bin = elan_home_bin.display()
+        ))
     }
 }
 
@@ -420,42 +453,42 @@ fn current_install_opts(opts: &InstallOpts) -> String {
 
 // Interactive editing of the install options
 fn customize_install(mut opts: InstallOpts) -> Result<InstallOpts> {
-
     println!(
         "I'm going to ask you the value of each these installation options.\n\
-         You may simply press the Enter key to leave unchanged.");
+         You may simply press the Enter key to leave unchanged."
+    );
 
     println!("");
 
-    opts.default_toolchain = try!(common::question_str(
+    opts.default_toolchain = common::question_str(
         "Default toolchain? (stable/nightly/none)",
-        &opts.default_toolchain));
+        &opts.default_toolchain,
+    )?;
 
-    opts.no_modify_path = !try!(common::question_bool(
-        "Modify PATH variable? (y/n)",
-        !opts.no_modify_path));
+    opts.no_modify_path =
+        !common::question_bool("Modify PATH variable? (y/n)", !opts.no_modify_path)?;
 
     Ok(opts)
 }
 
 fn install_bins() -> Result<()> {
-    let ref bin_path = try!(utils::elan_home()).join("bin");
-    let ref this_exe_path = try!(utils::current_exe());
+    let ref bin_path = utils::elan_home()?.join("bin");
+    let ref this_exe_path = utils::current_exe()?;
     let ref elan_path = bin_path.join(&format!("elan{}", EXE_SUFFIX));
 
-    try!(utils::ensure_dir_exists("bin", bin_path, &|_| {}));
+    utils::ensure_dir_exists("bin", bin_path, &|_| {})?;
     // NB: Even on Linux we can't just copy the new binary over the (running)
     // old binary; we must unlink it first.
     if elan_path.exists() {
-        try!(utils::remove_file("elan-bin", elan_path));
+        utils::remove_file("elan-bin", elan_path)?;
     }
-    try!(utils::copy_file(this_exe_path, elan_path));
-    try!(utils::make_executable(elan_path));
+    utils::copy_file(this_exe_path, elan_path)?;
+    utils::make_executable(elan_path)?;
     install_proxies()
 }
 
 pub fn install_proxies() -> Result<()> {
-    let ref bin_path = try!(utils::elan_home()).join("bin");
+    let ref bin_path = utils::elan_home()?.join("bin");
     let ref elan_path = bin_path.join(&format!("elan{}", EXE_SUFFIX));
 
     let elan = Handle::from_path(elan_path)?;
@@ -489,7 +522,7 @@ pub fn install_proxies() -> Result<()> {
         if let Ok(handle) = Handle::from_path(&tool_path) {
             tool_handles.push(handle);
             if elan == *tool_handles.last().unwrap() {
-                continue
+                continue;
             }
         }
         link_afterwards.push(tool_path);
@@ -497,14 +530,14 @@ pub fn install_proxies() -> Result<()> {
 
     drop(tool_handles);
     for path in link_afterwards {
-        try!(utils::hard_or_symlink_file(elan_path, &path));
+        utils::hard_or_symlink_file(elan_path, &path)?;
     }
 
     Ok(())
 }
 
 fn maybe_install_lean(toolchain_str: &str, verbose: bool) -> Result<()> {
-    let ref cfg = try!(common::set_globals(verbose));
+    let ref cfg = common::set_globals(verbose)?;
 
     // If there is already an install, then `toolchain_str` may not be
     // a toolchain the user actually wants. Don't do anything.  FIXME:
@@ -513,12 +546,12 @@ fn maybe_install_lean(toolchain_str: &str, verbose: bool) -> Result<()> {
     if toolchain_str == "none" {
         info!("skipping toolchain installation");
         println!("");
-    } else if try!(cfg.find_default()).is_none() {
-        let toolchain = try!(cfg.get_toolchain(toolchain_str, false));
-        let status = try!(toolchain.install_from_dist(false));
-        try!(cfg.set_default(toolchain_str));
+    } else if cfg.find_default()?.is_none() {
+        let toolchain = cfg.get_toolchain(toolchain_str, false)?;
+        let status = toolchain.install_from_dist(false)?;
+        cfg.set_default(toolchain_str)?;
         println!("");
-        try!(common::show_channel_update(cfg, toolchain_str, Ok(status)));
+        common::show_channel_update(cfg, toolchain_str, Ok(status))?;
     } else {
         info!("updating existing elan installation");
         println!("");
@@ -537,16 +570,16 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
     if cfg!(feature = "msi-installed") {
         // Get the product code of the MSI installer from the registry
         // and spawn `msiexec /x`, then exit immediately
-        let product_code = try!(get_msi_product_code());
-        try!(Command::new("msiexec")
-                .arg("/x")
-                .arg(product_code)
-                .spawn()
-                .chain_err(|| ErrorKind::WindowsUninstallMadness));
+        let product_code = get_msi_product_code()?;
+        Command::new("msiexec")
+            .arg("/x")
+            .arg(product_code)
+            .spawn()
+            .chain_err(|| ErrorKind::WindowsUninstallMadness)?;
         process::exit(0);
     }
 
-    let ref elan_home = try!(utils::elan_home());
+    let ref elan_home = utils::elan_home()?;
 
     if !elan_home.join(&format!("bin/elan{}", EXE_SUFFIX)).exists() {
         return Err(ErrorKind::NotSelfInstalled(elan_home.clone()).into());
@@ -554,10 +587,9 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
 
     if !no_prompt {
         println!("");
-        let ref msg = format!(pre_uninstall_msg!(),
-                              elan_home = try!(canonical_elan_home()));
+        let ref msg = format!(pre_uninstall_msg!(), elan_home = canonical_elan_home()?);
         term2::stdout().md(msg);
-        if !try!(common::confirm("\nContinue? (y/N)", false)) {
+        if !common::confirm("\nContinue? (y/N)", false)? {
             info!("aborting uninstallation");
             return Ok(());
         }
@@ -568,19 +600,19 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
     info!("removing leanpkg home");
 
     // Remove ELAN_HOME/bin from PATH
-    let ref remove_path_methods = try!(get_remove_path_methods());
-    try!(do_remove_from_path(remove_path_methods));
+    let ref remove_path_methods = get_remove_path_methods()?;
+    do_remove_from_path(remove_path_methods)?;
 
     // Delete everything in ELAN_HOME *except* the elan bin
 
     // First everything except the bin directory
-    for dirent in try!(fs::read_dir(elan_home).chain_err(|| read_dir_err)) {
-        let dirent = try!(dirent.chain_err(|| read_dir_err));
+    for dirent in fs::read_dir(elan_home).chain_err(|| read_dir_err)? {
+        let dirent = dirent.chain_err(|| read_dir_err)?;
         if dirent.file_name().to_str() != Some("bin") {
             if dirent.path().is_dir() {
-                try!(utils::remove_dir("elan_home", &dirent.path(), &|_| {}));
+                utils::remove_dir("elan_home", &dirent.path(), &|_| {})?;
             } else {
-                try!(utils::remove_file("elan_home", &dirent.path()));
+                utils::remove_file("elan_home", &dirent.path())?;
             }
         }
     }
@@ -589,15 +621,15 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
     // until this process exits (on windows).
     let tools = TOOLS.iter().map(|t| format!("{}{}", t, EXE_SUFFIX));
     let tools: Vec<_> = tools.chain(vec![format!("elan{}", EXE_SUFFIX)]).collect();
-    for dirent in try!(fs::read_dir(&elan_home.join("bin")).chain_err(|| read_dir_err)) {
-        let dirent = try!(dirent.chain_err(|| read_dir_err));
+    for dirent in fs::read_dir(&elan_home.join("bin")).chain_err(|| read_dir_err)? {
+        let dirent = dirent.chain_err(|| read_dir_err)?;
         let name = dirent.file_name();
         let file_is_tool = name.to_str().map(|n| tools.iter().any(|t| *t == n));
         if file_is_tool == Some(false) {
             if dirent.path().is_dir() {
-                try!(utils::remove_dir("elan_home", &dirent.path(), &|_| {}));
+                utils::remove_dir("elan_home", &dirent.path(), &|_| {})?;
             } else {
-                try!(utils::remove_file("elan_home", &dirent.path()));
+                utils::remove_file("elan_home", &dirent.path())?;
             }
         }
     }
@@ -607,7 +639,7 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
     // Delete elan. This is tricky because this is *probably*
     // the running executable and on Windows can't be unlinked until
     // the process exits.
-    try!(delete_elan_and_elan_home());
+    delete_elan_and_elan_home()?;
 
     info!("elan is uninstalled");
 
@@ -621,33 +653,25 @@ fn get_msi_product_code() -> Result<String> {
 
 #[cfg(feature = "msi-installed")]
 fn get_msi_product_code() -> Result<String> {
-    use winreg::RegKey;
     use winreg::enums::{HKEY_CURRENT_USER, KEY_READ};
+    use winreg::RegKey;
 
     let root = RegKey::predef(HKEY_CURRENT_USER);
     let environment = root.open_subkey_with_flags("SOFTWARE\\elan", KEY_READ);
 
     match environment {
-        Ok(env) => {
-            match env.get_value("InstalledProductCode") {
-                Ok(val) => {
-                    Ok(val)
-                }
-                Err(e) => {
-                    Err(e).chain_err(|| ErrorKind::WindowsUninstallMadness)
-                }
-            }
-        }
-        Err(e) => {
-            Err(e).chain_err(|| ErrorKind::WindowsUninstallMadness)
-        }
+        Ok(env) => match env.get_value("InstalledProductCode") {
+            Ok(val) => Ok(val),
+            Err(e) => Err(e).chain_err(|| ErrorKind::WindowsUninstallMadness),
+        },
+        Err(e) => Err(e).chain_err(|| ErrorKind::WindowsUninstallMadness),
     }
 }
 
 #[cfg(unix)]
 fn delete_elan_and_elan_home() -> Result<()> {
-    let ref elan_home = try!(utils::elan_home());
-    try!(utils::remove_dir("elan_home", elan_home, &|_| ()));
+    let ref elan_home = utils::elan_home()?;
+    utils::remove_dir("elan_home", elan_home, &|_| ())?;
 
     Ok(())
 }
@@ -690,31 +714,33 @@ fn delete_elan_and_elan_home() -> Result<()> {
     use std::time::Duration;
 
     // ELAN_HOME, hopefully empty except for bin/elan.exe
-    let ref elan_home = try!(utils::elan_home());
+    let ref elan_home = utils::elan_home()?;
     // The elan.exe bin
     let ref elan_path = elan_home.join(&format!("bin/elan{}", EXE_SUFFIX));
 
     // The directory containing ELAN_HOME
-    let work_path = elan_home.parent().expect("ELAN_HOME doesn't have a parent?");
+    let work_path = elan_home
+        .parent()
+        .expect("ELAN_HOME doesn't have a parent?");
 
     // Generate a unique name for the files we're about to move out
     // of ELAN_HOME.
     let numbah: u32 = rand::random();
     let gc_exe = work_path.join(&format!("elan-gc-{:x}.exe", numbah));
 
+    use std::mem;
+    use std::os::windows::ffi::OsStrExt;
+    use std::ptr;
+    use winapi::shared::minwindef::DWORD;
     use winapi::um::fileapi::{CreateFileW, OPEN_EXISTING};
     use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
     use winapi::um::minwinbase::SECURITY_ATTRIBUTES;
     use winapi::um::winbase::FILE_FLAG_DELETE_ON_CLOSE;
     use winapi::um::winnt::{FILE_SHARE_DELETE, FILE_SHARE_READ, GENERIC_READ};
-    use winapi::shared::minwindef::DWORD;
-    use std::os::windows::ffi::OsStrExt;
-    use std::ptr;
-    use std::mem;
 
     unsafe {
         // Copy elan (probably this process's exe) to the gc exe
-        try!(utils::copy_file(elan_path, &gc_exe));
+        utils::copy_file(elan_path, &gc_exe)?;
 
         let mut gc_exe_win: Vec<_> = gc_exe.as_os_str().encode_wide().collect();
         gc_exe_win.push(0);
@@ -726,23 +752,28 @@ fn delete_elan_and_elan_home() -> Result<()> {
         sa.nLength = mem::size_of::<SECURITY_ATTRIBUTES>() as DWORD;
         sa.bInheritHandle = 1;
 
-        let gc_handle = CreateFileW(gc_exe_win.as_ptr(),
-                                    GENERIC_READ,
-                                    FILE_SHARE_READ | FILE_SHARE_DELETE,
-                                    &mut sa,
-                                    OPEN_EXISTING,
-                                    FILE_FLAG_DELETE_ON_CLOSE,
-                                    ptr::null_mut());
+        let gc_handle = CreateFileW(
+            gc_exe_win.as_ptr(),
+            GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_DELETE,
+            &mut sa,
+            OPEN_EXISTING,
+            FILE_FLAG_DELETE_ON_CLOSE,
+            ptr::null_mut(),
+        );
 
         if gc_handle == INVALID_HANDLE_VALUE {
             let err = io::Error::last_os_error();
             return Err(err).chain_err(|| ErrorKind::WindowsUninstallMadness);
         }
 
-        let _g = scopeguard::guard(gc_handle, |h| { let _ = CloseHandle(h); });
+        let _g = scopeguard::guard(gc_handle, |h| {
+            let _ = CloseHandle(h);
+        });
 
-        try!(Command::new(gc_exe).spawn()
-             .chain_err(|| ErrorKind::WindowsUninstallMadness));
+        Command::new(gc_exe)
+            .spawn()
+            .chain_err(|| ErrorKind::WindowsUninstallMadness)?;
 
         // The catch 22 article says we must sleep here to give
         // Windows a chance to bump the processes file reference
@@ -763,40 +794,42 @@ pub fn complete_windows_uninstall() -> Result<()> {
     use std::ffi::OsStr;
     use std::process::Stdio;
 
-    try!(wait_for_parent());
+    wait_for_parent()?;
 
     // Now that the parent has exited there are hopefully no more files open in ELAN_HOME
-    let ref elan_home = try!(utils::elan_home());
-    try!(utils::remove_dir("elan_home", elan_home, &|_| ()));
+    let ref elan_home = utils::elan_home()?;
+    utils::remove_dir("elan_home", elan_home, &|_| ())?;
 
     // Now, run a *system* binary to inherit the DELETE_ON_CLOSE
     // handle to *this* process, then exit. The OS will delete the gc
     // exe when it exits.
     let rm_gc_exe = OsStr::new("net");
 
-    try!(Command::new(rm_gc_exe)
-         .stdin(Stdio::null())
-         .stdout(Stdio::null())
-         .stderr(Stdio::null())
-         .spawn()
-         .chain_err(|| ErrorKind::WindowsUninstallMadness));
+    Command::new(rm_gc_exe)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .chain_err(|| ErrorKind::WindowsUninstallMadness)?;
 
     process::exit(0);
 }
 
 #[cfg(windows)]
 fn wait_for_parent() -> Result<()> {
-    use winapi::shared::minwindef::DWORD;
-    use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
-    use winapi::um::processthreadsapi::{OpenProcess, GetCurrentProcessId};
-    use winapi::um::synchapi::WaitForSingleObject;
-    use winapi::um::tlhelp32::{CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32, TH32CS_SNAPPROCESS};
-    use winapi::um::winbase::{INFINITE, WAIT_OBJECT_0};
-    use winapi::um::winnt::SYNCHRONIZE;
+    use scopeguard;
     use std::io;
     use std::mem;
     use std::ptr;
-    use scopeguard;
+    use winapi::shared::minwindef::DWORD;
+    use winapi::um::handleapi::{CloseHandle, INVALID_HANDLE_VALUE};
+    use winapi::um::processthreadsapi::{GetCurrentProcessId, OpenProcess};
+    use winapi::um::synchapi::WaitForSingleObject;
+    use winapi::um::tlhelp32::{
+        CreateToolhelp32Snapshot, Process32First, Process32Next, PROCESSENTRY32, TH32CS_SNAPPROCESS,
+    };
+    use winapi::um::winbase::{INFINITE, WAIT_OBJECT_0};
+    use winapi::um::winnt::SYNCHRONIZE;
 
     unsafe {
         // Take a snapshot of system processes, one of which is ours
@@ -807,7 +840,9 @@ fn wait_for_parent() -> Result<()> {
             return Err(err).chain_err(|| ErrorKind::WindowsUninstallMadness);
         }
 
-        let _g = scopeguard::guard(snapshot, |h| { let _ = CloseHandle(h); });
+        let _g = scopeguard::guard(snapshot, |h| {
+            let _ = CloseHandle(h);
+        });
 
         let mut entry: PROCESSENTRY32 = mem::zeroed();
         entry.dwSize = mem::size_of::<PROCESSENTRY32>() as DWORD;
@@ -840,7 +875,9 @@ fn wait_for_parent() -> Result<()> {
             return Ok(());
         }
 
-        let _g = scopeguard::guard(parent, |h| { let _ = CloseHandle(h); });
+        let _g = scopeguard::guard(parent, |h| {
+            let _ = CloseHandle(h);
+        });
 
         // Wait for our parent to exit
         let res = WaitForSingleObject(parent, INFINITE);
@@ -894,12 +931,12 @@ fn get_add_path_methods() -> Vec<PathUpdateMethod> {
         }
     }
 
-    let rcfiles = profiles.into_iter().filter_map(|f|f);
+    let rcfiles = profiles.into_iter().filter_map(|f| f);
     rcfiles.map(PathUpdateMethod::RcFile).collect()
 }
 
 fn shell_export_string() -> Result<String> {
-    let path = format!("{}/bin", try!(canonical_elan_home()));
+    let path = format!("{}/bin", canonical_elan_home()?);
     // The path is *prepended* in case there are system-installed
     // lean's that need to be overridden.
     Ok(format!(r#"export PATH="{}:$PATH""#, path))
@@ -907,17 +944,16 @@ fn shell_export_string() -> Result<String> {
 
 #[cfg(unix)]
 fn do_add_to_path(methods: &[PathUpdateMethod]) -> Result<()> {
-
     for method in methods {
         if let PathUpdateMethod::RcFile(ref rcpath) = *method {
             let file = if rcpath.exists() {
-                try!(utils::read_file("rcfile", rcpath))
+                utils::read_file("rcfile", rcpath)?
             } else {
                 String::new()
             };
-            let ref addition = format!("\n{}", try!(shell_export_string()));
+            let ref addition = format!("\n{}", shell_export_string()?);
             if !file.contains(addition) {
-                try!(utils::append_file("rcfile", rcpath, addition));
+                utils::append_file("rcfile", rcpath, addition)?;
             }
         } else {
             unreachable!()
@@ -931,20 +967,25 @@ fn do_add_to_path(methods: &[PathUpdateMethod]) -> Result<()> {
 fn do_add_to_path(methods: &[PathUpdateMethod]) -> Result<()> {
     assert!(methods.len() == 1 && methods[0] == PathUpdateMethod::Windows);
 
-    use winreg::{RegKey, RegValue};
-    use winreg::enums::{RegType, HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
-    use winapi::shared::minwindef::*;
-    use winapi::um::winuser::{SendMessageTimeoutA, HWND_BROADCAST, WM_SETTINGCHANGE, SMTO_ABORTIFHUNG};
     use std::ptr;
+    use winapi::shared::minwindef::*;
+    use winapi::um::winuser::{
+        SendMessageTimeoutA, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE,
+    };
+    use winreg::enums::{RegType, HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
+    use winreg::{RegKey, RegValue};
 
-    let old_path = if let Some(s) = try!(get_windows_path_var()) {
+    let old_path = if let Some(s) = get_windows_path_var()? {
         s
     } else {
         // Non-unicode path
         return Ok(());
     };
 
-    let mut new_path = try!(utils::elan_home()).join("bin").to_string_lossy().to_string();
+    let mut new_path = utils::elan_home()?
+        .join("bin")
+        .to_string_lossy()
+        .to_string();
     if old_path.contains(&new_path) {
         return Ok(());
     }
@@ -955,24 +996,28 @@ fn do_add_to_path(methods: &[PathUpdateMethod]) -> Result<()> {
     }
 
     let root = RegKey::predef(HKEY_CURRENT_USER);
-    let environment = try!(root.open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
-                           .chain_err(|| ErrorKind::PermissionDenied));
+    let environment = root
+        .open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
+        .chain_err(|| ErrorKind::PermissionDenied)?;
     let reg_value = RegValue {
         bytes: utils::string_to_winreg_bytes(&new_path),
         vtype: RegType::REG_EXPAND_SZ,
     };
-    try!(environment.set_raw_value("PATH", &reg_value)
-         .chain_err(|| ErrorKind::PermissionDenied));
+    environment
+        .set_raw_value("PATH", &reg_value)
+        .chain_err(|| ErrorKind::PermissionDenied)?;
 
     // Tell other processes to update their environment
     unsafe {
-        SendMessageTimeoutA(HWND_BROADCAST,
-                            WM_SETTINGCHANGE,
-                            0 as WPARAM,
-                            "Environment\0".as_ptr() as LPARAM,
-                            SMTO_ABORTIFHUNG,
-                            5000,
-                            ptr::null_mut());
+        SendMessageTimeoutA(
+            HWND_BROADCAST,
+            WM_SETTINGCHANGE,
+            0 as WPARAM,
+            "Environment\0".as_ptr() as LPARAM,
+            SMTO_ABORTIFHUNG,
+            5000,
+            ptr::null_mut(),
+        );
     }
 
     Ok(())
@@ -983,13 +1028,14 @@ fn do_add_to_path(methods: &[PathUpdateMethod]) -> Result<()> {
 // should not mess with it.
 #[cfg(windows)]
 fn get_windows_path_var() -> Result<Option<String>> {
-    use winreg::RegKey;
-    use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
     use std::io;
+    use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
+    use winreg::RegKey;
 
     let root = RegKey::predef(HKEY_CURRENT_USER);
-    let environment = try!(root.open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
-                           .chain_err(|| ErrorKind::PermissionDenied));
+    let environment = root
+        .open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
+        .chain_err(|| ErrorKind::PermissionDenied)?;
 
     let reg_value = environment.get_raw_value("PATH");
     match reg_value {
@@ -1002,12 +1048,8 @@ fn get_windows_path_var() -> Result<Option<String>> {
                 return Ok(None);
             }
         }
-        Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
-            Ok(Some(String::new()))
-        }
-        Err(e) => {
-            Err(e).chain_err(|| ErrorKind::WindowsUninstallMadness)
-        }
+        Err(ref e) if e.kind() == io::ErrorKind::NotFound => Ok(Some(String::new())),
+        Err(e) => Err(e).chain_err(|| ErrorKind::WindowsUninstallMadness),
     }
 }
 
@@ -1022,17 +1064,14 @@ fn get_remove_path_methods() -> Result<Vec<PathUpdateMethod>> {
     let bash_profile = utils::home_dir().map(|p| p.join(".bash_profile"));
 
     let rcfiles = vec![profile, bash_profile];
-    let existing_rcfiles = rcfiles.into_iter()
-        .filter_map(|f|f)
-        .filter(|f| f.exists());
+    let existing_rcfiles = rcfiles.into_iter().filter_map(|f| f).filter(|f| f.exists());
 
-    let export_str = try!(shell_export_string());
-    let matching_rcfiles = existing_rcfiles
-        .filter(|f| {
-            let file = utils::read_file("rcfile", f).unwrap_or(String::new());
-            let ref addition = format!("\n{}", export_str);
-            file.contains(addition)
-        });
+    let export_str = shell_export_string()?;
+    let matching_rcfiles = existing_rcfiles.filter(|f| {
+        let file = utils::read_file("rcfile", f).unwrap_or(String::new());
+        let ref addition = format!("\n{}", export_str);
+        file.contains(addition)
+    });
 
     Ok(matching_rcfiles.map(PathUpdateMethod::RcFile).collect())
 }
@@ -1041,20 +1080,25 @@ fn get_remove_path_methods() -> Result<Vec<PathUpdateMethod>> {
 fn do_remove_from_path(methods: &[PathUpdateMethod]) -> Result<()> {
     assert!(methods.len() == 1 && methods[0] == PathUpdateMethod::Windows);
 
-    use winapi::shared::minwindef::*;
-    use winapi::um::winuser::{SendMessageTimeoutA, SMTO_ABORTIFHUNG, HWND_BROADCAST, WM_SETTINGCHANGE};
-    use winreg::{RegKey, RegValue};
-    use winreg::enums::{RegType, HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
     use std::ptr;
+    use winapi::shared::minwindef::*;
+    use winapi::um::winuser::{
+        SendMessageTimeoutA, HWND_BROADCAST, SMTO_ABORTIFHUNG, WM_SETTINGCHANGE,
+    };
+    use winreg::enums::{RegType, HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
+    use winreg::{RegKey, RegValue};
 
-    let old_path = if let Some(s) = try!(get_windows_path_var()) {
+    let old_path = if let Some(s) = get_windows_path_var()? {
         s
     } else {
         // Non-unicode path
         return Ok(());
     };
 
-    let ref path_str = try!(utils::elan_home()).join("bin").to_string_lossy().to_string();
+    let ref path_str = utils::elan_home()?
+        .join("bin")
+        .to_string_lossy()
+        .to_string();
     let idx = if let Some(i) = old_path.find(path_str) {
         i
     } else {
@@ -1069,32 +1113,37 @@ fn do_remove_from_path(methods: &[PathUpdateMethod]) -> Result<()> {
     }
 
     let mut new_path = old_path[..idx].to_string();
-    new_path.push_str(&old_path[idx + len ..]);
+    new_path.push_str(&old_path[idx + len..]);
 
     let root = RegKey::predef(HKEY_CURRENT_USER);
-    let environment = try!(root.open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
-                           .chain_err(|| ErrorKind::PermissionDenied));
+    let environment = root
+        .open_subkey_with_flags("Environment", KEY_READ | KEY_WRITE)
+        .chain_err(|| ErrorKind::PermissionDenied)?;
     if new_path.is_empty() {
-        try!(environment.delete_value("PATH")
-             .chain_err(|| ErrorKind::PermissionDenied));
+        environment
+            .delete_value("PATH")
+            .chain_err(|| ErrorKind::PermissionDenied)?;
     } else {
         let reg_value = RegValue {
             bytes: utils::string_to_winreg_bytes(&new_path),
             vtype: RegType::REG_EXPAND_SZ,
         };
-        try!(environment.set_raw_value("PATH", &reg_value)
-        .chain_err(|| ErrorKind::PermissionDenied));
+        environment
+            .set_raw_value("PATH", &reg_value)
+            .chain_err(|| ErrorKind::PermissionDenied)?;
     }
 
     // Tell other processes to update their environment
     unsafe {
-        SendMessageTimeoutA(HWND_BROADCAST,
-                            WM_SETTINGCHANGE,
-                            0 as WPARAM,
-                            "Environment\0".as_ptr() as LPARAM,
-                            SMTO_ABORTIFHUNG,
-                            5000,
-                            ptr::null_mut());
+        SendMessageTimeoutA(
+            HWND_BROADCAST,
+            WM_SETTINGCHANGE,
+            0 as WPARAM,
+            "Environment\0".as_ptr() as LPARAM,
+            SMTO_ABORTIFHUNG,
+            5000,
+            ptr::null_mut(),
+        );
     }
 
     Ok(())
@@ -1104,19 +1153,20 @@ fn do_remove_from_path(methods: &[PathUpdateMethod]) -> Result<()> {
 fn do_remove_from_path(methods: &[PathUpdateMethod]) -> Result<()> {
     for method in methods {
         if let PathUpdateMethod::RcFile(ref rcpath) = *method {
-            let file = try!(utils::read_file("rcfile", rcpath));
-            let addition = format!("\n{}\n", try!(shell_export_string()));
+            let file = utils::read_file("rcfile", rcpath)?;
+            let addition = format!("\n{}\n", shell_export_string()?);
 
             let file_bytes = file.into_bytes();
             let addition_bytes = addition.into_bytes();
 
-            let idx = file_bytes.windows(addition_bytes.len())
+            let idx = file_bytes
+                .windows(addition_bytes.len())
                 .position(|w| w == &*addition_bytes);
             if let Some(i) = idx {
                 let mut new_file_bytes = file_bytes[..i].to_vec();
                 new_file_bytes.extend(&file_bytes[i + addition_bytes.len()..]);
                 let ref new_file = String::from_utf8(new_file_bytes).unwrap();
-                try!(utils::write_file("rcfile", rcpath, new_file));
+                utils::write_file("rcfile", rcpath, new_file)?;
             } else {
                 // Weird case. rcfile no longer needs to be modified?
             }
@@ -1149,7 +1199,7 @@ pub fn update() -> Result<()> {
         err!("you should probably use your system package manager to update elan");
         process::exit(1);
     }
-    let setup_path = try!(prepare_update());
+    let setup_path = prepare_update()?;
     if let Some(ref p) = setup_path {
         let version = match get_new_elan_version(p) {
             Some(new_version) => parse_new_elan_version(new_version),
@@ -1160,7 +1210,7 @@ pub fn update() -> Result<()> {
         };
 
         info!("elan updated successfully to {}", version);
-        try!(run_update(p));
+        run_update(p)?;
     } else {
         // Try again in case we emitted "tool `{}` is already installed" last time.
         install_proxies()?
@@ -1174,8 +1224,8 @@ fn get_new_elan_version(path: &Path) -> Option<String> {
         Err(_) => None,
         Ok(output) => match String::from_utf8(output.stdout) {
             Ok(version) => Some(version),
-            Err(_) => None
-        }
+            Err(_) => None,
+        },
     }
 }
 
@@ -1184,13 +1234,13 @@ fn parse_new_elan_version(version: String) -> String {
     let capture = re.captures(&version);
     let matched_version = match capture {
         Some(cap) => cap.get(0).unwrap().as_str(),
-        None => "(unknown)"
+        None => "(unknown)",
     };
     String::from(matched_version)
 }
 
 pub fn prepare_update() -> Result<Option<PathBuf>> {
-    let ref elan_home = try!(utils::elan_home());
+    let ref elan_home = utils::elan_home()?;
     let ref elan_path = elan_home.join(&format!("bin/elan{}", EXE_SUFFIX));
     let ref setup_path = elan_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
 
@@ -1199,14 +1249,12 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
     }
 
     if setup_path.exists() {
-        try!(utils::remove_file("setup", setup_path));
+        utils::remove_file("setup", setup_path)?;
     }
 
-    let update_root = env::var("ELAN_UPDATE_ROOT")
-        .unwrap_or(String::from(UPDATE_ROOT));
+    let update_root = env::var("ELAN_UPDATE_ROOT").unwrap_or(String::from(UPDATE_ROOT));
 
-    let tempdir = try!(tempdir()
-        .chain_err(|| "error creating temp directory"));
+    let tempdir = tempdir().chain_err(|| "error creating temp directory")?;
 
     // Get current version
     let current_version = env!("CARGO_PKG_VERSION");
@@ -1222,26 +1270,30 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
         return Ok(None);
     }
 
-    let archive_suffix = if cfg!(target_os = "windows") { ".zip" } else { ".tar.gz" };
+    let archive_suffix = if cfg!(target_os = "windows") {
+        ".zip"
+    } else {
+        ".tar.gz"
+    };
     let archive_name = format!("elan-{}{}", dist::host_triple(), archive_suffix);
     let archive_path = tempdir.path().join(&archive_name);
     // Get download URL
     let url = format!("{}/v{}/{}", update_root, available_version, archive_name);
 
     // Get download path
-    let download_url = try!(utils::parse_url(&url));
+    let download_url = utils::parse_url(&url)?;
 
     // Download new version
     info!("downloading self-update");
-    try!(utils::download_file(&download_url,
-                              &archive_path,
-                              None,
-                              &|_| ()));
+    utils::download_file(&download_url, &archive_path, None, &|_| ())?;
 
     let file = fs::File::open(archive_path)?;
     if cfg!(target_os = "windows") {
-        let mut archive = zip::read::ZipArchive::new(file).chain_err(|| "failed to open zip archive")?;
-        let mut src = archive.by_name("elan-init.exe").chain_err(|| "failed to extract update")?;
+        let mut archive =
+            zip::read::ZipArchive::new(file).chain_err(|| "failed to open zip archive")?;
+        let mut src = archive
+            .by_name("elan-init.exe")
+            .chain_err(|| "failed to extract update")?;
         let mut dst = fs::File::create(setup_path)?;
         io::copy(&mut src, &mut dst)?;
     } else {
@@ -1250,7 +1302,7 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
     }
 
     // Mark as executable
-    try!(utils::make_executable(setup_path));
+    utils::make_executable(setup_path)?;
 
     Ok(Some(setup_path.to_owned()))
 }
@@ -1265,9 +1317,10 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
 /// considered successful.
 #[cfg(unix)]
 pub fn run_update(setup_path: &Path) -> Result<()> {
-    let status = try!(Command::new(setup_path)
+    let status = Command::new(setup_path)
         .arg("--self-replace")
-        .status().chain_err(|| "unable to run updater"));
+        .status()
+        .chain_err(|| "unable to run updater")?;
 
     if !status.success() {
         return Err("self-updated failed to replace elan executable".into());
@@ -1278,9 +1331,10 @@ pub fn run_update(setup_path: &Path) -> Result<()> {
 
 #[cfg(windows)]
 pub fn run_update(setup_path: &Path) -> Result<()> {
-    try!(Command::new(setup_path)
+    Command::new(setup_path)
         .arg("--self-replace")
-        .spawn().chain_err(|| "unable to run updater"));
+        .spawn()
+        .chain_err(|| "unable to run updater")?;
 
     process::exit(0);
 }
@@ -1291,32 +1345,32 @@ pub fn run_update(setup_path: &Path) -> Result<()> {
 /// elan process exits.
 #[cfg(unix)]
 pub fn self_replace() -> Result<()> {
-    try!(install_bins());
+    install_bins()?;
 
     Ok(())
 }
 
 #[cfg(windows)]
 pub fn self_replace() -> Result<()> {
-    try!(wait_for_parent());
-    try!(install_bins());
+    wait_for_parent()?;
+    install_bins()?;
 
     Ok(())
 }
 
 pub fn cleanup_self_updater() -> Result<()> {
-    let elan_home = try!(utils::elan_home());
+    let elan_home = utils::elan_home()?;
     let ref setup = elan_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
 
     if setup.exists() {
-        try!(utils::remove_file("setup", setup));
+        utils::remove_file("setup", setup)?;
     }
 
     // Transitional
     let ref old_setup = elan_home.join(&format!("bin/multilean-setup{}", EXE_SUFFIX));
 
     if old_setup.exists() {
-        try!(utils::remove_file("setup", old_setup));
+        utils::remove_file("setup", old_setup)?;
     }
 
     Ok(())

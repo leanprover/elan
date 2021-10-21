@@ -1,10 +1,10 @@
-use std::path::Path;
-use std::fmt::{self, Display};
-use temp;
 use elan_utils;
-use elan_utils::notify::{NotificationLevel};
-use manifest::Component;
+use elan_utils::notify::NotificationLevel;
 use errors::*;
+use manifest::Component;
+use std::fmt::{self, Display};
+use std::path::Path;
+use temp;
 
 #[derive(Debug)]
 pub enum Notification<'a> {
@@ -50,19 +50,24 @@ impl<'a> Notification<'a> {
         match *self {
             Temp(ref n) => n.level(),
             Utils(ref n) => n.level(),
-            ChecksumValid(_) | NoUpdateHash(_) |
-            FileAlreadyDownloaded |
-            DownloadingLegacyManifest  => NotificationLevel::Verbose,
-            Extracting(_, _) | SignatureValid(_)  |
-            DownloadingComponent(_) |
-            InstallingComponent(_) |
-            RemovingComponent(_) |
-            ComponentAlreadyInstalled(_)  |
-            ManifestChecksumFailedHack |
-            RollingBack | DownloadingManifest(_) |
-            DownloadedManifest(_, _) => NotificationLevel::Info,
-            CantReadUpdateHash(_) | ExtensionNotInstalled(_) |
-            MissingInstalledComponent(_) | CachedFileChecksumFailed => NotificationLevel::Warn,
+            ChecksumValid(_)
+            | NoUpdateHash(_)
+            | FileAlreadyDownloaded
+            | DownloadingLegacyManifest => NotificationLevel::Verbose,
+            Extracting(_, _)
+            | SignatureValid(_)
+            | DownloadingComponent(_)
+            | InstallingComponent(_)
+            | RemovingComponent(_)
+            | ComponentAlreadyInstalled(_)
+            | ManifestChecksumFailedHack
+            | RollingBack
+            | DownloadingManifest(_)
+            | DownloadedManifest(_, _) => NotificationLevel::Info,
+            CantReadUpdateHash(_)
+            | ExtensionNotInstalled(_)
+            | MissingInstalledComponent(_)
+            | CachedFileChecksumFailed => NotificationLevel::Warn,
             NonFatalError(_) => NotificationLevel::Error,
         }
     }
@@ -79,9 +84,11 @@ impl<'a> Display for Notification<'a> {
                 write!(f, "component {} is up to date", c.description())
             }
             CantReadUpdateHash(path) => {
-                write!(f,
-                       "can't read update hash file: '{}', can't skip update...",
-                       path.display())
+                write!(
+                    f,
+                    "can't read update hash file: '{}', can't skip update...",
+                    path.display()
+                )
             }
             NoUpdateHash(path) => write!(f, "no update hash at: '{}'", path.display()),
             ChecksumValid(_) => write!(f, "checksum passed"),
@@ -93,15 +100,23 @@ impl<'a> Display for Notification<'a> {
                 write!(f, "extension '{}' was not installed", c.name())
             }
             NonFatalError(e) => write!(f, "{}", e),
-            MissingInstalledComponent(c) => write!(f, "during uninstall component {} was not found", c),
+            MissingInstalledComponent(c) => {
+                write!(f, "during uninstall component {} was not found", c)
+            }
             DownloadingComponent(c) => write!(f, "downloading component '{}'", c),
             InstallingComponent(c) => write!(f, "installing component '{}'", c),
             RemovingComponent(c) => write!(f, "removing component '{}'", c),
             DownloadingManifest(t) => write!(f, "syncing channel updates for '{}'", t),
-            DownloadedManifest(date, Some(version)) => write!(f, "latest update on {}, lean version {}", date, version),
-            DownloadedManifest(date, None) => write!(f, "latest update on {}, no lean version", date),
+            DownloadedManifest(date, Some(version)) => {
+                write!(f, "latest update on {}, lean version {}", date, version)
+            }
+            DownloadedManifest(date, None) => {
+                write!(f, "latest update on {}, no lean version", date)
+            }
             DownloadingLegacyManifest => write!(f, "manifest not found. trying legacy manifest"),
-            ManifestChecksumFailedHack => write!(f, "update not yet available, sorry! try again later"),
+            ManifestChecksumFailedHack => {
+                write!(f, "update not yet available, sorry! try again later")
+            }
         }
     }
 }
