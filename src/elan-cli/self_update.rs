@@ -710,7 +710,6 @@ fn delete_elan_and_elan_home() -> Result<()> {
 #[cfg(windows)]
 fn delete_elan_and_elan_home() -> Result<()> {
     use rand;
-    use scopeguard;
     use std::thread;
     use std::time::Duration;
 
@@ -818,8 +817,6 @@ pub fn complete_windows_uninstall() -> Result<()> {
 
 #[cfg(windows)]
 fn wait_for_parent() -> Result<()> {
-    use scopeguard;
-    use std::io;
     use std::mem;
     use std::ptr;
     use winapi::shared::minwindef::DWORD;
@@ -1029,7 +1026,6 @@ fn do_add_to_path(methods: &[PathUpdateMethod]) -> Result<()> {
 // should not mess with it.
 #[cfg(windows)]
 fn get_windows_path_var() -> Result<Option<String>> {
-    use std::io;
     use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE};
     use winreg::RegKey;
 
