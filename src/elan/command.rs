@@ -179,7 +179,6 @@ fn exec_command_for_dir_without_telemetry<S: AsRef<OsStr>>(
 
 #[cfg(unix)]
 fn stderr_isatty() -> bool {
-    use libc;
     unsafe { libc::isatty(libc::STDERR_FILENO) != 0 }
 }
 

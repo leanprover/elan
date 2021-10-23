@@ -35,7 +35,7 @@ fn download_with_backend(
     backend: Backend,
     url: &Url,
     resume_from: u64,
-    callback: &Fn(Event) -> Result<()>,
+    callback: &dyn Fn(Event) -> Result<()>,
 ) -> Result<()> {
     match backend {
         Backend::Curl => curl::download(url, resume_from, callback),
@@ -48,7 +48,7 @@ pub fn download_to_path_with_backend(
     url: &Url,
     path: &Path,
     resume_from_partial: bool,
-    callback: Option<&Fn(Event) -> Result<()>>,
+    callback: Option<&dyn Fn(Event) -> Result<()>>,
 ) -> Result<()> {
     use std::cell::RefCell;
     use std::fs::OpenOptions;
@@ -145,7 +145,11 @@ pub mod curl {
 
     thread_local!(pub static EASY: RefCell<Easy> = RefCell::new(Easy::new()));
 
-    pub fn download(url: &Url, resume_from: u64, callback: &Fn(Event) -> Result<()>) -> Result<()> {
+    pub fn download(
+        url: &Url,
+        resume_from: u64,
+        callback: &dyn Fn(Event) -> Result<()>,
+    ) -> Result<()> {
         // Fetch either a cached libcurl handle (which will preserve open
         // connections) or create a new one if it isn't listed.
         //
@@ -240,7 +244,7 @@ pub mod curl {
                 .response_code()
                 .chain_err(|| "failed to get response code")?;
             match code {
-                0 | 200...299 => {}
+                0 | 200..=299 => {}
                 _ => {
                     return Err(ErrorKind::HttpStatus(code).into());
                 }
@@ -381,7 +385,7 @@ pub mod curl {
     pub fn download(
         _url: &Url,
         _resume_from: u64,
-        _callback: &Fn(Event) -> Result<()>,
+        _callback: &dyn Fn(Event) -> Result<()>,
     ) -> Result<()> {
         Err(ErrorKind::BackendUnavailable("curl").into())
     }
@@ -397,7 +401,7 @@ pub mod reqwest_be {
     pub fn download(
         _url: &Url,
         _resume_from: u64,
-        _callback: &Fn(Event) -> Result<()>,
+        _callback: &dyn Fn(Event) -> Result<()>,
     ) -> Result<()> {
         Err(ErrorKind::BackendUnavailable("reqwest").into())
     }

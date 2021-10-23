@@ -57,11 +57,11 @@ pub struct Cfg {
     pub temp_cfg: temp::Cfg,
     //pub gpg_key: Cow<'static, str>,
     pub env_override: Option<String>,
-    pub notify_handler: Arc<Fn(Notification)>,
+    pub notify_handler: Arc<dyn Fn(Notification)>,
 }
 
 impl Cfg {
-    pub fn from_env(notify_handler: Arc<Fn(Notification)>) -> Result<Self> {
+    pub fn from_env(notify_handler: Arc<dyn Fn(Notification)>) -> Result<Self> {
         // Set up the elan home directory
         let elan_dir = utils::elan_home()?;
 

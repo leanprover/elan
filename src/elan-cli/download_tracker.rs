@@ -5,7 +5,7 @@ use elan_utils::Notification as Un;
 use std::collections::VecDeque;
 use std::fmt;
 use term;
-use time::precise_time_s;
+use time::OffsetDateTime;
 
 /// Keep track of this many past download amounts
 const DOWNLOAD_TRACK_COUNT: usize = 5;
@@ -80,7 +80,8 @@ impl DownloadTracker {
         self.total_downloaded += len;
         self.downloaded_this_sec += len;
 
-        let current_time = precise_time_s();
+        let current_time: f64 =
+            (OffsetDateTime::now_utc() - OffsetDateTime::unix_epoch()).as_seconds_f64();
 
         match self.last_sec {
             None => self.last_sec = Some(current_time),

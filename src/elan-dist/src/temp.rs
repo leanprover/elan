@@ -30,7 +30,7 @@ pub enum Notification<'a> {
 
 pub struct Cfg {
     root_directory: PathBuf,
-    notify_handler: Box<Fn(Notification)>,
+    notify_handler: Box<dyn Fn(Notification)>,
 }
 
 #[derive(Debug)]
@@ -96,7 +96,7 @@ impl error::Error for Error {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         use self::Error::*;
         match *self {
             CreatingRoot { ref error, .. }
@@ -124,7 +124,7 @@ impl Display for Error {
 }
 
 impl Cfg {
-    pub fn new(root_directory: PathBuf, notify_handler: Box<Fn(Notification)>) -> Self {
+    pub fn new(root_directory: PathBuf, notify_handler: Box<dyn Fn(Notification)>) -> Self {
         Cfg {
             root_directory: root_directory,
             notify_handler: notify_handler,

@@ -10,10 +10,8 @@ use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
+use std::sync::atomic::{AtomicBool, Ordering};
 use url::Url;
-#[cfg(windows)]
-use winapi::shared::minwindef::DWORD;
 #[cfg(windows)]
 use winreg;
 
@@ -24,7 +22,7 @@ pub use raw::{
 pub fn ensure_dir_exists(
     name: &'static str,
     path: &Path,
-    notify_handler: &Fn(Notification),
+    notify_handler: &dyn Fn(Notification),
 ) -> Result<bool> {
     raw::ensure_dir_exists(path, |p| {
         notify_handler(Notification::CreatingDirectory(name, p))
@@ -110,7 +108,7 @@ pub fn match_file<T, F: FnMut(&str) -> Option<T>>(
     })
 }
 
-pub fn canonicalize_path(path: &Path, notify_handler: &Fn(Notification)) -> PathBuf {
+pub fn canonicalize_path(path: &Path, notify_handler: &dyn Fn(Notification)) -> PathBuf {
     fs::canonicalize(path).unwrap_or_else(|_| {
         notify_handler(Notification::NoCanonicalPath(path));
         PathBuf::from(path)
@@ -128,7 +126,7 @@ pub fn download_file(
     url: &Url,
     path: &Path,
     hasher: Option<&mut Sha256>,
-    notify_handler: &Fn(Notification),
+    notify_handler: &dyn Fn(Notification),
 ) -> Result<()> {
     download_file_with_resume(&url, &path, hasher, false, &notify_handler)
 }
@@ -138,7 +136,7 @@ pub fn download_file_with_resume(
     path: &Path,
     hasher: Option<&mut Sha256>,
     resume_from_partial: bool,
-    notify_handler: &Fn(Notification),
+    notify_handler: &dyn Fn(Notification),
 ) -> Result<()> {
     use download::ErrorKind as DEK;
     match download_file_(url, path, hasher, resume_from_partial, notify_handler) {
@@ -146,7 +144,7 @@ pub fn download_file_with_resume(
         Err(e) => {
             println!("{:?}", e);
             let is_client_error = match e.kind() {
-                &ErrorKind::Download(DEK::HttpStatus(400...499)) => true,
+                &ErrorKind::Download(DEK::HttpStatus(400..=499)) => true,
                 &ErrorKind::Download(DEK::FileNotFound) => true,
                 _ => false,
             };
@@ -167,18 +165,17 @@ pub fn download_file_with_resume(
     }
 }
 
-static DEPRECATED_HYPER_WARNED: AtomicBool = ATOMIC_BOOL_INIT;
+static DEPRECATED_HYPER_WARNED: AtomicBool = AtomicBool::new(false);
 
 fn download_file_(
     url: &Url,
     path: &Path,
     hasher: Option<&mut Sha256>,
     resume_from_partial: bool,
-    notify_handler: &Fn(Notification),
+    notify_handler: &dyn Fn(Notification),
 ) -> Result<()> {
     use download::download_to_path_with_backend;
-    use download::{self, Backend, Event};
-    use sha2::Digest;
+    use download::{Backend, Event};
     use std::cell::RefCell;
 
     notify_handler(Notification::DownloadingFile(url, path));
@@ -187,7 +184,7 @@ fn download_file_(
 
     // This callback will write the download to disk and optionally
     // hash the contents, then forward the notification up the stack
-    let callback: &Fn(Event) -> download::Result<()> = &|msg| {
+    let callback: &dyn Fn(Event) -> download::Result<()> = &|msg| {
         match msg {
             Event::DownloadDataReceived(data) => {
                 if let Some(ref mut h) = *hasher.borrow_mut() {
@@ -265,7 +262,7 @@ pub fn assert_is_directory(path: &Path) -> Result<()> {
     }
 }
 
-pub fn symlink_dir(src: &Path, dest: &Path, notify_handler: &Fn(Notification)) -> Result<()> {
+pub fn symlink_dir(src: &Path, dest: &Path, notify_handler: &dyn Fn(Notification)) -> Result<()> {
     notify_handler(Notification::LinkingDirectory(src, dest));
     raw::symlink_dir(src, dest).chain_err(|| ErrorKind::LinkingDirectory {
         src: PathBuf::from(src),
@@ -305,7 +302,7 @@ pub fn symlink_file(src: &Path, dest: &Path) -> Result<()> {
     .into())
 }
 
-pub fn copy_dir(src: &Path, dest: &Path, notify_handler: &Fn(Notification)) -> Result<()> {
+pub fn copy_dir(src: &Path, dest: &Path, notify_handler: &dyn Fn(Notification)) -> Result<()> {
     notify_handler(Notification::CopyingDirectory(src, dest));
     raw::copy_dir(src, dest).chain_err(|| ErrorKind::CopyingDirectory {
         src: PathBuf::from(src),
@@ -325,7 +322,7 @@ pub fn copy_file(src: &Path, dest: &Path) -> Result<()> {
 pub fn remove_dir(
     name: &'static str,
     path: &Path,
-    notify_handler: &Fn(Notification),
+    notify_handler: &dyn Fn(Notification),
 ) -> Result<()> {
     notify_handler(Notification::RemovingDirectory(name, path));
     raw::remove_dir(path).chain_err(|| ErrorKind::RemovingDirectory {
@@ -432,7 +429,6 @@ pub fn format_path_for_display(path: &str) -> String {
 /// Encodes a utf-8 string as a null-terminated UCS-2 string in bytes
 #[cfg(windows)]
 pub fn string_to_winreg_bytes(s: &str) -> Vec<u8> {
-    use std::ffi::OsString;
     use std::os::windows::ffi::OsStrExt;
     let v: Vec<_> = OsString::from(format!("{}\x00", s)).encode_wide().collect();
     unsafe { ::std::slice::from_raw_parts(v.as_ptr() as *const u8, v.len() * 2).to_vec() }

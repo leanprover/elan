@@ -43,7 +43,7 @@ impl Isatty for io::Stderr {
     }
 }
 
-pub struct Terminal<T>(Option<Box<term::Terminal<Output = T> + Send>>)
+pub struct Terminal<T>(Option<Box<dyn term::Terminal<Output = T> + Send>>)
 where
     T: Instantiable + Isatty + io::Write;
 pub type StdoutTerminal = Terminal<io::Stdout>;

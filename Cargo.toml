@@ -58,6 +58,9 @@ winapi = { version = "0.3.9", features = ["jobapi", "jobapi2", "processthreadsap
 winreg = "0.8.0"
 gcc = "0.3.55"
 
+[workspace]
+members = ["src/download", "src/elan-dist", "src/elan-utils"]
+
 [lib]
 name = "elan"
 path = "src/elan/lib.rs"

@@ -24,7 +24,7 @@ impl Manifestation {
         origin: &String,
         url: &String,
         temp_cfg: &temp::Cfg,
-        notify_handler: &Fn(Notification),
+        notify_handler: &dyn Fn(Notification),
     ) -> Result<()> {
         notify_handler(Notification::DownloadingComponent("lean"));
 
