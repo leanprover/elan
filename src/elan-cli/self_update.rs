@@ -333,7 +333,7 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
         extern crate libc as c;
 
         use std::ffi::CStr;
-        use std::mem::{self, MaybeUninit};
+        use std::mem::MaybeUninit;
         use std::ops::Deref;
         use std::ptr;
 
@@ -346,14 +346,14 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
         {
             return false;
         }
-        let mut buf = [0u8; 1024];
+        let mut buf = [0 as c::c_char; 1024];
         let mut pwd = MaybeUninit::<c::passwd>::uninit();
         let mut pwdp: *mut c::passwd = ptr::null_mut();
         let rv = unsafe {
             c::getpwuid_r(
                 c::geteuid(),
                 pwd.as_mut_ptr(),
-                mem::transmute(&mut buf),
+                buf.as_mut_ptr(),
                 buf.len(),
                 &mut pwdp,
             )
