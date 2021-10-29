@@ -99,9 +99,9 @@ impl<'a> DownloadCfg<'a> {
         Ok(())
     }
 
-    pub fn download_and_check(&self, url_str: &str, ext: &str) -> Result<temp::File<'a>> {
+    pub fn download_and_check(&self, url_str: &str) -> Result<temp::File<'a>> {
         let url = utils::parse_url(url_str)?;
-        let file = self.temp_cfg.new_file_with_ext("", ext)?;
+        let file = self.temp_cfg.new_file()?;
 
         utils::download_file(&url, &file, None, &|n| (self.notify_handler)(n.into()))?;
 

@@ -1,6 +1,6 @@
 //! Manifest a particular Lean version by installing it from a distribution server.
 
-use component::{TarGzPackage, ZipPackage};
+use component::{TarGzPackage, TarZstdPackage, ZipPackage};
 use download::DownloadCfg;
 use elan_utils::utils;
 use errors::*;
@@ -57,20 +57,15 @@ impl Manifestation {
         } else {
             unreachable!();
         };
-        let ext = if cfg!(target_os = "linux") {
-            ".tar.gz"
-        } else {
-            ".zip"
-        };
-        let url_suffix = informal_target.clone() + ext;
+        let url_substring = informal_target.clone() + ".";
         let re = Regex::new(format!(r#"/{}/releases/download/[^"]+"#, origin).as_str()).unwrap();
-        let download_page_file = dlcfg.download_and_check(&url, "")?;
+        let download_page_file = dlcfg.download_and_check(&url)?;
         let mut html = String::new();
         fs::File::open(&download_page_file as &::std::path::Path)?.read_to_string(&mut html)?;
         let url = re
             .find_iter(&html)
             .map(|m| m.as_str().to_string())
-            .find(|m| m.contains(&url_suffix));
+            .find(|m| m.contains(&url_substring));
         if url.is_none() {
             return Err(
                 format!("binary package was not provided for '{}'", informal_target).into(),
@@ -78,7 +73,7 @@ impl Manifestation {
         }
         let url = format!("https://github.com/{}", url.unwrap());
 
-        let installer_file = dlcfg.download_and_check(&url, ext)?;
+        let installer_file = dlcfg.download_and_check(&url)?;
 
         let prefix = self.prefix.path();
 
@@ -96,11 +91,15 @@ impl Manifestation {
         })?;
 
         // Extract new files
-        if cfg!(target_os = "linux") {
+        if url.ends_with(".tar.gz") {
             TarGzPackage::unpack_file(&installer_file, prefix)?
-        } else {
+        } else if url.ends_with(".tar.zst") {
+            TarZstdPackage::unpack_file(&installer_file, prefix)?
+        } else if url.ends_with(".zip") {
             ZipPackage::unpack_file(&installer_file, prefix)?
-        };
+        } else {
+            return Err(format!("unsupported archive format: {}", url).into())
+        }
 
         Ok(())
     }
