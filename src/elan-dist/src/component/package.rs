@@ -4,6 +4,7 @@
 
 extern crate filetime;
 extern crate flate2;
+extern crate zstd;
 extern crate tar;
 
 use errors::*;
@@ -136,6 +137,21 @@ pub struct TarGzPackage<'a>(TarPackage<'a>);
 impl<'a> TarGzPackage<'a> {
     pub fn unpack<R: Read>(stream: R, path: &Path) -> Result<()> {
         let stream = flate2::read::GzDecoder::new(stream);
+
+        TarPackage::unpack(stream, path)
+    }
+    pub fn unpack_file(path: &Path, into: &Path) -> Result<()> {
+        let file = File::open(path).chain_err(|| ErrorKind::ExtractingPackage)?;
+        Self::unpack(file, into)
+    }
+}
+
+#[derive(Debug)]
+pub struct TarZstdPackage<'a>(TarPackage<'a>);
+
+impl<'a> TarZstdPackage<'a> {
+    pub fn unpack<R: Read>(stream: R, path: &Path) -> Result<()> {
+        let stream = zstd::stream::read::Decoder::new(stream)?;
 
         TarPackage::unpack(stream, path)
     }
