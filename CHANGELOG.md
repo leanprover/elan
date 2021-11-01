@@ -1,3 +1,9 @@
+# Unreleased
+
+## Added
+
+- Support for zstd-compressed tarballs
+
 # 1.2.0 - 2021-10-19
 
 ## Added
