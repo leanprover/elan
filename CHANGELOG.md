@@ -1,3 +1,9 @@
+# Unreleased
+
+## Changed
+
+- Update dependencies
+
 # 1.3.0 - 2021-11-01
 
 ## Added
