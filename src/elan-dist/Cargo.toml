@@ -23,7 +23,7 @@ remove_dir_all = "0.7.0"
 elan-utils = { path = "../elan-utils" }
 error-chain = "0.12.4"
 json = "0.12.4"
-zip = "0.5.11"
+zip = "0.5.13"
 filetime = "0.2.14"
 
 [target."cfg(windows)".dependencies]
