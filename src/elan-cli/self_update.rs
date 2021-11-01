@@ -709,7 +709,6 @@ fn delete_elan_and_elan_home() -> Result<()> {
 // http://stackoverflow.com/questions/10319526/understanding-a-self-deleting-program-in-c
 #[cfg(windows)]
 fn delete_elan_and_elan_home() -> Result<()> {
-    use rand;
     use std::thread;
     use std::time::Duration;
 
