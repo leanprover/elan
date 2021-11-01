@@ -60,6 +60,22 @@ jobs:
           command: build
           args: --release --target ${{ matrix.target }}
           use-cross: ${{ matrix.name == 'Linux' || matrix.target == 'aarch64-unknown-linux-musl' }}
+      - name: Package
+        shell: bash
+        run: |
+          cd target/${{ matrix.target  }}/release
+          tar czf ../../../elan-${{ matrix.release-target-name || matrix.target }}.tar.gz elan-init
+        if: matrix.os != 'windows-latest'
+      - name: Package
+        run: |
+          cd target/${{ matrix.target  }}/release
+          Compress-Archive elan-init.exe ../../../elan-${{ matrix.release-target-name || matrix.target }}.zip
+        if: matrix.os == 'windows-latest'
+      - uses: actions/upload-artifact@v2
+        with:
+          name: build-${{ matrix.name }}
+          path: elan-${{ matrix.release-target-name || matrix.target }}*
+          if-no-files-found: error
       - name: Test
         if: matrix.target != 'aarch64-unknown-linux-musl'
         uses: actions-rs/cargo@v1
@@ -81,22 +97,6 @@ jobs:
           mkdir foo4; cd foo4
           leanpkg init foo4
           leanpkg build
-      - name: Package
-        shell: bash
-        run: |
-          cd target/${{ matrix.target  }}/release
-          tar czf ../../../elan-${{ matrix.release-target-name || matrix.target }}.tar.gz elan-init
-        if: matrix.os != 'windows-latest'
-      - name: Package
-        run: |
-          cd target/${{ matrix.target  }}/release
-          Compress-Archive elan-init.exe ../../../elan-${{ matrix.release-target-name || matrix.target }}.zip
-        if: matrix.os == 'windows-latest'
-      - uses: actions/upload-artifact@v2
-        with:
-          name: build-${{ matrix.name }}
-          path: elan-${{ matrix.release-target-name || matrix.target }}*
-          if-no-files-found: error
       - uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
         with:
