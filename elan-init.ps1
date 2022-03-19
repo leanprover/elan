@@ -17,35 +17,13 @@
     Whee to find the elan-init tool, default is https://github.com/leanprover/elan/release.
 #>
 param(
-    [bool]$Verbose = $false,
-    [bool]$NoMenu = $false,
-    [bool]$PromptOnError = $false,
+    [bool]$Verbose = 0,
+    [bool]$NoMenu = 0,
+    [bool]$PromptOnError = 0,
     [string]$DefaultToolchain = "none",
     [string]$ElanRoot = "https://github.com/leanprover/elan/releases"
 )
 
-
-#XXX: If you change anything here, please make the same changes in setup_mode.rs
-function usage() {
-    Write-Host "
-elan-init 1.0.0 (408ed84 2017-02-11)
-The installer for elan
-
-USAGE:
-    elan-init [FLAGS] [OPTIONS]
-
-FLAGS:
-    -v, --verbose           Enable verbose output
-    -y                      Disable confirmation prompt.
-        --no-modify-path    Don't configure the PATH environment variable
-    -h, --help              Prints help information
-    -V, --version           Prints version information
-
-OPTIONS:
-        --default-toolchain <default-toolchain>    Choose a default toolchain to install
-        --default-toolchain none                   Do not install any toolchains
-"
-}
 
 Function Get-RedirectedUrl {
     Param (
