@@ -3,7 +3,6 @@
 # install elan. It just does platform detection, downloads the installer
 # and runs it.
 
-
 $ELAN_UPDATE_ROOT="https://github.com/leanprover/elan/releases"
 
 #XXX: If you change anything here, please make the same changes in setup_mode.rs
@@ -77,20 +76,21 @@ function main($cmdline) {
     Expand-Archive -Path "$_dir/elan-init.zip" -DestinationPath "$_dir" -Force
 
     if ($cmdline.Count -eq 0) {
-        Start-Process -FilePath "$_dir/elan-init.exe" -Wait -NoNewWindow
+        $details = Start-Process -FilePath "$_dir/elan-init.exe" -Wait -NoNewWindow -Passthru
     } else {
-        Start-Process -FilePath "$_dir/elan-init.exe" -ArgumentList $cmdline -Wait -NoNewWindow
+        $details = Start-Process -FilePath "$_dir/elan-init.exe" -ArgumentList $cmdline -Wait -NoNewWindow -Passthru
     }
 
-    if( -not $? ) {
-        Write-Host "Elan failed with error code $?"
+    $rc = $details.exitCode
+    if ($rc -ne 0 ) {
+        Write-Host "Elan failed with error code $rc "
         return 1
     }
 
     Remove-Item -Recurse -Force "$_dir"
 
-    return 0
+    return $rc
 }
 
 $rc = main -cmdline $args
-Exit $rc
+return $rc
