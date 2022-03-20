@@ -90,9 +90,9 @@ jobs:
           RUST_BACKTRACE=1 target/${{ matrix.target }}/release/elan-init -y
           # not created on Windows
           [ -f ~/.elan/env ] && source ~/.elan/env || export PATH=$PATH:~/.elan/bin
-          elan which lake
-          lake new foo
-          (cd foo; lake build)
+          elan which leanpkg
+          leanpkg new foo
+          (cd foo; leanpkg build)
           elan default leanprover/lean4:nightly
           mkdir foo4; cd foo4
           lake init foo4
