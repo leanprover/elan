@@ -90,13 +90,13 @@ jobs:
           RUST_BACKTRACE=1 target/${{ matrix.target }}/release/elan-init -y
           # not created on Windows
           [ -f ~/.elan/env ] && source ~/.elan/env || export PATH=$PATH:~/.elan/bin
-          elan which leanpkg
-          leanpkg new foo
-          (cd foo; leanpkg build)
+          elan which lake
+          lake new foo
+          (cd foo; lake build)
           elan default leanprover/lean4:nightly
           mkdir foo4; cd foo4
-          leanpkg init foo4
-          leanpkg build
+          lake init foo4
+          lake build
       - uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
         with:
