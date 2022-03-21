@@ -95,8 +95,8 @@ jobs:
           (cd foo; leanpkg build)
           elan default leanprover/lean4:nightly
           mkdir foo4; cd foo4
-          leanpkg init foo4
-          leanpkg build
+          lake init foo4
+          lake build
       - uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
         with:
