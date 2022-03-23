@@ -9,6 +9,10 @@
     Produce verbose output about the elan installation process.
 .PARAMETER NoMenu
     Do not present elan installation menu of choices.
+.PARAMETER NoPrompt
+    Do not present elan installation menu of choices.
+.PARAMETER NoModifyPath
+    Do not modify PATH environment variable.
 .PARAMETER PromptOnError
     Prompt user if install fails.
 .PARAMETER DefaultToolchain
@@ -19,8 +23,10 @@
 param(
     [bool]$Verbose = 0,
     [bool]$NoMenu = 0,
+    [bool]$NoPrompt = 0,
+    [bool]$NoModifyPath = 0,
     [bool]$PromptOnError = 0,
-    [string]$DefaultToolchain = "none",
+    [string]$DefaultToolchain = "",
     [string]$ElanRoot = "https://github.com/leanprover/elan/releases"
 )
 
@@ -71,9 +77,18 @@ $_latest = $xs[-1]
 $x = Invoke-WebRequest -Uri "$ElanRoot/download/$_latest/elan-$_arch.zip" -OutFile "$_dir/elan-init.zip"
 $x = Expand-Archive -Path "$_dir/elan-init.zip" -DestinationPath "$_dir" -Force
 
-$cmdline = "--default-toolchain $DefaultToolchain"
-if ($NoMenu){
-    $cmdline = $cmdline + " -y"
+$cmdline = ""
+if ($DefaultToolchain) {
+    $cmdline += "--default-toolchain $DefaultToolchain"
+}
+if ($NoMenu -or $NoPrompt){
+    $cmdline += " -y"
+}
+if ($NoModifyPath){
+    $cmdline += " --no-modify-path"
+}
+if ($Verbose){
+    $cmdline += " --verbose"
 }
 $details = Start-Process -FilePath "$_dir/elan-init.exe" -ArgumentList $cmdline -Wait -NoNewWindow -Passthru
 
