@@ -7,14 +7,10 @@
     and runs it.
 .PARAMETER Verbose
     Produce verbose output about the elan installation process.
-.PARAMETER NoMenu
-    Do not present elan installation menu of choices.
 .PARAMETER NoPrompt
     Do not present elan installation menu of choices.
 .PARAMETER NoModifyPath
     Do not modify PATH environment variable.
-.PARAMETER PromptOnError
-    Prompt user if install fails.
 .PARAMETER DefaultToolchain
     Which tool chain to setup as your default toolchain, default is 'none'
 .PARAMETER ElanRoot
@@ -22,10 +18,8 @@
 #>
 param(
     [bool]$Verbose = 0,
-    [bool]$NoMenu = 0,
     [bool]$NoPrompt = 0,
     [bool]$NoModifyPath = 0,
-    [bool]$PromptOnError = 0,
     [string]$DefaultToolchain = "",
     [string]$ElanRoot = "https://github.com/leanprover/elan/releases"
 )
@@ -81,7 +75,7 @@ $cmdline = ""
 if ($DefaultToolchain) {
     $cmdline += "--default-toolchain $DefaultToolchain"
 }
-if ($NoMenu -or $NoPrompt){
+if ($NoPrompt){
     $cmdline += " -y"
 }
 if ($NoModifyPath){
@@ -95,14 +89,9 @@ $details = Start-Process -FilePath "$_dir/elan-init.exe" -ArgumentList $cmdline 
 $rc = $details.exitCode
 if ($rc -ne 0 ) {
     Write-Host "Elan failed with error code $rc"
-    if ($PromptOnError){
-        Write-Host
-        Read-Host -Prompt "Press ENTER key to continue "
-    }
     return 1
 }
 
 $rx = Remove-Item -Recurse -Force "$_dir"
-
 
 return 0
