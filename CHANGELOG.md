@@ -1,3 +1,9 @@
+# Unreleased
+
+## Added
+
+- Support for ARM64 macOS (M1)
+
 # 1.3.1 - 2021-11-01
 
 ## Changed
