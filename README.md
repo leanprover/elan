@@ -40,7 +40,7 @@ curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf 
 
 **M1 Mac**:
 
-**Lean 4** has native macOS/aarch64 releases (nightly only so far) that you can install as above. For **Lean 3**, you need to run the installer under Rosetta (install using `softwareupdate --install-rosetta` if you haven't already done so) because there are no M1 releases for it right now:
+**Lean 4** has native macOS/aarch64 releases (nightly only so far) that you can install as above by choosing the `leanprover/lean4:nightly` toolchain. For **Lean 3**, you need to run the installer under Rosetta (install using `softwareupdate --install-rosetta` if you haven't already done so) because there are no M1 releases for it right now:
 
 ```bash
 curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | arch -x86_64 sh
