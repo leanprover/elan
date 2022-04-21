@@ -12,7 +12,7 @@
 .PARAMETER NoModifyPath
     Do not modify PATH environment variable.
 .PARAMETER DefaultToolchain
-    Which tool chain to setup as your default toolchain, default is 'none'
+    Which tool chain to setup as your default toolchain, or specify 'none'
 .PARAMETER ElanRoot
     Whee to find the elan-init tool, default is https://github.com/leanprover/elan/release.
 #>
@@ -20,7 +20,7 @@ param(
     [bool]$Verbose = 0,
     [bool]$NoPrompt = 0,
     [bool]$NoModifyPath = 0,
-    [string]$DefaultToolchain = "none",
+    [string]$DefaultToolchain = "",
     [string]$ElanRoot = "https://github.com/leanprover/elan/releases"
 )
 
@@ -71,8 +71,8 @@ $_latest = $xs[-1]
 $x = Invoke-WebRequest -Uri "$ElanRoot/download/$_latest/elan-$_arch.zip" -OutFile "$_dir/elan-init.zip"
 $x = Expand-Archive -Path "$_dir/elan-init.zip" -DestinationPath "$_dir" -Force
 
-$cmdline = ""
-if ($DefaultToolchain) {
+$cmdline = " "
+if ($DefaultToolchain -ne "") {
     $cmdline += "--default-toolchain $DefaultToolchain"
 }
 if ($NoPrompt){
