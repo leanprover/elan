@@ -20,7 +20,7 @@ param(
     [bool]$Verbose = 0,
     [bool]$NoPrompt = 0,
     [bool]$NoModifyPath = 0,
-    [string]$DefaultToolchain = "",
+    [string]$DefaultToolchain = "none",
     [string]$ElanRoot = "https://github.com/leanprover/elan/releases"
 )
 
