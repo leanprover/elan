@@ -98,7 +98,7 @@ main() {
     fi
 
     ensure mkdir -p "$_dir"
-    local _latest=$(ensure curl -sSf "$ELAN_UPDATE_ROOT/latest" | cut -d'"' -f2 | awk -F/ '{print $NF}')
+    local _latest=$(ensure curl -sSfL -o /dev/null -w %{url_effective} "$ELAN_UPDATE_ROOT/latest" | cut -d'"' -f2 | awk -F/ '{print $NF}')
 
     case "$_arch" in
         *windows*)
