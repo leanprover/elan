@@ -75,7 +75,7 @@ if ($NoModifyPath){
 if ($Verbose){
     $cmdline += " --verbose"
 }
-$details = Start-Process -FilePath "$_dir/elan-init.exe" -ArgumentList $cmdline -Wait -NoNewWindow -Passthru
+$details = Start-Process -FilePath "$_file" -ArgumentList $cmdline -Wait -NoNewWindow -Passthru
 
 $rc = $details.exitCode
 if ($rc -ne 0 ) {
