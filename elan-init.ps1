@@ -39,7 +39,7 @@ $_ext = ".exe"
 $temp = [System.IO.Path]::GetTempPath()
 $_dir = Join-Path $temp "elan"
 if (-not (Test-Path -Path $_dir)) {
-    $x = New-Item -ItemType Directory -Path $_dir
+    $null = New-Item -ItemType Directory -Path $_dir
 }
 $_file = "$_dir/elan-init$_ext"
 
@@ -60,7 +60,7 @@ catch {
     return 1
 }
 
-$x = Expand-Archive -Path "$_dir/elan-init.zip" -DestinationPath "$_dir" -Force
+$null = Expand-Archive -Path "$_dir/elan-init.zip" -DestinationPath "$_dir" -Force
 
 $cmdline = " "
 if ($DefaultToolchain -ne "") {
@@ -83,6 +83,6 @@ if ($rc -ne 0 ) {
     return 1
 }
 
-$rx = Remove-Item -Recurse -Force "$_dir"
+$null = Remove-Item -Recurse -Force "$_dir"
 
 return 0
