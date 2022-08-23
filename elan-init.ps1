@@ -15,37 +15,17 @@
     Which tool chain to setup as your default toolchain, or specify 'none'
 .PARAMETER ElanRoot
     Whee to find the elan-init tool, default is https://github.com/leanprover/elan/release.
+.PARAMETER ElanVersion
+    Specific version of elan to download and run instead of latest, e.g. 1.4.1
 #>
 param(
     [bool]$Verbose = 0,
     [bool]$NoPrompt = 0,
     [bool]$NoModifyPath = 0,
     [string]$DefaultToolchain = "",
-    [string]$ElanRoot = "https://github.com/leanprover/elan/releases"
+    [string]$ElanRoot = "https://github.com/leanprover/elan/releases",
+    [string]$ElanVersion = ""
 )
-
-
-Function Get-RedirectedUrl {
-    Param (
-        [Parameter(Mandatory=$true)]
-        [String]$url
-    )
-
-    $request = [System.Net.WebRequest]::Create($url)
-    $request.AllowAutoRedirect=$true
-    $request.UserAgent = 'Mozilla/5.0 (Windows NT; Windows NT 10.0; en-US) AppleWebKit/534.6 (KHTML, like Gecko) Chrome/7.0.500.0 Safari/534.6'
-
-    try
-    {
-        $response = $request.GetResponse()
-        $response.ResponseUri.AbsoluteUri
-        $response.Close()
-    }
-    catch
-    {
-        "Error: $_"
-    }
-}
 
 $cputype=[System.Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE");
 
@@ -65,10 +45,21 @@ $_file = "$_dir/elan-init$_ext"
 
 Write-Host "info: downloading installer to ${temp}"
 
-$x = Get-RedirectedUrl "https://github.com/leanprover/elan/releases/latest"
-$xs =  -split $x -split '/'
-$_latest = $xs[-1]
-$x = Invoke-WebRequest -Uri "$ElanRoot/download/$_latest/elan-$_arch.zip" -OutFile "$_dir/elan-init.zip"
+try {
+    [string] $DownloadUrl = ""
+    if ($ElanVersion.Length -gt 0) {
+        $DownloadUrl = "$ElanRoot/download/v$ElanVersion/elan-$_arch.zip"
+    }
+    else {
+        $DownloadUrl = "$ElanRoot/latest/download/elan-$_arch.zip"
+    }
+    $null = Start-BitsTransfer -Source $DownloadUrl -Destination "$_dir/elan-init.zip" -ErrorAction Stop
+}
+catch {
+    Write-Host "Download failed for ${DownloadUrl}"
+    return 1
+}
+
 $x = Expand-Archive -Path "$_dir/elan-init.zip" -DestinationPath "$_dir" -Force
 
 $cmdline = " "
