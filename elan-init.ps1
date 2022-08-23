@@ -2,9 +2,9 @@
 .SYNOPSIS
     .
 .DESCRIPTION
-    This is just a little script that can be downloaded from the internet to
-    install elan. It just does platform detection, downloads the installer
-    and runs it.
+    This is just a little script that can be downloaded from the Internet to
+    install elan. It just does platform detection, downloads the latest
+    installer, then runs it.
 .PARAMETER Verbose
     Produce verbose output about the elan installation process.
 .PARAMETER NoPrompt
@@ -14,7 +14,7 @@
 .PARAMETER DefaultToolchain
     Which tool chain to setup as your default toolchain, or specify 'none'
 .PARAMETER ElanRoot
-    Whee to find the elan-init tool, default is https://github.com/leanprover/elan/release.
+    Where to find the elan-init tool, default is https://github.com/leanprover/elan/releases
 .PARAMETER ElanVersion
     Specific version of elan to download and run instead of latest, e.g. 1.4.1
 #>
@@ -30,7 +30,7 @@ param(
 $cputype=[System.Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE");
 
 if ($cputype -ne "AMD64") {
-    Write-Host "### Elan install only supports 64 bit windows with AMD64 architecture"
+    Write-Host "### Elan install only supports 64-bit Windows with AMD64 architecture"
     return 1
 }
 
