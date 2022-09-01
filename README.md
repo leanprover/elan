@@ -60,7 +60,7 @@ The installation will tell you where it will install elan to (`~/.elan` by defau
 ## Homebrew
 
 ```bash
-$ brew install elan
+$ brew install elan-init
 ```
 
 There are currently no M1 releases for elan on Homebrew; use the manual installation above instead.
