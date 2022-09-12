@@ -233,16 +233,16 @@ fn toolchain_url<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Re
                     version,
                     Some(&release),
                 ));
-                format!("https://github.com/{}/releases/tag/{}", origin, release)
+                format!("https://github.com/{}/releases/expanded_assets/{}", origin, release)
             }
             (Some(date), "nightly") => format!(
-                "https://github.com/{}/releases/tag/nightly-{}",
+                "https://github.com/{}/releases/expanded_assets/nightly-{}",
                 origin, date
             ),
             (None, version) if version.starts_with(|c: char| c.is_numeric()) => {
-                format!("https://github.com/{}/releases/tag/v{}", origin, version)
+                format!("https://github.com/{}/releases/expanded_assets/v{}", origin, version)
             }
-            (None, tag) => format!("https://github.com/{}/releases/tag/{}", origin, tag),
+            (None, tag) => format!("https://github.com/{}/releases/expanded_assets/{}", origin, tag),
             _ => panic!("wat"),
         },
     )
