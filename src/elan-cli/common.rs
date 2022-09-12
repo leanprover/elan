@@ -204,7 +204,7 @@ pub fn update_all_channels(cfg: &Cfg, self_update: bool, force_update: bool) -> 
 
     if toolchains.is_empty() {
         info!("no updatable toolchains installed");
-        info!("toolchains can be empty, try: elan toolchain install leanprover/lean4:nightly")
+        info!("toolchains can be empty, try elan toolchain install instead.")
     }
 
     let setup_path = if self_update {
