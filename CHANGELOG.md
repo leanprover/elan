@@ -1,3 +1,7 @@
+# Unreleased
+
+- Fix downloading Lean releases again
+
 # 1.4.1 - 2022-04-15
 
 ## Added
