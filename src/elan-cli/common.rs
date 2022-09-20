@@ -203,7 +203,8 @@ pub fn update_all_channels(cfg: &Cfg, self_update: bool, force_update: bool) -> 
     let toolchains = cfg.update_all_channels(force_update)?;
 
     if toolchains.is_empty() {
-        info!("no updatable toolchains installed");
+        info!("no updatable toolchains installed.");
+        info!("use 'elan toolchain install' to install a toolchain.")
     }
 
     let setup_path = if self_update {
