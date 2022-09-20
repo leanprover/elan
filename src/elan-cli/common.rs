@@ -204,7 +204,7 @@ pub fn update_all_channels(cfg: &Cfg, self_update: bool, force_update: bool) -> 
 
     if toolchains.is_empty() {
         info!("no updatable toolchains installed.");
-        info!("use elan toolchain install to install a toolchain.")
+        info!("use 'elan toolchain install' to install a toolchain.")
     }
 
     let setup_path = if self_update {
