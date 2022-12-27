@@ -4,6 +4,7 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use temp;
 use toml;
+use time::error::ComponentRange;
 
 error_chain! {
     links {
@@ -13,6 +14,7 @@ error_chain! {
     foreign_links {
         Temp(temp::Error);
         Io(io::Error);
+        Time(ComponentRange);
     }
 
     errors {

@@ -23,8 +23,9 @@ remove_dir_all = "0.7.0"
 elan-utils = { path = "../elan-utils" }
 error-chain = "0.12.4"
 json = "0.12.4"
-zip = "0.5.13"
+zip = "0.6"
 filetime = "0.2.14"
+time = "0.3"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3.9", features = ["handleapi", "sysinfoapi", "tlhelp32", "winnt"] }
