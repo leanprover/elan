@@ -18,13 +18,11 @@ jobs:
           - name: Linux
             os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            use-cross: true
             # back compat
             release-target-name: x86_64-unknown-linux-gnu
           - name: Linux aarch64
             os: ubuntu-latest
             target: aarch64-unknown-linux-musl
-            use-cross: true
             skip-tests: true
             # back compat
             release-target-name: aarch64-unknown-linux-gnu
@@ -34,7 +32,6 @@ jobs:
           - name: macOS aarch64
             os: macos-latest
             target: aarch64-apple-darwin
-            use-cross: true
             skip-tests: true
           - name: Windows
             os: windows-latest
@@ -45,11 +42,9 @@ jobs:
       RELEASE_TARGET_NAME: ${{ matrix.release-target-name || matrix.target }}
     steps:
       - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          profile: minimal
+          targets: ${{ matrix.target }}
       - uses: actions/cache@v2
         with:
           path: |
@@ -63,11 +58,9 @@ jobs:
         run: |
           brew install coreutils
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target ${{ matrix.target }}
-          use-cross: ${{ matrix.use-cross }}
+        run: |
+          cargo install cross --locked
+          cross build --release --target ${{ matrix.target }}
       - name: Package
         shell: bash
         run: |
@@ -86,11 +79,8 @@ jobs:
           if-no-files-found: error
       - name: Test
         if: ${{ !matrix.skip-tests }}
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --release --target ${{ matrix.target }}
-          use-cross: ${{ matrix.name == 'Linux' }}
+        run: |
+          cross test --release --target ${{ matrix.target }}
       - name: Install Test
         if: ${{ !matrix.skip-tests }}
         shell: bash
