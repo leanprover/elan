@@ -13,6 +13,7 @@ extern crate error_chain;
 extern crate json;
 extern crate sha2;
 extern crate zip;
+extern crate time;
 
 #[cfg(not(windows))]
 extern crate libc;
