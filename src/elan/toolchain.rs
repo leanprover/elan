@@ -267,7 +267,7 @@ impl<'a> Toolchain<'a> {
     }
 
     fn set_env(&self, cmd: &mut Command) {
-        self.set_ldpath(cmd);
+        self.set_path(cmd);
 
         // Because elan and leanpkg use slightly different
         // definitions of leanpkg home (elan doesn't read HOME on
@@ -283,19 +283,7 @@ impl<'a> Toolchain<'a> {
         cmd.env("ELAN_HOME", &self.cfg.elan_dir);
     }
 
-    pub fn set_ldpath(&self, cmd: &mut Command) {
-        let new_path = self.path.join("lib");
-
-        #[cfg(not(target_os = "macos"))]
-        mod sysenv {
-            pub const LOADER_PATH: &'static str = "LD_LIBRARY_PATH";
-        }
-        #[cfg(target_os = "macos")]
-        mod sysenv {
-            pub const LOADER_PATH: &'static str = "DYLD_LIBRARY_PATH";
-        }
-        env_var::prepend_path(sysenv::LOADER_PATH, vec![new_path.clone()], cmd);
-
+    pub fn set_path(&self, cmd: &mut Command) {
         // Prepend ELAN_HOME/bin to the PATH variable so that we're sure to run
         // leanpkg/lean via the proxy bins. There is no fallback case for if the
         // proxy bins don't exist. We'll just be running whatever happens to

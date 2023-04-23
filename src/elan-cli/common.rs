@@ -240,7 +240,6 @@ pub fn lean_version(toolchain: &Toolchain) -> String {
             cmd.stdin(Stdio::null());
             cmd.stdout(Stdio::piped());
             cmd.stderr(Stdio::piped());
-            toolchain.set_ldpath(&mut cmd);
 
             // some toolchains are faulty with some combinations of platforms and
             // may fail to launch but also to timely terminate.
