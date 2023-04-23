@@ -63,7 +63,7 @@ The installation will tell you where it will install elan to (`~/.elan` by defau
 $ brew install elan-init
 ```
 
-Please note that native macOS/aarch64 releases are unavailable for some toolchains. See [Manual Installation](https://github.com/leanprover/elan/edit/master/README.md#manual-installation) for more information.
+Please note that native macOS/aarch64 releases are unavailable for some toolchains. See [Manual Installation](#manual-installation) for more information.
 
 ## Nix
 
