@@ -1,4 +1,4 @@
-# Unreleased
+# 1.4.3 - 2023-04-24
 
 - Avoid setting `(DY)LD_LIBRARY_PATH` (#90)
 
