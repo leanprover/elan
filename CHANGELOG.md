@@ -1,4 +1,4 @@
-# Unreleased
+# 1.4.4 - 2023-04-24
 
 - Update dependencies
 
