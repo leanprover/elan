@@ -1,3 +1,7 @@
+# Unreleased
+
+- Avoid setting `(DY)LD_LIBRARY_PATH` (#90)
+
 # 1.4.2 - 2022-09-13
 
 - Fix downloading Lean releases again
