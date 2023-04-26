@@ -53,10 +53,11 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Setup macOS
-        if: matrix.name == 'macOS'
+        if: matrix.os == 'macos-latest'
         shell: bash
         run: |
           brew install coreutils
+          echo /usr/local/opt/gnu-tar/libexec/gnubin >> $GITHUB_PATH
       - name: Build
         run: |
           cargo install cross --locked
