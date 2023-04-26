@@ -1,3 +1,7 @@
+# Unreleased
+
+- Fix self update on Apple Silicon (only?) (#78)
+
 # 1.4.4 - 2023-04-24
 
 - Update dependencies
