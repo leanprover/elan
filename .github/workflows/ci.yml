@@ -36,10 +36,12 @@ jobs:
           - name: Windows
             os: windows-latest
             target: x86_64-pc-windows-msvc
+            RUSTFLAGS: -C target-feature=+crt-static
       # complete all jobs
       fail-fast: false
     env:
       RELEASE_TARGET_NAME: ${{ matrix.release-target-name || matrix.target }}
+      RUSTFLAGS: ${{ matrix.RUSTFLAGS }}
     steps:
       - uses: actions/checkout@v2
       - uses: dtolnay/rust-toolchain@stable
@@ -86,6 +88,7 @@ jobs:
         if: ${{ !matrix.skip-tests }}
         shell: bash
         run: |
+          ldd target/${{ matrix.target }}/release/elan-init
           RUST_BACKTRACE=1 target/${{ matrix.target }}/release/elan-init -y
           # not created on Windows
           [ -f ~/.elan/env ] && source ~/.elan/env || export PATH=$PATH:~/.elan/bin
