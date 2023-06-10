@@ -44,6 +44,7 @@ jobs:
             binary-check: ldd
       # complete all jobs
       fail-fast: false
+    name: ${{ matrix.name }}
     env:
       RELEASE_TARGET_NAME: ${{ matrix.release-target-name || matrix.target }}
       RUSTFLAGS: ${{ matrix.RUSTFLAGS }}
