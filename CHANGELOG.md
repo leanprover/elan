@@ -1,4 +1,4 @@
-# Unreleased
+# 1.4.6 - 2023-06-10
 
 - Avoid dependency on the VC++ Redistributable on Windows (#97)
 
