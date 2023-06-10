@@ -1,3 +1,7 @@
+# Unreleased
+
+- Avoid dependency on the VC++ Redistributable on Windows (#97)
+
 # 1.4.5 - 2023-04-26
 
 - Fix self update on Apple Silicon (only?) (#78)
