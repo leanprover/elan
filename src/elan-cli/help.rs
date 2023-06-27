@@ -33,18 +33,18 @@ pub static TOOLCHAIN_HELP: &'static str = r"DISCUSSION:
     Many `elan` commands deal with *toolchains*, a single
     installation of the Lean theorem prover. `elan` supports multiple
     types of toolchains. The most basic track the official release
-    channels: 'stable' and 'nightly'; but `elan` can also
-    install toolchains from the official archives and from local builds.
+    channel: 'nightly'; but `elan` can also install toolchains from
+    the official archives and from local builds.
 
     Standard release channel toolchain names have the following form:
 
         [<origin>:]<channel>[-<date>]
 
-        <channel>       = stable|nightly|<version>
+        <channel>       = nightly|<version>
         <date>          = YYYY-MM-DD
 
     'channel' is either a named release channel or an explicit version
-    number, such as '3.3.0'. Channel names can be optionally appended
+    number, such as '4.0.0-m5'. Channel names can be optionally appended
     with an archive date, as in 'nightly-2018-04-10', in which case
     the toolchain is downloaded from the archive for that date.
     'origin' can be used to refer to custom forks of Lean on Github;
@@ -83,11 +83,7 @@ pub static OVERRIDE_HELP: &'static str = r"DISCUSSION:
 
     To pin to a specific nightly:
 
-        $ elan override set nightly-2018-04-10
-
-    Or a specific stable release:
-
-        $ elan override set 3.3.0
+        $ elan override set nightly-2023-06-27
 
     To see the active toolchain use `elan show`. To remove the
     override and use the default toolchain again, `elan override
@@ -223,6 +219,6 @@ pub static COMPLETIONS_HELP: &'static str = r"DISCUSSION:
 
         PS C:\> elan completions powershell >> %USERPROFILE%\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1";
 
-pub static TOOLCHAIN_ARG_HELP: &'static str = "Toolchain name, such as 'stable', 'nightly', \
-     or '3.3.0'. For more information see `elan \
+pub static TOOLCHAIN_ARG_HELP: &'static str = "Toolchain name, such as 'nightly' \
+     or 'nightly-2023-06-27'. For more information see `elan \
      help toolchain`";
