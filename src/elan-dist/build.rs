@@ -13,5 +13,5 @@ fn main() {
         .unwrap()
         .write_all(target.as_bytes())
         .unwrap();
-    println!("leanpkg:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=build.rs");
 }

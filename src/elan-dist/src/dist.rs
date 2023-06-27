@@ -12,9 +12,7 @@ use std::path::Path;
 
 use regex::Regex;
 
-// fetch latest versions from leanprover-community, but don't break pinned origin-less versions
-const DEFAULT_ORIGIN: &str = "leanprover/lean";
-const DEFAULT_CHANNEL_ORIGIN: &str = "leanprover-community/lean";
+const DEFAULT_ORIGIN: &str = "leanprover/lean4";
 
 // Fully-resolved toolchain descriptors. These always have full target
 // triples attached to them and are used for canonical identification,
@@ -142,13 +140,7 @@ pub fn update_from_dist<'a>(
 //If origin is None use DEFAULT_ORIGIN.
 fn build_origin_name(origin: Option<&String>, version: &str) -> String {
     let repo = match origin {
-        None => {
-            if version == "stable" || version == "nightly" {
-                DEFAULT_CHANNEL_ORIGIN
-            } else {
-                DEFAULT_ORIGIN
-            }
-        }
+        None => DEFAULT_ORIGIN,
         Some(repo) => repo,
     };
     format!(

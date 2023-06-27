@@ -5,7 +5,7 @@ pub fn stderr_isatty() -> bool {
 }
 
 // FIXME: Unfortunately this doesn't detect msys terminals so elan
-// is always colorless there (just like lean and leanpkg).
+// is always colorless there (just like lean and lake).
 #[cfg(windows)]
 pub fn stderr_isatty() -> bool {
     type DWORD = u32;

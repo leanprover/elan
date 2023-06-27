@@ -1,9 +1,10 @@
 pub static ELAN_HELP: &'static str = r"DISCUSSION:
     elan manages your installations of the Lean theorem prover.
-    It places `lean` and `leanpkg` binaries in your `PATH` that automatically select and,
-    if necessary, download the Lean version described in the `lean_version` field of your
-    project's `leanpkg.toml`. You can also install, select, run, and uninstall Lean versions manually
-    using the commands of the `elan` executable.";
+    It places `lean` and `lake` binaries in your `PATH` that automatically
+    select and, if necessary, download the Lean version described in your
+    project's `lean-toolchain` file. You can also install, select, run,
+    and uninstall Lean versions manually using the commands of the `elan`
+    executable.";
 
 pub static SHOW_HELP: &'static str = r"DISCUSSION:
     Shows the name of the active toolchain and the version of `lean`.
@@ -74,12 +75,11 @@ pub static OVERRIDE_HELP: &'static str = r"DISCUSSION:
     running in a specific directory.
 
     elan will automatically select the Lean toolchain specified in
-    the `lean_version` field of the `leanpkg.toml` file when inside
-    a Lean package, but directories can also be assigned their own
-    Lean toolchain manually with `elan override`. When a directory
-    has an override then any time `lean` or `leanpkg` is run inside
-    that directory, or one of its child directories, the override
-    toolchain will be invoked.
+    the `lean-toolchain` file when inside a Lean package, but
+    directories can also be assigned their own Lean toolchain manually
+    with `elan override`. When a directory has an override then any
+    time `lean` or `leanpkg` is run inside that directory, or one of
+    its child directories, the override toolchain will be invoked.
 
     To pin to a specific nightly:
 
@@ -103,17 +103,17 @@ pub static OVERRIDE_UNSET_HELP: &'static str = r"DISCUSSION:
 pub static RUN_HELP: &'static str = r"DISCUSSION:
     Configures an environment to use the given toolchain and then runs
     the specified program. The command may be any program, not just
-    lean or leanpkg. This can be used for testing arbitrary toolchains
+    lean or lake. This can be used for testing arbitrary toolchains
     without setting an override.
 
     Commands explicitly proxied by `elan` (such as `lean` and
-    `leanpkg`) also have a shorthand for this available. The toolchain
+    `lake`) also have a shorthand for this available. The toolchain
     can be set by using `+toolchain` as the first argument. These are
     equivalent:
 
-        $ leanpkg +nightly build
+        $ lake +nightly build
 
-        $ elan run nightly leanpkg build";
+        $ elan run nightly lake build";
 
 pub static _DOC_HELP: &'static str = r"DISCUSSION:
     Opens the documentation for the currently active toolchain with
