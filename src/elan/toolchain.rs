@@ -269,14 +269,6 @@ impl<'a> Toolchain<'a> {
     fn set_env(&self, cmd: &mut Command) {
         self.set_path(cmd);
 
-        // Because elan and leanpkg use slightly different
-        // definitions of leanpkg home (elan doesn't read HOME on
-        // windows), we must set it here to ensure leanpkg and
-        // elan agree.
-        if let Ok(elan_home) = utils::elan_home() {
-            cmd.env("ELAN_HOME", &elan_home);
-        }
-
         env_var::inc("LEAN_RECURSION_COUNT", cmd);
 
         cmd.env("ELAN_TOOLCHAIN", &self.name);
@@ -285,7 +277,7 @@ impl<'a> Toolchain<'a> {
 
     pub fn set_path(&self, cmd: &mut Command) {
         // Prepend ELAN_HOME/bin to the PATH variable so that we're sure to run
-        // leanpkg/lean via the proxy bins. There is no fallback case for if the
+        // lake/lean via the proxy bins. There is no fallback case for if the
         // proxy bins don't exist. We'll just be running whatever happens to
         // be on the PATH.
         let mut path_entries = vec![];

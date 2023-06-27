@@ -69,9 +69,9 @@ macro_rules! pre_install_msg_template {
 
 This will download and install Elan, a tool for managing different Lean versions used in
 packages you create or download. It will also install a default version of Lean and its package
-manager, leanpkg, for editing files not belonging to any package.
+manager, lake, for editing files not belonging to any package.
 
-It will add the `leanpkg`, `lean`, and `elan` commands to
+It will add the `lake`, `lean`, and `elan` commands to
 Elan's bin directory, located at:
 
     {elan_home_bin}
@@ -505,8 +505,8 @@ pub fn install_proxies() -> Result<()> {
     // proxies. In that case our process may actually have the `elan.exe`
     // file open, and on systems like Windows that means that you can't
     // even remove other hard links to the same file. Basically if we have
-    // `elan.exe` open and running and `leanpkg.exe` is a hard link to that
-    // file, we can't remove `leanpkg.exe`.
+    // `elan.exe` open and running and `lean.exe` is a hard link to that
+    // file, we can't remove `lean.exe`.
     //
     // To avoid unnecessary errors from being returned here we use the
     // `same-file` crate and its `Handle` type to avoid clobbering hard links
@@ -598,7 +598,7 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
 
     let read_dir_err = "failure reading directory";
 
-    info!("removing leanpkg home");
+    info!("removing elan home");
 
     // Remove ELAN_HOME/bin from PATH
     let ref remove_path_methods = get_remove_path_methods()?;
