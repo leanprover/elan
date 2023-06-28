@@ -45,7 +45,7 @@ pub static TOOLCHAIN_HELP: &'static str = r"DISCUSSION:
 
     'channel' is either a named release channel or an explicit version
     number, such as '4.0.0-m5'. Channel names can be optionally appended
-    with an archive date, as in 'nightly-2018-04-10', in which case
+    with an archive date, as in 'nightly-2023-06-27', in which case
     the toolchain is downloaded from the archive for that date.
     'origin' can be used to refer to custom forks of Lean on Github;
     the default is 'leanprover/lean'. For nightly versions, '-nightly'
