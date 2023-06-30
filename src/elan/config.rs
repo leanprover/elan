@@ -9,8 +9,7 @@ use elan_dist::temp;
 use elan_utils::utils;
 use errors::*;
 use notifications::*;
-use settings::{Settings, SettingsFile, TelemetryMode};
-use telemetry_analysis::*;
+use settings::{Settings, SettingsFile};
 use toolchain::{Toolchain, UpdateStatus};
 
 use toml;
@@ -403,53 +402,5 @@ impl Cfg {
     pub fn open_docs_for_dir(&self, path: &Path, relative: &str) -> Result<()> {
         let (toolchain, _) = self.toolchain_for_dir(path)?;
         toolchain.open_docs(relative)
-    }
-
-    pub fn set_telemetry(&self, telemetry_enabled: bool) -> Result<()> {
-        if telemetry_enabled {
-            self.enable_telemetry()
-        } else {
-            self.disable_telemetry()
-        }
-    }
-
-    fn enable_telemetry(&self) -> Result<()> {
-        self.settings_file.with_mut(|s| {
-            s.telemetry = TelemetryMode::On;
-            Ok(())
-        })?;
-
-        let _ = utils::ensure_dir_exists("telemetry", &self.elan_dir.join("telemetry"), &|_| ());
-
-        (self.notify_handler)(Notification::SetTelemetry("on"));
-
-        Ok(())
-    }
-
-    fn disable_telemetry(&self) -> Result<()> {
-        self.settings_file.with_mut(|s| {
-            s.telemetry = TelemetryMode::Off;
-            Ok(())
-        })?;
-
-        (self.notify_handler)(Notification::SetTelemetry("off"));
-
-        Ok(())
-    }
-
-    pub fn telemetry_enabled(&self) -> Result<bool> {
-        Ok(match self.settings_file.with(|s| Ok(s.telemetry))? {
-            TelemetryMode::On => true,
-            TelemetryMode::Off => false,
-        })
-    }
-
-    pub fn analyze_telemetry(&self) -> Result<TelemetryAnalysis> {
-        let mut t = TelemetryAnalysis::new(self.elan_dir.join("telemetry"));
-
-        let events = t.import_telemery()?;
-        t.analyze_telemetry_events(&events)?;
-
-        Ok(t)
     }
 }

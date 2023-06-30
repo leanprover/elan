@@ -1,6 +1,5 @@
 use clap::{App, AppSettings, Arg, ArgMatches, Shell, SubCommand};
 use common;
-use elan::settings::TelemetryMode;
 use elan::{command, Cfg, Toolchain};
 use elan_utils::utils;
 use errors::*;
@@ -46,12 +45,6 @@ pub fn main() -> Result<()> {
         ("self", Some(c)) => match c.subcommand() {
             ("update", Some(_)) => self_update::update()?,
             ("uninstall", Some(m)) => self_uninstall(m)?,
-            (_, _) => unreachable!(),
-        },
-        ("telemetry", Some(c)) => match c.subcommand() {
-            ("enable", Some(_)) => set_telemetry(&cfg, TelemetryMode::On)?,
-            ("disable", Some(_)) => set_telemetry(&cfg, TelemetryMode::Off)?,
-            ("analyze", Some(_)) => analyze_telemetry(&cfg)?,
             (_, _) => unreachable!(),
         },
         ("completions", Some(c)) => {
@@ -532,16 +525,4 @@ fn self_uninstall(m: &ArgMatches) -> Result<()> {
     let no_prompt = m.is_present("no-prompt");
 
     self_update::uninstall(no_prompt)
-}
-
-fn set_telemetry(cfg: &Cfg, t: TelemetryMode) -> Result<()> {
-    match t {
-        TelemetryMode::On => Ok(cfg.set_telemetry(true)?),
-        TelemetryMode::Off => Ok(cfg.set_telemetry(false)?),
-    }
-}
-
-fn analyze_telemetry(cfg: &Cfg) -> Result<()> {
-    let analysis = cfg.analyze_telemetry()?;
-    common::show_telemetry(analysis)
 }

@@ -68,12 +68,6 @@ error_chain! {
         NoExeName {
             description("couldn't determine self executable name")
         }
-        TelemetryCleanupError {
-            description("unable to remove old telemetry files")
-        }
-        TelemetryAnalysisError {
-            description("error analyzing telemetry files")
-        }
         InvalidLeanpkgFile(path: PathBuf, error: toml::de::Error) {
             description("couldn't parse 'leanpkg.toml'")
             display("couldn't parse '{}': '{}'", path.display(), error)
