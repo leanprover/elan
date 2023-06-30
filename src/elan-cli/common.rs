@@ -1,6 +1,5 @@
 //! Just a dumping ground for cli stuff
 
-use elan::telemetry_analysis::TelemetryAnalysis;
 use elan::{self, Cfg, Notification, Toolchain, UpdateStatus};
 use elan_utils::notify::NotificationLevel;
 use elan_utils::utils;
@@ -374,12 +373,4 @@ pub fn report_error(e: &Error) {
 
         false
     }
-}
-
-pub fn show_telemetry(analysis: TelemetryAnalysis) -> Result<()> {
-    println!("Telemetry Analysis");
-
-    println!("{}", analysis);
-
-    Ok(())
 }

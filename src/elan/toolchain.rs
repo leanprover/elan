@@ -8,8 +8,6 @@ use env_var;
 use errors::*;
 use install::{self, InstallMethod};
 use notifications::*;
-use telemetry;
-use telemetry::{Telemetry, TelemetryEvent};
 
 use std::env;
 use std::env::consts::EXE_SUFFIX;
@@ -24,7 +22,6 @@ pub struct Toolchain<'a> {
     name: String,
     dir_name: String,
     path: PathBuf,
-    telemetry: telemetry::Telemetry,
     dist_handler: Box<dyn Fn(elan_dist::Notification) + 'a>,
 }
 
@@ -55,7 +52,6 @@ impl<'a> Toolchain<'a> {
             name: name.to_owned(),
             dir_name: dir_name,
             path: path.clone(),
-            telemetry: Telemetry::new(cfg.elan_dir.join("telemetry")),
             dist_handler: Box::new(move |n| (cfg.notify_handler)(n.into())),
         })
     }
@@ -154,13 +150,6 @@ impl<'a> Toolchain<'a> {
     }
 
     pub fn install_from_dist(&self, force_update: bool) -> Result<UpdateStatus> {
-        if self.cfg.telemetry_enabled()? {
-            return self.install_from_dist_with_telemetry(force_update);
-        }
-        self.install_from_dist_inner(force_update)
-    }
-
-    pub fn install_from_dist_inner(&self, force_update: bool) -> Result<UpdateStatus> {
         let update_hash = self.update_hash()?;
         self.install(InstallMethod::Dist(
             &self.desc()?,
@@ -168,36 +157,6 @@ impl<'a> Toolchain<'a> {
             self.download_cfg(),
             force_update,
         ))
-    }
-
-    pub fn install_from_dist_with_telemetry(&self, force_update: bool) -> Result<UpdateStatus> {
-        let result = self.install_from_dist_inner(force_update);
-
-        match result {
-            Ok(us) => {
-                let te = TelemetryEvent::ToolchainUpdate {
-                    toolchain: self.name().to_string(),
-                    success: true,
-                };
-                match self.telemetry.log_telemetry(te) {
-                    Ok(_) => Ok(us),
-                    Err(e) => {
-                        (self.cfg.notify_handler)(Notification::TelemetryCleanupError(&e));
-                        Ok(us)
-                    }
-                }
-            }
-            Err(e) => {
-                let te = TelemetryEvent::ToolchainUpdate {
-                    toolchain: self.name().to_string(),
-                    success: true,
-                };
-                let _ = self.telemetry.log_telemetry(te).map_err(|xe| {
-                    (self.cfg.notify_handler)(Notification::TelemetryCleanupError(&xe));
-                });
-                Err(e)
-            }
-        }
     }
 
     pub fn install_from_dist_if_not_installed(&self) -> Result<UpdateStatus> {
