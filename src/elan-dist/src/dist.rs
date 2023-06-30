@@ -1,4 +1,5 @@
 use download::DownloadCfg;
+use elan_utils::utils::fetch_url;
 use elan_utils::{self, utils};
 use errors::*;
 use manifest::Component;
@@ -17,7 +18,7 @@ const DEFAULT_ORIGIN: &str = "leanprover/lean4";
 // Fully-resolved toolchain descriptors. These always have full target
 // triples attached to them and are used for canonical identification,
 // such as naming their installation directory.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ToolchainDesc {
     // The GitHub source repository to use (if "nightly" is specified, we append "-nightly" to this)
     // If None, we default to "leanprover/lean"
@@ -32,23 +33,29 @@ impl ToolchainDesc {
         let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?(?:(nightly|stable)(?:-(\d{4}-\d{2}-\d{2}))?|([a-zA-Z0-9-.]+))$";
 
         let re = Regex::new(&pattern).unwrap();
-        re.captures(name)
-            .map(|c| {
-                fn fn_map(s: &str) -> Option<String> {
-                    if s == "" {
-                        None
-                    } else {
-                        Some(s.to_owned())
-                    }
+        if let Some(c) = re.captures(name) {
+            fn fn_map(s: &str) -> Option<String> {
+                if s == "" {
+                    None
+                } else {
+                    Some(s.to_owned())
                 }
+            }
+            let origin = c.get(1).map(|s| s.as_str()).and_then(fn_map);
+            let tag = c.get(4).map(|m| m.as_str());
+            if let (Some(ref origin), Some("lean-toolchain")) = (&origin, tag) {
+                let toolchain_url = format!("https://raw.githubusercontent.com/{}/HEAD/lean-toolchain", origin);
+                return ToolchainDesc::from_str(fetch_url(&toolchain_url)?.trim())
+            }
 
-                ToolchainDesc {
-                    origin: c.get(1).map(|s| s.as_str()).and_then(fn_map),
-                    channel: c.get(2).or(c.get(4)).unwrap().as_str().to_owned(),
-                    date: c.get(3).map(|s| s.as_str()).and_then(fn_map),
-                }
+            Ok(ToolchainDesc {
+                origin,
+                channel: c.get(2).map(|s| s.as_str().to_owned()).or(tag.map(|t| t.to_owned())).unwrap(),
+                date: c.get(3).map(|s| s.as_str()).and_then(fn_map),
             })
-            .ok_or(ErrorKind::InvalidToolchainName(name.to_string()).into())
+        } else {
+            Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
+        }
     }
 
     /// Either "$channel" or "channel-$date"
@@ -86,7 +93,7 @@ pub struct Manifest<'a>(temp::File<'a>, String);
 impl fmt::Display for ToolchainDesc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if let Some(ref origin) = self.origin {
-            write!(f, "{}-", str::replace(origin, "/", "-"))?;
+            write!(f, "{}:", origin)?;
         }
 
         write!(f, "{}", &self.channel)?;

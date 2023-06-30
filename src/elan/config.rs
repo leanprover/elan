@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
+use elan_dist::dist::ToolchainDesc;
 use elan_dist::temp;
 use elan_utils::utils;
 use errors::*;
@@ -104,7 +105,7 @@ impl Cfg {
         })
     }
 
-    pub fn set_default(&self, toolchain: &str) -> Result<()> {
+    pub fn set_default(&self, toolchain: &ToolchainDesc) -> Result<()> {
         self.settings_file.with_mut(|s| {
             s.default_toolchain = Some(toolchain.to_owned());
             Ok(())
@@ -113,7 +114,7 @@ impl Cfg {
         Ok(())
     }
 
-    pub fn get_toolchain(&self, name: &str, create_parent: bool) -> Result<Toolchain> {
+    pub fn get_toolchain(&self, name: &ToolchainDesc, create_parent: bool) -> Result<Toolchain> {
         if create_parent {
             utils::ensure_dir_exists("toolchains", &self.toolchains_dir, &|n| {
                 (self.notify_handler)(n.into())
@@ -123,7 +124,7 @@ impl Cfg {
         Toolchain::from(self, name)
     }
 
-    pub fn verify_toolchain(&self, name: &str) -> Result<Toolchain> {
+    pub fn verify_toolchain(&self, name: &ToolchainDesc) -> Result<Toolchain> {
         let toolchain = self.get_toolchain(name, false)?;
         toolchain.verify()?;
         Ok(toolchain)
@@ -155,7 +156,7 @@ impl Cfg {
         if let Some(name) = opt_name {
             let toolchain = self
                 .verify_toolchain(&name)
-                .chain_err(|| ErrorKind::ToolchainNotInstalled(name.to_string()))?;
+                .chain_err(|| ErrorKind::ToolchainNotInstalled(name))?;
 
             Ok(Some(toolchain))
         } else {
@@ -168,7 +169,7 @@ impl Cfg {
 
         // First check ELAN_TOOLCHAIN
         if let Some(ref name) = self.env_override {
-            override_ = Some((name.to_string(), OverrideReason::Environment));
+            override_ = Some((ToolchainDesc::from_str(name)?, OverrideReason::Environment));
         }
 
         // Then walk up the directory tree from 'path' looking for either the
@@ -228,7 +229,7 @@ impl Cfg {
                 }
                 Err(e) => Err(e)
                     .chain_err(|| Error::from(reason_err))
-                    .chain_err(|| ErrorKind::OverrideToolchainNotInstalled(name.to_string())),
+                    .chain_err(|| ErrorKind::OverrideToolchainNotInstalled(name)),
             }
         } else {
             Ok(None)
@@ -239,7 +240,7 @@ impl Cfg {
         &self,
         dir: &Path,
         settings: &Settings,
-    ) -> Result<Option<(String, OverrideReason)>> {
+    ) -> Result<Option<(ToolchainDesc, OverrideReason)>> {
         let notify = self.notify_handler.as_ref();
         let dir = utils::canonicalize_path(dir, &|n| notify(n.into()));
         let mut dir = Some(&*dir);
@@ -256,8 +257,9 @@ impl Cfg {
             if let Ok(s) = utils::read_file("toolchain file", &toolchain_file) {
                 if let Some(s) = s.lines().next() {
                     let toolchain_name = s.trim();
+                    let desc = ToolchainDesc::from_str(toolchain_name)?;
                     let reason = OverrideReason::ToolchainFile(toolchain_file);
-                    return Ok(Some((toolchain_name.to_string(), reason)));
+                    return Ok(Some((desc, reason)));
                 }
             }
 
@@ -273,10 +275,8 @@ impl Cfg {
                 {
                     None => {}
                     Some(toml::Value::String(s)) => {
-                        return Ok(Some((
-                            s.to_string(),
-                            OverrideReason::LeanpkgFile(leanpkg_file),
-                        )))
+                        let desc = ToolchainDesc::from_str(s)?;
+                        return Ok(Some((desc, OverrideReason::LeanpkgFile(leanpkg_file))))
                     }
                     Some(a) => {
                         return Err(ErrorKind::InvalidLeanVersion(leanpkg_file, a.type_str()).into())
@@ -290,7 +290,7 @@ impl Cfg {
                 if let Some(last) = d.file_name() {
                     if let Some(last) = last.to_str() {
                         return Ok(Some((
-                            last.to_string(),
+                            ToolchainDesc::from_str(last)?,
                             OverrideReason::InToolchainDirectory(d.into()),
                         )));
                     }
@@ -314,11 +314,11 @@ impl Cfg {
         )
     }
 
-    pub fn get_default(&self) -> Result<Option<String>> {
+    pub fn get_default(&self) -> Result<Option<ToolchainDesc>> {
         self.settings_file.with(|s| Ok(s.default_toolchain.clone()))
     }
 
-    pub fn list_toolchains(&self) -> Result<Vec<String>> {
+    pub fn list_toolchains(&self) -> Result<Vec<ToolchainDesc>> {
         // de-sanitize toolchain file names (best effort...)
         fn insane(s: String) -> String {
             s.replace("---", ":").replace("--", "/")
@@ -333,6 +333,7 @@ impl Cfg {
 
             utils::toolchain_sort(&mut toolchains);
 
+            let toolchains: Vec<_> = toolchains.iter().map(|s| ToolchainDesc::from_str(&s)).collect::<elan_dist::Result<Vec<_>>>()?;
             Ok(toolchains)
         } else {
             Ok(Vec::new())
@@ -342,7 +343,7 @@ impl Cfg {
     pub fn update_all_channels(
         &self,
         force_update: bool,
-    ) -> Result<Vec<(String, Result<UpdateStatus>)>> {
+    ) -> Result<Vec<(ToolchainDesc, Result<UpdateStatus>)>> {
         let toolchains = self.list_toolchains()?;
 
         // Convert the toolchain strings to Toolchain values
@@ -382,7 +383,7 @@ impl Cfg {
 
     pub fn create_command_for_toolchain(
         &self,
-        toolchain: &str,
+        toolchain: &ToolchainDesc,
         install_if_missing: bool,
         binary: &str,
     ) -> Result<Command> {

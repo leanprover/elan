@@ -1,5 +1,7 @@
 # Unreleased
 
+- Support toolchain reference `<origin>:lean-toolchain` that refers to the toolchain referred to by the contents of the given GitHub file (#99)
+
 - Default to Lean 4 (#98)
 
 # 1.4.6 - 2023-06-10

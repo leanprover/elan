@@ -1,3 +1,4 @@
+use elan_dist::dist::ToolchainDesc;
 use errors::*;
 use notifications::*;
 use std::cell::RefCell;
@@ -72,8 +73,8 @@ pub enum TelemetryMode {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Settings {
     pub version: String,
-    pub default_toolchain: Option<String>,
-    pub overrides: BTreeMap<String, String>,
+    pub default_toolchain: Option<ToolchainDesc>,
+    pub overrides: BTreeMap<String, ToolchainDesc>,
     pub telemetry: TelemetryMode,
 }
 
@@ -107,7 +108,7 @@ impl Settings {
     pub fn add_override(
         &mut self,
         path: &Path,
-        toolchain: String,
+        toolchain: ToolchainDesc,
         notify_handler: &dyn Fn(Notification),
     ) {
         let key = Self::path_to_key(path, notify_handler);
@@ -119,7 +120,7 @@ impl Settings {
         &self,
         dir: &Path,
         notify_handler: &dyn Fn(Notification),
-    ) -> Option<String> {
+    ) -> Option<ToolchainDesc> {
         let key = Self::path_to_key(dir, notify_handler);
         self.overrides.get(&key).map(|s| s.clone())
     }
@@ -139,7 +140,7 @@ impl Settings {
         }
         Ok(Settings {
             version: version,
-            default_toolchain: get_opt_string(&mut table, "default_toolchain", path)?,
+            default_toolchain: get_opt_string(&mut table, "default_toolchain", path)?.map(|s| ToolchainDesc::from_str(&s)).map_or(Ok(None), |r| r.map(Some))?,
             overrides: Self::table_to_overrides(&mut table, path)?,
             telemetry: if get_opt_bool(&mut table, "telemetry", path)?.unwrap_or(false) {
                 TelemetryMode::On
@@ -154,7 +155,7 @@ impl Settings {
         result.insert("version".to_owned(), toml::Value::String(self.version));
 
         if let Some(v) = self.default_toolchain {
-            result.insert("default_toolchain".to_owned(), toml::Value::String(v));
+            result.insert("default_toolchain".to_owned(), toml::Value::String(v.to_string()));
         }
 
         let overrides = Self::overrides_to_table(self.overrides);
@@ -169,23 +170,23 @@ impl Settings {
     fn table_to_overrides(
         table: &mut toml::value::Table,
         path: &str,
-    ) -> Result<BTreeMap<String, String>> {
+    ) -> Result<BTreeMap<String, ToolchainDesc>> {
         let mut result = BTreeMap::new();
         let pkg_table = get_table(table, "overrides", path)?;
 
         for (k, v) in pkg_table {
             if let toml::Value::String(t) = v {
-                result.insert(k, t);
+                result.insert(k, ToolchainDesc::from_str(&t)?);
             }
         }
 
         Ok(result)
     }
 
-    fn overrides_to_table(overrides: BTreeMap<String, String>) -> toml::value::Table {
+    fn overrides_to_table(overrides: BTreeMap<String, ToolchainDesc>) -> toml::value::Table {
         let mut result = toml::value::Table::new();
         for (k, v) in overrides {
-            result.insert(k, toml::Value::String(v));
+            result.insert(k, toml::Value::String(v.to_string()));
         }
         result
     }

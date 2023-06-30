@@ -32,6 +32,7 @@
 
 use common::{self, Confirm};
 use elan_dist::dist;
+use elan_dist::dist::ToolchainDesc;
 use elan_utils::utils;
 use errors::*;
 use flate2;
@@ -548,11 +549,12 @@ fn maybe_install_lean(toolchain_str: &str, verbose: bool) -> Result<()> {
         info!("skipping toolchain installation");
         println!("");
     } else if cfg.find_default()?.is_none() {
-        let toolchain = cfg.get_toolchain(toolchain_str, false)?;
+        let desc = ToolchainDesc::from_str(toolchain_str)?;
+        let toolchain = cfg.get_toolchain(&desc, false)?;
         let status = toolchain.install_from_dist(false)?;
-        cfg.set_default(toolchain_str)?;
+        cfg.set_default(&desc)?;
         println!("");
-        common::show_channel_update(cfg, toolchain_str, Ok(status))?;
+        common::show_channel_update(cfg, &desc, Ok(status))?;
     } else {
         info!("updating existing elan installation");
         println!("");
