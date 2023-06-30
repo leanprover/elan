@@ -497,16 +497,11 @@ pub fn toolchain_sort<T: AsRef<str>>(v: &mut Vec<T>) {
     });
 }
 
-// fetch from HTML page instead of Github API to avoid rate limit
-pub fn fetch_latest_release_tag(repo_slug: &str) -> Result<String> {
-    use regex::Regex;
-
-    let latest_url = format!("https://github.com/{}/releases/latest", repo_slug);
-
+pub fn fetch_url(url: &str) -> Result<String> {
     let mut data = Vec::new();
     ::download::curl::EASY.with(|handle| {
         let mut handle = handle.borrow_mut();
-        handle.url(&latest_url).unwrap();
+        handle.url(url).unwrap();
         handle.follow_location(true).unwrap();
         {
             let mut transfer = handle.transfer();
@@ -519,8 +514,15 @@ pub fn fetch_latest_release_tag(repo_slug: &str) -> Result<String> {
             transfer.perform().unwrap();
         }
     });
-    let redirect =
-        ::std::str::from_utf8(&data).chain_err(|| "failed to decode release tag response")?;
+    ::std::str::from_utf8(&data).chain_err(|| "failed to decode response").map(|s| s.to_owned())
+}
+
+// fetch from HTML page instead of Github API to avoid rate limit
+pub fn fetch_latest_release_tag(repo_slug: &str) -> Result<String> {
+    use regex::Regex;
+
+    let latest_url = format!("https://github.com/{}/releases/latest", repo_slug);
+    let redirect = fetch_url(&latest_url)?;
     let re = Regex::new(r#"/tag/([-a-z0-9.]+)"#).unwrap();
     let capture = re.captures(&redirect);
     match capture {

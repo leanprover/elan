@@ -19,7 +19,7 @@ use std::process::Command;
 /// A fully resolved reference to a toolchain which may or may not exist
 pub struct Toolchain<'a> {
     cfg: &'a Cfg,
-    name: String,
+    pub desc: ToolchainDesc,
     dir_name: String,
     path: PathBuf,
     dist_handler: Box<dyn Fn(elan_dist::Notification) + 'a>,
@@ -40,26 +40,23 @@ pub enum UpdateStatus {
 }
 
 impl<'a> Toolchain<'a> {
-    pub fn from(cfg: &'a Cfg, name: &str) -> Result<Self> {
+    pub fn from(cfg: &'a Cfg, desc: &ToolchainDesc) -> Result<Self> {
         //We need to replace ":" and "/" with "-" in the toolchain name in order to make a name which is a valid
         //name for a directory.
-        let dir_name = name.replace("/", "--").replace(":", "---");
+        let dir_name = desc.to_string().replace("/", "--").replace(":", "---");
 
         let path = cfg.toolchains_dir.join(&dir_name[..]);
 
         Ok(Toolchain {
             cfg: cfg,
-            name: name.to_owned(),
+            desc: desc.clone(),
             dir_name: dir_name,
             path: path.clone(),
             dist_handler: Box::new(move |n| (cfg.notify_handler)(n.into())),
         })
     }
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-    pub fn desc(&self) -> Result<ToolchainDesc> {
-        Ok(ToolchainDesc::from_str(&self.name)?)
+    pub fn name(&self) -> String {
+        self.desc.to_string()
     }
     pub fn path(&self) -> &Path {
         &self.path
@@ -85,9 +82,9 @@ impl<'a> Toolchain<'a> {
     }
     pub fn remove(&self) -> Result<()> {
         if self.exists() || self.is_symlink() {
-            (self.cfg.notify_handler)(Notification::UninstallingToolchain(&self.name));
+            (self.cfg.notify_handler)(Notification::UninstallingToolchain(&self.desc));
         } else {
-            (self.cfg.notify_handler)(Notification::ToolchainNotInstalled(&self.name));
+            (self.cfg.notify_handler)(Notification::ToolchainNotInstalled(&self.desc));
             return Ok(());
         }
         if let Some(update_hash) = self.update_hash()? {
@@ -95,24 +92,24 @@ impl<'a> Toolchain<'a> {
         }
         let result = install::uninstall(&self.path, &|n| (self.cfg.notify_handler)(n.into()));
         if !self.exists() {
-            (self.cfg.notify_handler)(Notification::UninstalledToolchain(&self.name));
+            (self.cfg.notify_handler)(Notification::UninstalledToolchain(&self.desc));
         }
         Ok(result?)
     }
     fn install(&self, install_method: InstallMethod) -> Result<UpdateStatus> {
         let exists = self.exists();
         if exists {
-            (self.cfg.notify_handler)(Notification::UpdatingToolchain(&self.name));
+            (self.cfg.notify_handler)(Notification::UpdatingToolchain(&self.desc));
         } else {
-            (self.cfg.notify_handler)(Notification::InstallingToolchain(&self.name));
+            (self.cfg.notify_handler)(Notification::InstallingToolchain(&self.desc));
         }
-        (self.cfg.notify_handler)(Notification::ToolchainDirectory(&self.path, &self.name));
+        (self.cfg.notify_handler)(Notification::ToolchainDirectory(&self.path, &self.desc));
         let updated = install_method.run(&self.path, &|n| (self.cfg.notify_handler)(n.into()))?;
 
         if !updated {
             (self.cfg.notify_handler)(Notification::UpdateHashMatches);
         } else {
-            (self.cfg.notify_handler)(Notification::InstalledToolchain(&self.name));
+            (self.cfg.notify_handler)(Notification::InstalledToolchain(&self.desc));
         }
 
         let status = match (updated, exists) {
@@ -125,11 +122,11 @@ impl<'a> Toolchain<'a> {
         Ok(status)
     }
     fn install_if_not_installed(&self, install_method: InstallMethod) -> Result<UpdateStatus> {
-        (self.cfg.notify_handler)(Notification::LookingForToolchain(&self.name));
+        (self.cfg.notify_handler)(Notification::LookingForToolchain(&self.desc));
         if !self.exists() {
             Ok(self.install(install_method)?)
         } else {
-            (self.cfg.notify_handler)(Notification::UsingExistingToolchain(&self.name));
+            (self.cfg.notify_handler)(Notification::UsingExistingToolchain(&self.desc));
             Ok(UpdateStatus::Unchanged)
         }
     }
@@ -152,7 +149,7 @@ impl<'a> Toolchain<'a> {
     pub fn install_from_dist(&self, force_update: bool) -> Result<UpdateStatus> {
         let update_hash = self.update_hash()?;
         self.install(InstallMethod::Dist(
-            &self.desc()?,
+            &self.desc,
             update_hash.as_ref().map(|p| &**p),
             self.download_cfg(),
             force_update,
@@ -162,17 +159,14 @@ impl<'a> Toolchain<'a> {
     pub fn install_from_dist_if_not_installed(&self) -> Result<UpdateStatus> {
         let update_hash = self.update_hash()?;
         self.install_if_not_installed(InstallMethod::Dist(
-            &self.desc()?,
+            &self.desc,
             update_hash.as_ref().map(|p| &**p),
             self.download_cfg(),
             false,
         ))
     }
     pub fn is_tracking(&self) -> bool {
-        ToolchainDesc::from_str(&self.name)
-            .ok()
-            .map(|d| d.is_tracking())
-            == Some(true)
+        self.desc.is_tracking()
     }
 
     pub fn install_from_dir(&self, src: &Path, link: bool) -> Result<()> {
@@ -194,7 +188,7 @@ impl<'a> Toolchain<'a> {
 
     pub fn create_command<T: AsRef<OsStr>>(&self, binary: T) -> Result<Command> {
         if !self.exists() {
-            return Err(ErrorKind::ToolchainNotInstalled(self.name.to_owned()).into());
+            return Err(ErrorKind::ToolchainNotInstalled(self.desc.clone()).into());
         }
 
         let bin_path = self.binary_file(&binary);
@@ -207,7 +201,7 @@ impl<'a> Toolchain<'a> {
                 .unwrap_or(0);
             if recursion_count > env_var::LEAN_RECURSION_COUNT_MAX - 1 {
                 return Err(ErrorKind::BinaryNotFound(
-                    self.name.clone(),
+                    self.desc.clone(),
                     bin_path.to_str().unwrap().into(),
                 )
                 .into());
@@ -230,7 +224,7 @@ impl<'a> Toolchain<'a> {
 
         env_var::inc("LEAN_RECURSION_COUNT", cmd);
 
-        cmd.env("ELAN_TOOLCHAIN", &self.name);
+        cmd.env("ELAN_TOOLCHAIN", &self.name());
         cmd.env("ELAN_HOME", &self.cfg.elan_dir);
     }
 
@@ -270,11 +264,11 @@ impl<'a> Toolchain<'a> {
     }
 
     pub fn make_default(&self) -> Result<()> {
-        self.cfg.set_default(&self.name)
+        self.cfg.set_default(&self.desc)
     }
     pub fn make_override(&self, path: &Path) -> Result<()> {
         Ok(self.cfg.settings_file.with_mut(|s| {
-            s.add_override(path, self.name.clone(), self.cfg.notify_handler.as_ref());
+            s.add_override(path, self.desc.clone(), self.cfg.notify_handler.as_ref());
             Ok(())
         })?)
     }

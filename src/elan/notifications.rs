@@ -1,6 +1,7 @@
 use std::fmt::{self, Display};
 use std::path::{Path, PathBuf};
 
+use elan_dist::dist::ToolchainDesc;
 use errors::*;
 
 use elan_dist::{self, temp};
@@ -13,17 +14,17 @@ pub enum Notification<'a> {
     Utils(elan_utils::Notification<'a>),
     Temp(temp::Notification<'a>),
 
-    SetDefaultToolchain(&'a str),
-    SetOverrideToolchain(&'a Path, &'a str),
-    LookingForToolchain(&'a str),
-    ToolchainDirectory(&'a Path, &'a str),
-    UpdatingToolchain(&'a str),
-    InstallingToolchain(&'a str),
-    InstalledToolchain(&'a str),
-    UsingExistingToolchain(&'a str),
-    UninstallingToolchain(&'a str),
-    UninstalledToolchain(&'a str),
-    ToolchainNotInstalled(&'a str),
+    SetDefaultToolchain(&'a ToolchainDesc),
+    SetOverrideToolchain(&'a Path, &'a ToolchainDesc),
+    LookingForToolchain(&'a ToolchainDesc),
+    ToolchainDirectory(&'a Path, &'a ToolchainDesc),
+    UpdatingToolchain(&'a ToolchainDesc),
+    InstallingToolchain(&'a ToolchainDesc),
+    InstalledToolchain(&'a ToolchainDesc),
+    UsingExistingToolchain(&'a ToolchainDesc),
+    UninstallingToolchain(&'a ToolchainDesc),
+    UninstalledToolchain(&'a ToolchainDesc),
+    ToolchainNotInstalled(&'a ToolchainDesc),
     UpdateHashMatches,
     UpgradingMetadata(&'a str, &'a str),
     MetadataUpgradeNotNeeded(&'a str),

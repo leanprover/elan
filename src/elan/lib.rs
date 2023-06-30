@@ -7,7 +7,6 @@ extern crate error_chain;
 extern crate itertools;
 extern crate regex;
 extern crate url;
-#[macro_use]
 extern crate serde_derive;
 #[cfg(unix)]
 extern crate libc;

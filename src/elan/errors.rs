@@ -3,6 +3,7 @@ use elan_dist::{self, temp};
 use elan_utils;
 use std::path::PathBuf;
 use toml;
+use elan_dist::dist::ToolchainDesc;
 
 error_chain! {
     links {
@@ -19,18 +20,18 @@ error_chain! {
             description("unknown metadata version")
             display("unknown metadata version: '{}'", v)
         }
-        ToolchainNotInstalled(t: String) {
+        ToolchainNotInstalled(t: ToolchainDesc) {
             description("toolchain is not installed")
             display("toolchain '{}' is not installed", t)
         }
         NoDefaultToolchain {
             description("no default toolchain configured. run `elan default nightly` to install & configure the latest Lean 4 nightly release.")
         }
-        OverrideToolchainNotInstalled(t: String) {
+        OverrideToolchainNotInstalled(t: ToolchainDesc) {
             description("override toolchain is not installed")
             display("override toolchain '{}' is not installed", t)
         }
-        BinaryNotFound(t: String, bin: String) {
+        BinaryNotFound(t: ToolchainDesc, bin: String) {
             description("toolchain does not contain binary")
             display("toolchain '{}' does not have the binary `{}`", t, bin)
         }
@@ -44,23 +45,10 @@ error_chain! {
             description("invalid extension for installer")
             display("invalid extension for installer: '{}'", s)
         }
-        ComponentsUnsupported(t: String) {
-            description("toolchain does not support components")
-            display("toolchain '{}' does not support components", t)
-        }
-        UnknownComponent(t: String, c: Component) {
-            description("toolchain does not contain component")
-            display("toolchain '{}' does not contain component {}", t, c.description())
-        }
-        AddingRequiredComponent(t: String, c: Component) {
-            description("required component cannot be added")
-            display("component {} was automatically added because it is required for toolchain '{}'",
-                    c.description(), t)
-        }
         ParsingSettings(e: toml::de::Error) {
             description("error parsing settings")
         }
-        RemovingRequiredComponent(t: String, c: Component) {
+        RemovingRequiredComponent(t: ToolchainDesc, c: Component) {
             description("required component cannot be removed")
             display("component {} is required for toolchain '{}' and cannot be removed",
                     c.description(), t)

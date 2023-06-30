@@ -1,6 +1,7 @@
 //! Just a dumping ground for cli stuff
 
 use elan::{self, Cfg, Notification, Toolchain, UpdateStatus};
+use elan_dist::dist::ToolchainDesc;
 use elan_utils::notify::NotificationLevel;
 use elan_utils::utils;
 use errors::*;
@@ -133,19 +134,20 @@ pub fn set_globals(verbose: bool) -> Result<Cfg> {
 
 pub fn show_channel_update(
     cfg: &Cfg,
-    name: &str,
+    name: &ToolchainDesc,
     updated: elan::Result<UpdateStatus>,
 ) -> Result<()> {
-    show_channel_updates(cfg, vec![(name.to_string(), updated)])
+    show_channel_updates(cfg, vec![(name.clone(), updated)])
 }
 
 fn show_channel_updates(
     cfg: &Cfg,
-    toolchains: Vec<(String, elan::Result<UpdateStatus>)>,
+    toolchains: Vec<(ToolchainDesc, elan::Result<UpdateStatus>)>,
 ) -> Result<()> {
-    let data = toolchains.into_iter().map(|(name, result)| {
-        let ref toolchain = cfg.get_toolchain(&name, false).expect("");
+    let data = toolchains.into_iter().map(|(desc, result)| {
+        let ref toolchain = cfg.get_toolchain(&desc, false).expect("");
         let version = lean_version(toolchain);
+        let name = desc.to_string();
 
         let banner;
         let color;
@@ -288,7 +290,7 @@ pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
     } else {
         if let Ok(Some(def_toolchain)) = cfg.find_default() {
             for toolchain in toolchains {
-                let if_default = if def_toolchain.name() == &*toolchain {
+                let if_default = if def_toolchain.name() == toolchain.to_string() {
                     " (default)"
                 } else {
                     ""
