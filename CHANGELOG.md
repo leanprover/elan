@@ -1,4 +1,4 @@
-# Unreleased
+# 2.0.0 - 2023-07-03
 
 - Support toolchain reference `<origin>:lean-toolchain` that refers to the toolchain referred to by the contents of the given GitHub file (#99)
 
