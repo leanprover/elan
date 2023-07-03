@@ -11,6 +11,7 @@
           nativeBuildInputs = with pkgs; [
             rustc
             cargo
+            cargo-release
             gcc
           ];
 
