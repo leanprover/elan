@@ -141,7 +141,7 @@ impl DownloadTracker {
                 let eta_h = HumanReadable(remaining / speed);
                 let _ = write!(
                     self.term.as_mut().unwrap(),
-                    "{} / {} ({:3.0} %) {}/s ETA: {:#}",
+                    "\x0d{} / {} ({:3.0} %) {}/s ETA: {:#}",
                     total_h,
                     content_len_h,
                     percent,
