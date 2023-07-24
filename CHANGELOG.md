@@ -1,4 +1,4 @@
-# Unreleased
+# 2.0.1 - 2023-07-24
 
 - Fix download progress display on Windows (#101)
 

@@ -1,7 +1,7 @@
 [package]
 
 name = "elan"
-version = "2.0.0"
+version = "2.0.1"
 authors = [ "Sebastian Ullrich <sebasti@nullri.ch>" ]
 description = "Manage multiple Lean installations with ease"
 publish = false
