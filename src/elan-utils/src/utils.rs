@@ -28,49 +28,49 @@ pub fn ensure_dir_exists(
         notify_handler(Notification::CreatingDirectory(name, p))
     })
     .chain_err(|| ErrorKind::CreatingDirectory {
-        name: name,
+        name,
         path: PathBuf::from(path),
     })
 }
 
 pub fn read_file(name: &'static str, path: &Path) -> Result<String> {
     raw::read_file(path).chain_err(|| ErrorKind::ReadingFile {
-        name: name,
+        name,
         path: PathBuf::from(path),
     })
 }
 
 pub fn write_file(name: &'static str, path: &Path, contents: &str) -> Result<()> {
     raw::write_file(path, contents).chain_err(|| ErrorKind::WritingFile {
-        name: name,
+        name,
         path: PathBuf::from(path),
     })
 }
 
 pub fn append_file(name: &'static str, path: &Path, line: &str) -> Result<()> {
     raw::append_file(path, line).chain_err(|| ErrorKind::WritingFile {
-        name: name,
+        name,
         path: PathBuf::from(path),
     })
 }
 
 pub fn write_line(name: &'static str, file: &mut File, path: &Path, line: &str) -> Result<()> {
     writeln!(file, "{}", line).chain_err(|| ErrorKind::WritingFile {
-        name: name,
+        name,
         path: path.to_path_buf(),
     })
 }
 
 pub fn write_str(name: &'static str, file: &mut File, path: &Path, s: &str) -> Result<()> {
     write!(file, "{}", s).chain_err(|| ErrorKind::WritingFile {
-        name: name,
+        name,
         path: path.to_path_buf(),
     })
 }
 
 pub fn rename_file(name: &'static str, src: &Path, dest: &Path) -> Result<()> {
     fs::rename(src, dest).chain_err(|| ErrorKind::RenamingFile {
-        name: name,
+        name,
         src: PathBuf::from(src),
         dest: PathBuf::from(dest),
     })
@@ -78,7 +78,7 @@ pub fn rename_file(name: &'static str, src: &Path, dest: &Path) -> Result<()> {
 
 pub fn rename_dir(name: &'static str, src: &Path, dest: &Path) -> Result<()> {
     fs::rename(src, dest).chain_err(|| ErrorKind::RenamingDirectory {
-        name: name,
+        name,
         src: PathBuf::from(src),
         dest: PathBuf::from(dest),
     })
@@ -91,7 +91,7 @@ pub fn filter_file<F: FnMut(&str) -> bool>(
     filter: F,
 ) -> Result<usize> {
     raw::filter_file(src, dest, filter).chain_err(|| ErrorKind::FilteringFile {
-        name: name,
+        name,
         src: PathBuf::from(src),
         dest: PathBuf::from(dest),
     })
@@ -103,7 +103,7 @@ pub fn match_file<T, F: FnMut(&str) -> Option<T>>(
     f: F,
 ) -> Result<Option<T>> {
     raw::match_file(src, f).chain_err(|| ErrorKind::ReadingFile {
-        name: name,
+        name,
         path: PathBuf::from(src),
     })
 }
@@ -117,7 +117,7 @@ pub fn canonicalize_path(path: &Path, notify_handler: &dyn Fn(Notification)) -> 
 
 pub fn tee_file<W: io::Write>(name: &'static str, path: &Path, w: &mut W) -> Result<()> {
     raw::tee_file(path, w).chain_err(|| ErrorKind::ReadingFile {
-        name: name,
+        name,
         path: PathBuf::from(path),
     })
 }
@@ -326,21 +326,21 @@ pub fn remove_dir(
 ) -> Result<()> {
     notify_handler(Notification::RemovingDirectory(name, path));
     raw::remove_dir(path).chain_err(|| ErrorKind::RemovingDirectory {
-        name: name,
+        name,
         path: PathBuf::from(path),
     })
 }
 
 pub fn remove_file(name: &'static str, path: &Path) -> Result<()> {
     fs::remove_file(path).chain_err(|| ErrorKind::RemovingFile {
-        name: name,
+        name,
         path: PathBuf::from(path),
     })
 }
 
 pub fn read_dir(name: &'static str, path: &Path) -> Result<fs::ReadDir> {
     fs::read_dir(path).chain_err(|| ErrorKind::ReadingDirectory {
-        name: name,
+        name,
         path: PathBuf::from(path),
     })
 }

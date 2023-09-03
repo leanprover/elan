@@ -40,7 +40,7 @@ impl<'a> InstallMethod<'a> {
                 Ok(true)
             }
             InstallMethod::Link(src) => {
-                utils::symlink_dir(src, &path, &|n| notify_handler(n.into()))?;
+                utils::symlink_dir(src, path, &|n| notify_handler(n.into()))?;
                 Ok(true)
             }
             InstallMethod::Dist(toolchain, update_hash, dl_cfg, force_update) => {

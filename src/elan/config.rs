@@ -93,15 +93,15 @@ impl Cfg {
         );
 
         Ok(Cfg {
-            elan_dir: elan_dir,
-            settings_file: settings_file,
-            toolchains_dir: toolchains_dir,
-            update_hash_dir: update_hash_dir,
-            download_dir: download_dir,
-            temp_cfg: temp_cfg,
+            elan_dir,
+            settings_file,
+            toolchains_dir,
+            update_hash_dir,
+            download_dir,
+            temp_cfg,
             //gpg_key: gpg_key,
-            notify_handler: notify_handler,
-            env_override: env_override,
+            notify_handler,
+            env_override,
         })
     }
 
@@ -190,7 +190,8 @@ impl Cfg {
 
             let reason_err = match reason {
                 OverrideReason::Environment => {
-                    format!("the ELAN_TOOLCHAIN environment variable specifies an uninstalled toolchain")
+                    "the ELAN_TOOLCHAIN environment variable specifies an uninstalled toolchain"
+                        .to_string()
                 }
                 OverrideReason::OverrideDB(ref path) => {
                     format!(
@@ -335,7 +336,7 @@ impl Cfg {
 
             let toolchains: Vec<_> = toolchains
                 .iter()
-                .map(|s| ToolchainDesc::from_str(&s))
+                .map(|s| ToolchainDesc::from_str(s))
                 .collect::<elan_dist::Result<Vec<_>>>()?;
             Ok(toolchains)
         } else {
@@ -355,7 +356,7 @@ impl Cfg {
 
         // Filter out toolchains that don't track a release channel
         let toolchains =
-            toolchains.filter(|&(_, ref t)| t.as_ref().map(|t| t.is_tracking()).unwrap_or(false));
+            toolchains.filter(|(_, t)| t.as_ref().map(|t| t.is_tracking()).unwrap_or(false));
 
         // Update toolchains and collect the results
         let toolchains = toolchains.map(|(n, t)| {
@@ -390,7 +391,7 @@ impl Cfg {
         install_if_missing: bool,
         binary: &str,
     ) -> Result<Command> {
-        let ref toolchain = self.get_toolchain(toolchain, false)?;
+        let toolchain = &(self.get_toolchain(toolchain, false)?);
         if install_if_missing && !toolchain.exists() {
             toolchain.install_from_dist(false)?;
         }

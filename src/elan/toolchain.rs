@@ -43,14 +43,14 @@ impl<'a> Toolchain<'a> {
     pub fn from(cfg: &'a Cfg, desc: &ToolchainDesc) -> Result<Self> {
         //We need to replace ":" and "/" with "-" in the toolchain name in order to make a name which is a valid
         //name for a directory.
-        let dir_name = desc.to_string().replace("/", "--").replace(":", "---");
+        let dir_name = desc.to_string().replace('/', "--").replace(':', "---");
 
         let path = cfg.toolchains_dir.join(&dir_name[..]);
 
         Ok(Toolchain {
-            cfg: cfg,
+            cfg,
             desc: desc.clone(),
-            dir_name: dir_name,
+            dir_name,
             path: path.clone(),
             dist_handler: Box::new(move |n| (cfg.notify_handler)(n.into())),
         })
@@ -94,7 +94,7 @@ impl<'a> Toolchain<'a> {
         if !self.exists() {
             (self.cfg.notify_handler)(Notification::UninstalledToolchain(&self.desc));
         }
-        Ok(result?)
+        result
     }
     fn install(&self, install_method: InstallMethod) -> Result<UpdateStatus> {
         let exists = self.exists();
@@ -150,7 +150,7 @@ impl<'a> Toolchain<'a> {
         let update_hash = self.update_hash()?;
         self.install(InstallMethod::Dist(
             &self.desc,
-            update_hash.as_ref().map(|p| &**p),
+            update_hash.as_deref(),
             self.download_cfg(),
             force_update,
         ))
@@ -160,7 +160,7 @@ impl<'a> Toolchain<'a> {
         let update_hash = self.update_hash()?;
         self.install_if_not_installed(InstallMethod::Dist(
             &self.desc,
-            update_hash.as_ref().map(|p| &**p),
+            update_hash.as_deref(),
             self.download_cfg(),
             false,
         ))
@@ -209,11 +209,11 @@ impl<'a> Toolchain<'a> {
             Path::new(&binary)
         };
         let mut cmd: Command;
-        if cfg!(windows) && path.extension() == None {
+        if cfg!(windows) && path.extension().is_none() {
             cmd = Command::new("sh");
             cmd.arg(format!("'{}'", path.to_str().unwrap()));
         } else {
-            cmd = Command::new(&path);
+            cmd = Command::new(path);
         };
         self.set_env(&mut cmd);
         Ok(cmd)
@@ -267,10 +267,10 @@ impl<'a> Toolchain<'a> {
         self.cfg.set_default(&self.desc)
     }
     pub fn make_override(&self, path: &Path) -> Result<()> {
-        Ok(self.cfg.settings_file.with_mut(|s| {
+        self.cfg.settings_file.with_mut(|s| {
             s.add_override(path, self.desc.clone(), self.cfg.notify_handler.as_ref());
             Ok(())
-        })?)
+        })
     }
 
     pub fn binary_file<T: AsRef<OsStr>>(&self, binary: T) -> PathBuf {
@@ -288,7 +288,7 @@ impl<'a> Toolchain<'a> {
             binary.as_ref().to_owned()
         };
 
-        let path = self.path.join("bin").join(&binary);
+        let path = self.path.join("bin").join(binary);
         if cfg!(windows) && !path.exists() && path.with_extension("bat").exists() {
             // leanpkg.bat
             path.with_extension("bat")

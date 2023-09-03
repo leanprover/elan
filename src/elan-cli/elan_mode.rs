@@ -8,7 +8,6 @@ use help::*;
 use self_update;
 use std::error::Error;
 use std::io::{self, Write};
-use std::iter;
 use std::path::Path;
 use std::process::Command;
 use term2;
@@ -16,9 +15,9 @@ use term2;
 pub fn main() -> Result<()> {
     ::self_update::cleanup_self_updater()?;
 
-    let ref matches = cli().get_matches();
+    let matches = &cli().get_matches();
     let verbose = matches.is_present("verbose");
-    let ref cfg = common::set_globals(verbose)?;
+    let cfg = &common::set_globals(verbose)?;
 
     match matches.subcommand() {
         ("show", Some(_)) => show(cfg)?,
@@ -249,9 +248,9 @@ pub fn cli() -> App<'static, 'static> {
 }
 
 fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let ref toolchain = m.value_of("toolchain").expect("");
+    let toolchain = &m.value_of("toolchain").expect("");
     let toolchain = ToolchainDesc::from_str(toolchain)?;
-    let ref toolchain = cfg.get_toolchain(&toolchain, false)?;
+    let toolchain = &cfg.get_toolchain(&toolchain, false)?;
 
     let status = if !toolchain.exists() || !toolchain.is_custom() {
         Some(toolchain.install_from_dist_if_not_installed()?)
@@ -262,7 +261,7 @@ fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     toolchain.make_default()?;
 
     if let Some(status) = status {
-        println!("");
+        println!();
         common::show_channel_update(cfg, &toolchain.desc, Ok(status))?;
     }
 
@@ -282,7 +281,7 @@ fn update(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
             };
 
             if let Some(status) = status {
-                println!("");
+                println!();
                 common::show_channel_update(cfg, &toolchain.desc, Ok(status))?;
             }
         }
@@ -298,7 +297,7 @@ fn update(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 }
 
 fn run(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let ref toolchain = m.value_of("toolchain").expect("");
+    let toolchain = &m.value_of("toolchain").expect("");
     let args = m.values_of("command").unwrap();
     let args: Vec<_> = args.collect();
     let desc = ToolchainDesc::from_str(toolchain)?;
@@ -322,7 +321,7 @@ fn which(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 }
 
 fn show(cfg: &Cfg) -> Result<()> {
-    let ref cwd = utils::current_dir()?;
+    let cwd = &utils::current_dir()?;
     let installed_toolchains = cfg.list_toolchains()?;
     let active_toolchain = cfg.find_override_toolchain_or_default(cwd);
 
@@ -349,7 +348,7 @@ fn show(cfg: &Cfg) -> Result<()> {
             }
         }
         if show_headers {
-            println!("")
+            println!()
         };
     }
 
@@ -382,7 +381,7 @@ fn show(cfg: &Cfg) -> Result<()> {
         }
 
         if show_headers {
-            println!("")
+            println!()
         };
     }
 
@@ -390,8 +389,8 @@ fn show(cfg: &Cfg) -> Result<()> {
         let mut t = term2::stdout();
         let _ = t.attr(term2::Attr::Bold);
         let _ = writeln!(t, "{}", s);
-        let _ = writeln!(t, "{}", iter::repeat("-").take(s.len()).collect::<String>());
-        let _ = writeln!(t, "");
+        let _ = writeln!(t, "{}", "-".repeat(s.len()));
+        let _ = writeln!(t);
         let _ = t.reset();
     }
 
@@ -406,15 +405,15 @@ fn explicit_or_dir_toolchain<'a>(cfg: &'a Cfg, m: &ArgMatches) -> Result<Toolcha
         return Ok(toolchain);
     }
 
-    let ref cwd = utils::current_dir()?;
+    let cwd = &utils::current_dir()?;
     let (toolchain, _) = cfg.toolchain_for_dir(cwd)?;
 
     Ok(toolchain)
 }
 
 fn toolchain_link(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let ref toolchain = m.value_of("toolchain").expect("");
-    let ref path = m.value_of("path").expect("");
+    let toolchain = &m.value_of("toolchain").expect("");
+    let path = &m.value_of("path").expect("");
     let desc = ToolchainDesc::from_str(toolchain)?;
     let toolchain = cfg.get_toolchain(&desc, true)?;
 
@@ -431,7 +430,7 @@ fn toolchain_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 }
 
 fn override_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let ref toolchain = m.value_of("toolchain").expect("");
+    let toolchain = &m.value_of("toolchain").expect("");
     let desc = ToolchainDesc::from_str(toolchain)?;
     let toolchain = cfg.get_toolchain(&desc, false)?;
 
@@ -444,7 +443,7 @@ fn override_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     toolchain.make_override(&utils::current_dir()?)?;
 
     if let Some(status) = status {
-        println!("");
+        println!();
         common::show_channel_update(cfg, &toolchain.desc, Ok(status))?;
     }
 
@@ -469,18 +468,16 @@ fn override_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
             info!("no nonexistent paths detected");
         }
         list
+    } else if m.is_present("path") {
+        vec![m.value_of("path").unwrap().to_string()]
     } else {
-        if m.is_present("path") {
-            vec![m.value_of("path").unwrap().to_string()]
-        } else {
-            vec![utils::current_dir()?.to_str().unwrap().to_string()]
-        }
+        vec![utils::current_dir()?.to_str().unwrap().to_string()]
     };
 
     for path in paths {
         if cfg
             .settings_file
-            .with_mut(|s| Ok(s.remove_override(&Path::new(&path), cfg.notify_handler.as_ref())))?
+            .with_mut(|s| Ok(s.remove_override(Path::new(&path), cfg.notify_handler.as_ref())))?
         {
             info!("override toolchain for '{}' removed", path);
         } else {

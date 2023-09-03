@@ -213,7 +213,7 @@ pub fn update_from_dist_<'a>(
         &build_origin_name(toolchain.origin.as_ref(), &toolchain.channel),
         &url,
         &download.temp_cfg,
-        download.notify_handler.clone(),
+        download.notify_handler,
     ) {
         Ok(()) => Ok(()),
         e @ Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => e

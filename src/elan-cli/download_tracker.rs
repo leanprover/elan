@@ -110,7 +110,7 @@ impl DownloadTracker {
         if self.displayed_charcount.is_some() {
             // Display the finished state
             self.display();
-            let _ = writeln!(self.term.as_mut().unwrap(), "");
+            let _ = writeln!(self.term.as_mut().unwrap());
         }
         self.prepare_for_new_download();
     }

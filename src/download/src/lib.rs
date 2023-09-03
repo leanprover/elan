@@ -56,7 +56,7 @@ pub fn download_to_path_with_backend(
 
     || -> Result<()> {
         let (file, resume_from) = if resume_from_partial {
-            let possible_partial = OpenOptions::new().read(true).open(&path);
+            let possible_partial = OpenOptions::new().read(true).open(path);
 
             let downloaded_so_far = if let Ok(mut partial) = possible_partial {
                 if let Some(cb) = callback {
@@ -85,7 +85,7 @@ pub fn download_to_path_with_backend(
             let mut possible_partial = OpenOptions::new()
                 .write(true)
                 .create(true)
-                .open(&path)
+                .open(path)
                 .chain_err(|| "error opening file for download")?;
 
             possible_partial.seek(SeekFrom::End(0))?;
@@ -96,7 +96,7 @@ pub fn download_to_path_with_backend(
                 OpenOptions::new()
                     .write(true)
                     .create(true)
-                    .open(&path)
+                    .open(path)
                     .chain_err(|| "error creating file for download")?,
                 0,
             )
@@ -158,9 +158,7 @@ pub mod curl {
         EASY.with(|handle| {
             let mut handle = handle.borrow_mut();
 
-            handle
-                .url(&url.to_string())
-                .chain_err(|| "failed to set url")?;
+            handle.url(url.as_ref()).chain_err(|| "failed to set url")?;
             handle
                 .follow_location(true)
                 .chain_err(|| "failed to set follow redirects")?;
@@ -355,10 +353,10 @@ pub mod reqwest_be {
                 return Err(ErrorKind::FileNotFound.into());
             }
 
-            let ref mut f = fs::File::open(src).chain_err(|| "unable to open downloaded file")?;
+            let mut f = &fs::File::open(src).chain_err(|| "unable to open downloaded file")?;
             io::Seek::seek(f, io::SeekFrom::Start(resume_from))?;
 
-            let ref mut buffer = vec![0u8; 0x10000];
+            let mut buffer = &vec![0u8; 0x10000];
             loop {
                 let bytes_read =
                     io::Read::read(f, buffer).chain_err(|| "unable to read downloaded file")?;

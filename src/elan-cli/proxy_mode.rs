@@ -21,7 +21,7 @@ pub fn main() -> Result<()> {
         .as_ref()
         .and_then(|a| a.file_name())
         .and_then(|a| a.to_str());
-    let ref arg0 = arg0.ok_or(ErrorKind::NoExeName)?;
+    let arg0 = &arg0.ok_or(ErrorKind::NoExeName)?;
 
     // Check for a toolchain specifier.
     let arg1 = args.next();

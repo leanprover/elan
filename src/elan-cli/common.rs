@@ -7,12 +7,12 @@ use elan_utils::utils;
 use errors::*;
 use self_update;
 use std;
+use std::cmp;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::Duration;
-use std::{cmp, iter};
 use term2;
 use wait_timeout::ChildExt;
 
@@ -28,7 +28,7 @@ pub fn confirm(question: &str, default: bool) -> Result<bool> {
         _ => false,
     };
 
-    println!("");
+    println!();
 
     Ok(r)
 }
@@ -40,7 +40,7 @@ pub enum Confirm {
 }
 
 pub fn confirm_advanced() -> Result<Confirm> {
-    println!("");
+    println!();
     println!("1) Proceed with installation (default)");
     println!("2) Customize installation");
     println!("3) Cancel installation");
@@ -54,7 +54,7 @@ pub fn confirm_advanced() -> Result<Confirm> {
         _ => Confirm::No,
     };
 
-    println!("");
+    println!();
 
     Ok(r)
 }
@@ -64,7 +64,7 @@ pub fn question_str(question: &str, default: &str) -> Result<String> {
     let _ = std::io::stdout().flush();
     let input = read_line()?;
 
-    println!("");
+    println!();
 
     if input.is_empty() {
         Ok(default.to_string())
@@ -79,7 +79,7 @@ pub fn question_bool(question: &str, default: bool) -> Result<bool> {
     let _ = std::io::stdout().flush();
     let input = read_line()?;
 
-    println!("");
+    println!();
 
     if input.is_empty() {
         Ok(default)
@@ -145,7 +145,7 @@ fn show_channel_updates(
     toolchains: Vec<(ToolchainDesc, elan::Result<UpdateStatus>)>,
 ) -> Result<()> {
     let data = toolchains.into_iter().map(|(desc, result)| {
-        let ref toolchain = cfg.get_toolchain(&desc, false).expect("");
+        let toolchain = &cfg.get_toolchain(&desc, false).expect("");
         let version = lean_version(toolchain);
         let name = desc.to_string();
 
@@ -184,7 +184,7 @@ fn show_channel_updates(
 
     for (name, banner, width, color, version) in data {
         let padding = max_width - width;
-        let padding: String = iter::repeat(' ').take(padding).collect();
+        let padding: String = " ".repeat(padding);
         let _ = write!(t, "  {}", padding);
         let _ = t.attr(term2::Attr::Bold);
         if let Some(color) = color {
@@ -195,7 +195,7 @@ fn show_channel_updates(
         let _ = t.reset();
         let _ = writeln!(t, " - {}", version);
     }
-    let _ = writeln!(t, "");
+    let _ = writeln!(t);
 
     Ok(())
 }
@@ -215,7 +215,7 @@ pub fn update_all_channels(cfg: &Cfg, self_update: bool, force_update: bool) -> 
     };
 
     if !toolchains.is_empty() {
-        println!("");
+        println!();
 
         show_channel_updates(cfg, toolchains)?;
     }
@@ -287,20 +287,18 @@ pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
 
     if toolchains.is_empty() {
         println!("no installed toolchains");
+    } else if let Ok(Some(def_toolchain)) = cfg.find_default() {
+        for toolchain in toolchains {
+            let if_default = if def_toolchain.name() == toolchain.to_string() {
+                " (default)"
+            } else {
+                ""
+            };
+            println!("{}{}", &toolchain, if_default);
+        }
     } else {
-        if let Ok(Some(def_toolchain)) = cfg.find_default() {
-            for toolchain in toolchains {
-                let if_default = if def_toolchain.name() == toolchain.to_string() {
-                    " (default)"
-                } else {
-                    ""
-                };
-                println!("{}{}", &toolchain, if_default);
-            }
-        } else {
-            for toolchain in toolchains {
-                println!("{}", &toolchain);
-            }
+        for toolchain in toolchains {
+            println!("{}", &toolchain);
         }
     }
     Ok(())
@@ -326,7 +324,7 @@ pub fn list_overrides(cfg: &Cfg) -> Result<()> {
             )
         }
         if any_not_exist {
-            println!("");
+            println!();
             info!(
                 "you may remove overrides for non-existent directories with
 `elan override unset --nonexistent`"
@@ -353,10 +351,9 @@ pub fn report_error(e: &Error) {
     if show_backtrace() {
         if let Some(backtrace) = e.backtrace() {
             info!("backtrace:");
-            println!("");
+            println!();
             println!("{:?}", backtrace);
         }
-    } else {
     }
 
     fn show_backtrace() -> bool {

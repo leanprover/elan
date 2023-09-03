@@ -353,7 +353,7 @@ pub fn has_cmd(cmd: &str) -> bool {
 }
 
 pub fn find_cmd<'a>(cmds: &[&'a str]) -> Option<&'a str> {
-    cmds.into_iter().map(|&s| s).filter(|&s| has_cmd(s)).next()
+    cmds.iter().map(|&s| s).filter(|&s| has_cmd(s)).next()
 }
 
 pub fn open_browser(path: &Path) -> io::Result<bool> {

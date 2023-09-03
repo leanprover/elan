@@ -48,7 +48,7 @@ pub fn main() -> Result<()> {
 
     let opts = InstallOpts {
         default_toolchain: default_toolchain.to_owned(),
-        no_modify_path: no_modify_path,
+        no_modify_path,
     };
 
     self_update::install(no_prompt, verbose, opts)?;
