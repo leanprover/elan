@@ -523,7 +523,11 @@ pub fn fetch_url(url: &str) -> Result<String> {
 pub fn fetch_latest_release_tag(repo_slug: &str) -> Result<String> {
     use regex::Regex;
 
-    let latest_url = format!("https://github.com/{}/releases/latest", repo_slug);
+    let latest_url = format!(
+        "{}/{}/releases/latest",
+        elan_cfg::RELEASE_ROOT.to_string(),
+        repo_slug
+    );
     let redirect = fetch_url(&latest_url)?;
     let re = Regex::new(r#"/tag/([-a-z0-9.]+)"#).unwrap();
     let capture = re.captures(&redirect);

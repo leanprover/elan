@@ -22,8 +22,9 @@ curl = "0.4.34"
 openssl = { version = "0.10", features = ["vendored"] }
 regex = "1.4.3"
 dirs = "3.0.1"
+elan-cfg = { path = "../elan-cfg" }
 
 [target."cfg(windows)".dependencies]
-winapi = { version = "0.3.9", features = ["combaseapi", "errhandlingapi", "fileapi", "handleapi", 
+winapi = { version = "0.3.9", features = ["combaseapi", "errhandlingapi", "fileapi", "handleapi",
     "ioapiset", "minwindef", "processthreadsapi", "shlobj", "shtypes", "userenv", "winbase", "winerror", "winnt", "winioctl"] }
 winreg = "0.8.0"

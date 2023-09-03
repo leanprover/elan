@@ -181,8 +181,6 @@ static TOOLS: &[&str] = &[
     "lake",
 ];
 
-static UPDATE_ROOT: &str = "https://github.com/leanprover/elan/releases/download";
-
 /// `ELAN_HOME` suitable for display, possibly with $HOME
 /// substituted for the directory prefix
 fn canonical_elan_home() -> Result<String> {
@@ -1248,7 +1246,7 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
         utils::remove_file("setup", setup_path)?;
     }
 
-    let update_root = env::var("ELAN_UPDATE_ROOT").unwrap_or(String::from(UPDATE_ROOT));
+    let update_root = elan_cfg::ELAN_UPDATE_ROOT.to_string();
 
     let tempdir = tempdir().chain_err(|| "error creating temp directory")?;
 

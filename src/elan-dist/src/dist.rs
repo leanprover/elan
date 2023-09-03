@@ -240,25 +240,33 @@ fn toolchain_url<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Re
                     Some(&release),
                 ));
                 format!(
-                    "https://github.com/{}/releases/expanded_assets/{}",
-                    origin, release
+                    "{}/{}/releases/expanded_assets/{}",
+                    elan_cfg::RELEASE_ROOT.to_string(),
+                    origin,
+                    release
                 )
             }
             (Some(date), "nightly") => format!(
-                "https://github.com/{}/releases/expanded_assets/nightly-{}",
-                origin, date
+                "{}/{}/releases/expanded_assets/nightly-{}",
+                elan_cfg::RELEASE_ROOT.to_string(),
+                origin,
+                date
             ),
             (None, version) if version.starts_with(|c: char| c.is_numeric()) => {
                 format!(
-                    "https://github.com/{}/releases/expanded_assets/v{}",
-                    origin, version
+                    "{}/{}/releases/expanded_assets/v{}",
+                    elan_cfg::RELEASE_ROOT.to_string(),
+                    origin,
+                    version
                 )
             }
             (None, tag) => format!(
-                "https://github.com/{}/releases/expanded_assets/{}",
-                origin, tag
+                "{}/{}/releases/expanded_assets/{}",
+                elan_cfg::RELEASE_ROOT.to_string(),
+                origin,
+                tag
             ),
-            _ => panic!("wat"),
+            _ => panic!("invalid toolchain URL"),
         },
     )
 }

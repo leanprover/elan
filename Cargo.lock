@@ -410,6 +410,7 @@ version = "2.0.1"
 dependencies = [
  "clap",
  "download",
+ "elan-cfg",
  "elan-dist",
  "elan-utils",
  "error-chain",
@@ -441,9 +442,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "elan-cfg"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+]
+
+[[package]]
 name = "elan-dist"
 version = "1.11.0"
 dependencies = [
+ "elan-cfg",
  "elan-utils",
  "error-chain",
  "filetime",
@@ -473,6 +482,7 @@ dependencies = [
  "curl",
  "dirs",
  "download",
+ "elan-cfg",
  "error-chain",
  "libc",
  "openssl",

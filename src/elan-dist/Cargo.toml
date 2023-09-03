@@ -26,6 +26,7 @@ json = "0.12.4"
 zip = "0.6"
 filetime = "0.2.14"
 time = "0.3"
+elan-cfg = { path = "../elan-cfg" }
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3.9", features = ["handleapi", "sysinfoapi", "tlhelp32", "winnt"] }

@@ -24,6 +24,7 @@ no-self-update = []
 msi-installed = []
 
 [dependencies]
+elan-cfg = { path = "src/elan-cfg" }
 elan-dist = { path = "src/elan-dist" }
 elan-utils = { path = "src/elan-utils" }
 download = { path = "src/download" }
@@ -58,7 +59,7 @@ winreg = "0.8.0"
 gcc = "0.3.55"
 
 [workspace]
-members = ["src/download", "src/elan-dist", "src/elan-utils"]
+members = ["src/download", "src/elan-cfg", "src/elan-dist", "src/elan-utils"]
 
 [lib]
 name = "elan"
