@@ -159,19 +159,11 @@ impl DownloadTracker {
                 let eta_h = HumanReadable(remaining / speed);
                 format!(
                     "{} / {} ({:3.0} %) {}/s ETA: {:#}",
-                    total_h,
-                    content_len_h,
-                    percent,
-                    speed_h,
-                    eta_h
+                    total_h, content_len_h, percent, speed_h, eta_h
                 )
             }
             None => {
-                format!(
-                    "Total: {} Speed: {}/s",
-                    total_h,
-                    speed_h
-                )
+                format!("Total: {} Speed: {}/s", total_h, speed_h)
             }
         };
 

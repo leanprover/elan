@@ -98,7 +98,7 @@ impl Manifestation {
         } else if url.ends_with(".zip") {
             ZipPackage::unpack_file(&installer_file, prefix)?
         } else {
-            return Err(format!("unsupported archive format: {}", url).into())
+            return Err(format!("unsupported archive format: {}", url).into());
         }
 
         Ok(())

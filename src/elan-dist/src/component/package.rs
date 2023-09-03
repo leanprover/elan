@@ -4,8 +4,8 @@
 
 extern crate filetime;
 extern crate flate2;
-extern crate zstd;
 extern crate tar;
+extern crate zstd;
 
 use errors::*;
 use temp;
@@ -123,7 +123,10 @@ impl<'a> ZipPackage<'a> {
                 }
             } // make sure to close `dst` before setting mtime
             let mtime = entry.last_modified().to_time()?.unix_timestamp_nanos();
-            let mtime = filetime::FileTime::from_unix_time((mtime / 1000000000) as i64 , (mtime % 1000000000) as u32);
+            let mtime = filetime::FileTime::from_unix_time(
+                (mtime / 1000000000) as i64,
+                (mtime % 1000000000) as u32,
+            );
             filetime::set_file_times(&full_path, mtime, mtime).unwrap();
         }
 

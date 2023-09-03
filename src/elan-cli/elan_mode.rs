@@ -304,11 +304,7 @@ fn run(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let desc = ToolchainDesc::from_str(toolchain)?;
     let cmd = cfg.create_command_for_toolchain(&desc, m.is_present("install"), args[0])?;
 
-    Ok(command::run_command_for_dir(
-        cmd,
-        args[0],
-        &args[1..],
-    )?)
+    Ok(command::run_command_for_dir(cmd, args[0], &args[1..])?)
 }
 
 fn which(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
@@ -405,7 +401,7 @@ fn show(cfg: &Cfg) -> Result<()> {
 fn explicit_or_dir_toolchain<'a>(cfg: &'a Cfg, m: &ArgMatches) -> Result<Toolchain<'a>> {
     let toolchain = m.value_of("toolchain");
     if let Some(toolchain) = toolchain {
-      let desc = ToolchainDesc::from_str(toolchain)?;
+        let desc = ToolchainDesc::from_str(toolchain)?;
         let toolchain = cfg.get_toolchain(&desc, false)?;
         return Ok(toolchain);
     }

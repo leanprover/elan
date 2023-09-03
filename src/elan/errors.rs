@@ -1,9 +1,9 @@
+use elan_dist::dist::ToolchainDesc;
 use elan_dist::manifest::Component;
 use elan_dist::{self, temp};
 use elan_utils;
 use std::path::PathBuf;
 use toml;
-use elan_dist::dist::ToolchainDesc;
 
 error_chain! {
     links {

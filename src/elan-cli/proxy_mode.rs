@@ -1,8 +1,8 @@
 use common::set_globals;
 use elan::command::run_command_for_dir;
 use elan::Cfg;
-use elan_utils::utils;
 use elan_dist::dist::ToolchainDesc;
+use elan_utils::utils;
 use errors::*;
 use job;
 use std::env;

@@ -44,13 +44,20 @@ impl ToolchainDesc {
             let origin = c.get(1).map(|s| s.as_str()).and_then(fn_map);
             let tag = c.get(4).map(|m| m.as_str());
             if let (Some(ref origin), Some("lean-toolchain")) = (&origin, tag) {
-                let toolchain_url = format!("https://raw.githubusercontent.com/{}/HEAD/lean-toolchain", origin);
-                return ToolchainDesc::from_str(fetch_url(&toolchain_url)?.trim())
+                let toolchain_url = format!(
+                    "https://raw.githubusercontent.com/{}/HEAD/lean-toolchain",
+                    origin
+                );
+                return ToolchainDesc::from_str(fetch_url(&toolchain_url)?.trim());
             }
 
             Ok(ToolchainDesc {
                 origin,
-                channel: c.get(2).map(|s| s.as_str().to_owned()).or(tag.map(|t| t.to_owned())).unwrap(),
+                channel: c
+                    .get(2)
+                    .map(|s| s.as_str().to_owned())
+                    .or(tag.map(|t| t.to_owned()))
+                    .unwrap(),
                 date: c.get(3).map(|s| s.as_str()).and_then(fn_map),
             })
         } else {
@@ -232,16 +239,25 @@ fn toolchain_url<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Re
                     version,
                     Some(&release),
                 ));
-                format!("https://github.com/{}/releases/expanded_assets/{}", origin, release)
+                format!(
+                    "https://github.com/{}/releases/expanded_assets/{}",
+                    origin, release
+                )
             }
             (Some(date), "nightly") => format!(
                 "https://github.com/{}/releases/expanded_assets/nightly-{}",
                 origin, date
             ),
             (None, version) if version.starts_with(|c: char| c.is_numeric()) => {
-                format!("https://github.com/{}/releases/expanded_assets/v{}", origin, version)
+                format!(
+                    "https://github.com/{}/releases/expanded_assets/v{}",
+                    origin, version
+                )
             }
-            (None, tag) => format!("https://github.com/{}/releases/expanded_assets/{}", origin, tag),
+            (None, tag) => format!(
+                "https://github.com/{}/releases/expanded_assets/{}",
+                origin, tag
+            ),
             _ => panic!("wat"),
         },
     )

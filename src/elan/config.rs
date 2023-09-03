@@ -276,7 +276,7 @@ impl Cfg {
                     None => {}
                     Some(toml::Value::String(s)) => {
                         let desc = ToolchainDesc::from_str(s)?;
-                        return Ok(Some((desc, OverrideReason::LeanpkgFile(leanpkg_file))))
+                        return Ok(Some((desc, OverrideReason::LeanpkgFile(leanpkg_file))));
                     }
                     Some(a) => {
                         return Err(ErrorKind::InvalidLeanVersion(leanpkg_file, a.type_str()).into())
@@ -333,7 +333,10 @@ impl Cfg {
 
             utils::toolchain_sort(&mut toolchains);
 
-            let toolchains: Vec<_> = toolchains.iter().map(|s| ToolchainDesc::from_str(&s)).collect::<elan_dist::Result<Vec<_>>>()?;
+            let toolchains: Vec<_> = toolchains
+                .iter()
+                .map(|s| ToolchainDesc::from_str(&s))
+                .collect::<elan_dist::Result<Vec<_>>>()?;
             Ok(toolchains)
         } else {
             Ok(Vec::new())

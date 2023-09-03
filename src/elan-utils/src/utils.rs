@@ -514,7 +514,9 @@ pub fn fetch_url(url: &str) -> Result<String> {
             transfer.perform().unwrap();
         }
     });
-    ::std::str::from_utf8(&data).chain_err(|| "failed to decode response").map(|s| s.to_owned())
+    ::std::str::from_utf8(&data)
+        .chain_err(|| "failed to decode response")
+        .map(|s| s.to_owned())
 }
 
 // fetch from HTML page instead of Github API to avoid rate limit
