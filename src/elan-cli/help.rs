@@ -33,22 +33,22 @@ pub static TOOLCHAIN_HELP: &'static str = r"DISCUSSION:
     Many `elan` commands deal with *toolchains*, a single
     installation of the Lean theorem prover. `elan` supports multiple
     types of toolchains. The most basic track the official release
-    channel: 'nightly'; but `elan` can also install toolchains from
-    the official archives and from local builds.
+    channels: 'stable' and 'nightly'; but `elan` can also
+    install toolchains from the official archives and from local builds.
 
     Standard release channel toolchain names have the following form:
 
         [<origin>:]<channel>[-<date>]
 
-        <channel>       = nightly|<version>
+        <channel>       = stable|nightly|<version>
         <date>          = YYYY-MM-DD
 
     'channel' is either a named release channel or an explicit version
-    number, such as '4.0.0-m5'. Channel names can be optionally appended
+    number, such as '4.0.0'. Channel names can be optionally appended
     with an archive date, as in 'nightly-2023-06-27', in which case
     the toolchain is downloaded from the archive for that date.
     'origin' can be used to refer to custom forks of Lean on Github;
-    the default is 'leanprover/lean'. For nightly versions, '-nightly'
+    the default is 'leanprover/lean4'. For nightly versions, '-nightly'
     is appended to the value of 'origin'.
 
     elan can also manage symlinked local toolchain builds, which are
@@ -78,12 +78,16 @@ pub static OVERRIDE_HELP: &'static str = r"DISCUSSION:
     the `lean-toolchain` file when inside a Lean package, but
     directories can also be assigned their own Lean toolchain manually
     with `elan override`. When a directory has an override then any
-    time `lean` or `leanpkg` is run inside that directory, or one of
+    time `lean` or `lake` is run inside that directory, or one of
     its child directories, the override toolchain will be invoked.
 
     To pin to a specific nightly:
 
-        $ elan override set nightly-2023-06-27
+        $ elan override set nightly-2023-09-06
+
+    Or a specific stable release:
+
+        $ elan override set 4.0.0
 
     To see the active toolchain use `elan show`. To remove the
     override and use the default toolchain again, `elan override
@@ -219,6 +223,6 @@ pub static COMPLETIONS_HELP: &'static str = r"DISCUSSION:
 
         PS C:\> elan completions powershell >> %USERPROFILE%\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1";
 
-pub static TOOLCHAIN_ARG_HELP: &'static str = "Toolchain name, such as 'nightly' \
-     or 'nightly-2023-06-27'. For more information see `elan \
+pub static TOOLCHAIN_ARG_HELP: &'static str = "Toolchain name, such as 'stable', 'nightly', \
+     or '3.3.0'. For more information see `elan \
      help toolchain`";
