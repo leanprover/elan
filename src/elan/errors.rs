@@ -25,7 +25,7 @@ error_chain! {
             display("toolchain '{}' is not installed", t)
         }
         NoDefaultToolchain {
-            description("no default toolchain configured. run `elan default nightly` to install & configure the latest Lean 4 nightly release.")
+            description("no default toolchain configured. run `elan default stable` to install & configure the latest Lean 4 stable release.")
         }
         OverrideToolchainNotInstalled(t: ToolchainDesc) {
             description("override toolchain is not installed")

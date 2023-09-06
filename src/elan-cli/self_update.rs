@@ -11,7 +11,7 @@
 //! * copy the self exe to $ELAN_HOME/bin
 //! * hardlink lean, etc to *that*
 //! * update the PATH in a system-specific way
-//! * run the equivalent of `elan default nightly`
+//! * run the equivalent of `elan default stable`
 //!
 //! During upgrade (`elan self upgrade`):
 //!
@@ -463,7 +463,7 @@ fn customize_install(mut opts: InstallOpts) -> Result<InstallOpts> {
     println!("");
 
     opts.default_toolchain = common::question_str(
-        "Default toolchain? (nightly/<specific version>/none)",
+        "Default toolchain? (stable/nightly/none)",
         &opts.default_toolchain,
     )?;
 
