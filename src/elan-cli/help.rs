@@ -44,8 +44,8 @@ pub static TOOLCHAIN_HELP: &'static str = r"DISCUSSION:
         <date>          = YYYY-MM-DD
 
     'channel' is either a named release channel or an explicit version
-    number, such as '4.0.0-m5'. Channel names can be optionally appended
-    with an archive date, as in 'nightly-2023-06-27', in which case
+    number, such as '4.0.0'. Channel names can be optionally appended
+    with an archive date, as in 'nightly-2023-09-07', in which case
     the toolchain is downloaded from the archive for that date.
     'origin' can be used to refer to custom forks of Lean on Github;
     the default is 'leanprover/lean'. For nightly versions, '-nightly'
@@ -78,7 +78,7 @@ pub static OVERRIDE_HELP: &'static str = r"DISCUSSION:
     the `lean-toolchain` file when inside a Lean package, but
     directories can also be assigned their own Lean toolchain manually
     with `elan override`. When a directory has an override then any
-    time `lean` or `leanpkg` is run inside that directory, or one of
+    time `lean` or `lake` is run inside that directory, or one of
     its child directories, the override toolchain will be invoked.
 
     To pin to a specific nightly:
@@ -99,7 +99,7 @@ pub static OVERRIDE_UNSET_HELP: &'static str = r"DISCUSSION:
 pub static RUN_HELP: &'static str = r"DISCUSSION:
     Configures an environment to use the given toolchain and then runs
     the specified program. The command may be any program, not just
-    lean or lake. This can be used for testing arbitrary toolchains
+    `lean` or `lake`. This can be used for testing arbitrary toolchains
     without setting an override.
 
     Commands explicitly proxied by `elan` (such as `lean` and
