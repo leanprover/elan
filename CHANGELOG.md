@@ -1,4 +1,4 @@
-# Unreleased
+# 3.0.0 - 2023-09-08
 
 - Default to stable toolchain again in time for first Lean 4 stable release (#104)
 
