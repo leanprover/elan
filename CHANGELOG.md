@@ -1,3 +1,7 @@
+# Unreleased
+
+- Default to stable toolchain again in time for first Lean 4 stable release (#104)
+
 # 2.0.1 - 2023-07-24
 
 - Fix download progress display on Windows (#101)
