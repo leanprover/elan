@@ -4,7 +4,6 @@ use elan_utils::{self, utils};
 use errors::*;
 use manifest::Component;
 use manifestation::Manifestation;
-use notifications::Notification;
 use prefix::InstallPrefix;
 use temp;
 
@@ -20,70 +19,50 @@ const DEFAULT_ORIGIN: &str = "leanprover/lean4";
 // such as naming their installation directory.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ToolchainDesc {
-    // The GitHub source repository to use (if "nightly" is specified, we append "-nightly" to this)
-    // If None, we default to "leanprover/lean"
-    pub origin: Option<String>,
-    // Either "nightly", "stable", an explicit version number, or a tag name
-    pub channel: String,
-    pub date: Option<String>,
+    // The GitHub source repository to use (if "nightly" is specified, we append "-nightly" to this).
+    // Defaults to `DEFAULT_ORIGIN`.
+    pub origin: String,
+    // The release name, usually a Git tag
+    pub release: String,
 }
 
 impl ToolchainDesc {
     pub fn from_str(name: &str) -> Result<Self> {
-        let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?(?:(nightly|stable)(?:-(\d{4}-\d{2}-\d{2}))?|([a-zA-Z0-9-.]+))$";
+        let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?([a-zA-Z0-9-.]+)$";
 
         let re = Regex::new(&pattern).unwrap();
         if let Some(c) = re.captures(name) {
-            fn fn_map(s: &str) -> Option<String> {
-                if s == "" {
-                    None
-                } else {
-                    Some(s.to_owned())
-                }
+            let mut origin = c.get(1).map(|s| s.as_str()).unwrap_or(DEFAULT_ORIGIN).to_owned();
+            let mut release = c.get(2).unwrap().as_str().to_owned();
+            if release.starts_with("nightly") && !origin.ends_with("-nightly") {
+                origin = format!("{}-nightly", origin);
             }
-            let origin = c.get(1).map(|s| s.as_str()).and_then(fn_map);
-            let tag = c.get(4).map(|m| m.as_str());
-            if let (Some(ref origin), Some("lean-toolchain")) = (&origin, tag) {
+            if release == "lean-toolchain" {
                 let toolchain_url = format!("https://raw.githubusercontent.com/{}/HEAD/lean-toolchain", origin);
                 return ToolchainDesc::from_str(fetch_url(&toolchain_url)?.trim())
             }
-
-            Ok(ToolchainDesc {
-                origin,
-                channel: c.get(2).map(|s| s.as_str().to_owned()).or(tag.map(|t| t.to_owned())).unwrap(),
-                date: c.get(3).map(|s| s.as_str()).and_then(fn_map),
-            })
+            if release == "stable" || release == "nightly" {
+                release = utils::fetch_latest_release_tag(&origin)?;
+            }
+            if release.starts_with(char::is_numeric) {
+                release = format!("v{}", release)
+            }
+            Ok(ToolchainDesc { origin, release })
         } else {
             Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
         }
     }
 
-    /// Either "$channel" or "channel-$date"
     pub fn manifest_name(&self) -> String {
-        match self.date {
-            None => self.channel.clone(),
-            Some(ref date) => format!("{}-{}", self.channel, date),
-        }
-    }
-
-    pub fn package_dir(&self, dist_root: &str) -> String {
-        match self.date {
-            None => format!("{}", dist_root),
-            Some(ref date) => format!("{}/{}", dist_root, date),
-        }
-    }
-
-    pub fn full_spec(&self) -> String {
-        if self.date.is_some() {
-            format!("{}", self)
-        } else {
-            format!("{} (tracking)", self)
-        }
+        self.release.clone()
     }
 
     pub fn is_tracking(&self) -> bool {
-        let channels = ["nightly", "stable"];
-        channels.iter().any(|x| *x == self.channel) && self.date.is_none()
+        return false
+    }
+
+    fn url(&self) -> String {
+        format!("https://github.com/{}/releases/expanded_assets/{}", self.origin, self.release)
     }
 }
 
@@ -92,17 +71,7 @@ pub struct Manifest<'a>(temp::File<'a>, String);
 
 impl fmt::Display for ToolchainDesc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if let Some(ref origin) = self.origin {
-            write!(f, "{}:", origin)?;
-        }
-
-        write!(f, "{}", &self.channel)?;
-
-        if let Some(ref date) = self.date {
-            write!(f, "-{}", date)?;
-        }
-
-        Ok(())
+        write!(f, "{}:{}", self.origin, self.release)
     }
 }
 
@@ -143,20 +112,6 @@ pub fn update_from_dist<'a>(
     res
 }
 
-//Append "-nightly" to the origin if version == "nightly" was specified.
-//If origin is None use DEFAULT_ORIGIN.
-fn build_origin_name(origin: Option<&String>, version: &str) -> String {
-    let repo = match origin {
-        None => DEFAULT_ORIGIN,
-        Some(repo) => repo,
-    };
-    format!(
-        "{}{}",
-        repo,
-        if version == "nightly" { "-nightly" } else { "" }
-    )
-}
-
 pub fn update_from_dist_<'a>(
     download: DownloadCfg<'a>,
     update_hash: Option<&Path>,
@@ -169,23 +124,7 @@ pub fn update_from_dist_<'a>(
     let toolchain_str = toolchain.to_string();
     let manifestation = Manifestation::open(prefix.clone())?;
 
-    let url = match toolchain_url(download, toolchain) {
-        Ok(url) => url,
-        Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => {
-            return Err(format!("no release found for '{}'", toolchain.manifest_name()).into());
-        }
-        Err(e @ Error(ErrorKind::ChecksumFailed { .. }, _)) => {
-            return Err(e);
-        }
-        Err(e) => {
-            return Err(e).chain_err(|| {
-                format!(
-                    "failed to resolve latest version of '{}'",
-                    toolchain.manifest_name()
-                )
-            });
-        }
-    };
+    let url = toolchain.url();
 
     if let Some(hash_file) = update_hash {
         if utils::is_file(hash_file) {
@@ -203,7 +142,7 @@ pub fn update_from_dist_<'a>(
     }
 
     match manifestation.update(
-        &build_origin_name(toolchain.origin.as_ref(), &toolchain.channel),
+        &toolchain.origin,
         &url,
         &download.temp_cfg,
         download.notify_handler.clone(),
@@ -219,32 +158,6 @@ pub fn update_from_dist_<'a>(
         Err(e) => Err(e),
     }
     .map(|()| Some(url))
-}
-
-fn toolchain_url<'a>(download: DownloadCfg<'a>, toolchain: &ToolchainDesc) -> Result<String> {
-    let origin = build_origin_name(toolchain.origin.as_ref(), toolchain.channel.as_ref());
-    Ok(
-        match (toolchain.date.as_ref(), toolchain.channel.as_str()) {
-            (None, version) if version == "stable" || version == "nightly" => {
-                (download.notify_handler)(Notification::DownloadingManifest(version));
-                let release = utils::fetch_latest_release_tag(&origin)?;
-                (download.notify_handler)(Notification::DownloadedManifest(
-                    version,
-                    Some(&release),
-                ));
-                format!("https://github.com/{}/releases/expanded_assets/{}", origin, release)
-            }
-            (Some(date), "nightly") => format!(
-                "https://github.com/{}/releases/expanded_assets/nightly-{}",
-                origin, date
-            ),
-            (None, version) if version.starts_with(|c: char| c.is_numeric()) => {
-                format!("https://github.com/{}/releases/expanded_assets/v{}", origin, version)
-            }
-            (None, tag) => format!("https://github.com/{}/releases/expanded_assets/{}", origin, tag),
-            _ => panic!("wat"),
-        },
-    )
 }
 
 pub fn host_triple() -> &'static str {
