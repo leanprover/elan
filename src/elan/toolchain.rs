@@ -241,9 +241,6 @@ impl<'a> Toolchain<'a> {
         Ok(utils::open_browser(&self.doc_path(relative)?)?)
     }
 
-    pub fn make_default(&self) -> Result<()> {
-        self.cfg.set_default(&self.desc)
-    }
     pub fn make_override(&self, path: &Path) -> Result<()> {
         Ok(self.cfg.settings_file.with_mut(|s| {
             s.add_override(path, self.desc.clone(), self.cfg.notify_handler.as_ref());

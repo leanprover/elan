@@ -14,7 +14,7 @@ pub enum Notification<'a> {
     Utils(elan_utils::Notification<'a>),
     Temp(temp::Notification<'a>),
 
-    SetDefaultToolchain(&'a ToolchainDesc),
+    SetDefaultToolchain(&'a str),
     SetOverrideToolchain(&'a Path, &'a ToolchainDesc),
     LookingForToolchain(&'a ToolchainDesc),
     ToolchainDirectory(&'a Path, &'a ToolchainDesc),

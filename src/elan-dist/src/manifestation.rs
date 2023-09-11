@@ -73,7 +73,6 @@ impl Manifestation {
         let installer_file = dlcfg.download_and_check(&url)?;
 
         let prefix = self.prefix.path();
-        dbg!(prefix);
 
         notify_handler(Notification::InstallingComponent("lean"));
 

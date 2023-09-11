@@ -231,8 +231,8 @@ pub fn cli() -> App<'static, 'static> {
 }
 
 fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let ref toolchain = m.value_of("toolchain").expect("");
-    let toolchain = ToolchainDesc::from_str(toolchain)?;
+    let ref name = m.value_of("toolchain").expect("");
+    let toolchain = ToolchainDesc::from_str(name)?;
     let ref toolchain = cfg.get_toolchain(&toolchain, false)?;
 
     let status = if !toolchain.exists() || !toolchain.is_custom() {
@@ -241,7 +241,7 @@ fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
         None
     };
 
-    toolchain.make_default()?;
+    cfg.set_default(name)?;
 
     if let Some(status) = status {
         println!("");
@@ -319,13 +319,8 @@ fn show(cfg: &Cfg) -> Result<()> {
         if show_headers {
             print_header("installed toolchains")
         }
-        let default_name = cfg.get_default()?;
         for t in installed_toolchains {
-            if default_name.as_ref() == Some(&t) {
-                println!("{} (default)", t);
-            } else {
-                println!("{}", t);
-            }
+            println!("{}", t);
         }
         if show_headers {
             println!("")
