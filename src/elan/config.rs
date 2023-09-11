@@ -102,7 +102,7 @@ impl Cfg {
         })
     }
 
-    pub fn set_default(&self, toolchain: &ToolchainDesc) -> Result<()> {
+    pub fn set_default(&self, toolchain: &str) -> Result<()> {
         self.settings_file.with_mut(|s| {
             s.default_toolchain = Some(toolchain.to_owned());
             Ok(())
@@ -123,7 +123,7 @@ impl Cfg {
 
     pub fn verify_toolchain(&self, name: &ToolchainDesc) -> Result<Toolchain> {
         let toolchain = self.get_toolchain(name, false)?;
-        toolchain.verify()?;
+        toolchain.install_from_dist_if_not_installed()?;
         Ok(toolchain)
     }
 
@@ -141,10 +141,7 @@ impl Cfg {
             .with(|s| Ok(s.default_toolchain.clone()))?;
 
         if let Some(name) = opt_name {
-            let toolchain = self
-                .verify_toolchain(&name)
-                .chain_err(|| ErrorKind::ToolchainNotInstalled(name))?;
-
+            let toolchain = self.verify_toolchain(&ToolchainDesc::from_str(&name)?)?;
             Ok(Some(toolchain))
         } else {
             Ok(None)
@@ -299,10 +296,6 @@ impl Cfg {
                 self.find_default()?.map(|toolchain| (toolchain, None))
             },
         )
-    }
-
-    pub fn get_default(&self) -> Result<Option<ToolchainDesc>> {
-        self.settings_file.with(|s| Ok(s.default_toolchain.clone()))
     }
 
     pub fn list_toolchains(&self) -> Result<Vec<ToolchainDesc>> {

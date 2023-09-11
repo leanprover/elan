@@ -73,7 +73,7 @@ pub enum TelemetryMode {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Settings {
     pub version: String,
-    pub default_toolchain: Option<ToolchainDesc>,
+    pub default_toolchain: Option<String>,
     pub overrides: BTreeMap<String, ToolchainDesc>,
     pub telemetry: TelemetryMode,
 }
@@ -140,7 +140,7 @@ impl Settings {
         }
         Ok(Settings {
             version: version,
-            default_toolchain: get_opt_string(&mut table, "default_toolchain", path)?.map(|s| ToolchainDesc::from_str(&s)).map_or(Ok(None), |r| r.map(Some))?,
+            default_toolchain: get_opt_string(&mut table, "default_toolchain", path)?,
             overrides: Self::table_to_overrides(&mut table, path)?,
             telemetry: if get_opt_bool(&mut table, "telemetry", path)?.unwrap_or(false) {
                 TelemetryMode::On
@@ -155,7 +155,7 @@ impl Settings {
         result.insert("version".to_owned(), toml::Value::String(self.version));
 
         if let Some(v) = self.default_toolchain {
-            result.insert("default_toolchain".to_owned(), toml::Value::String(v.to_string()));
+            result.insert("default_toolchain".to_owned(), toml::Value::String(v));
         }
 
         let overrides = Self::overrides_to_table(self.overrides);
