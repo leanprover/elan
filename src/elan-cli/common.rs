@@ -5,7 +5,6 @@ use elan_dist::dist::ToolchainDesc;
 use elan_utils::notify::NotificationLevel;
 use elan_utils::utils;
 use errors::*;
-use self_update;
 use std;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
@@ -196,38 +195,6 @@ fn show_channel_updates(
         let _ = writeln!(t, " - {}", version);
     }
     let _ = writeln!(t, "");
-
-    Ok(())
-}
-
-pub fn update_all_channels(cfg: &Cfg, self_update: bool, force_update: bool) -> Result<()> {
-    let toolchains = cfg.update_all_channels(force_update)?;
-
-    if toolchains.is_empty() {
-        info!("no updatable toolchains installed.");
-        info!("use 'elan toolchain install' to install a toolchain.")
-    }
-
-    let setup_path = if self_update {
-        self_update::prepare_update()?
-    } else {
-        None
-    };
-
-    if !toolchains.is_empty() {
-        println!("");
-
-        show_channel_updates(cfg, toolchains)?;
-    }
-
-    if let Some(ref setup_path) = setup_path {
-        self_update::run_update(setup_path)?;
-
-        unreachable!(); // update exits on success
-    } else if self_update {
-        // Try again in case we emitted "tool `{}` is already installed" last time.
-        self_update::install_proxies()?;
-    }
 
     Ok(())
 }

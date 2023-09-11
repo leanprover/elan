@@ -2,13 +2,11 @@ use download::DownloadCfg;
 use elan_utils::utils::fetch_url;
 use elan_utils::{self, utils};
 use errors::*;
-use manifest::Component;
 use manifestation::Manifestation;
 use prefix::InstallPrefix;
 use temp;
 
 use std::fmt;
-use std::path::Path;
 
 use regex::Regex;
 
@@ -57,10 +55,6 @@ impl ToolchainDesc {
         self.release.clone()
     }
 
-    pub fn is_tracking(&self) -> bool {
-        return false
-    }
-
     fn url(&self) -> String {
         format!("https://github.com/{}/releases/expanded_assets/{}", self.origin, self.release)
     }
@@ -75,73 +69,17 @@ impl fmt::Display for ToolchainDesc {
     }
 }
 
-// Installs or updates a toolchain from a dist server. If an initial
-// install then it will be installed with the default components. If
-// an upgrade then all the existing components will be upgraded.
-//
-// Returns the manifest's hash if anything changed.
-pub fn update_from_dist<'a>(
+pub fn install_from_dist<'a>(
     download: DownloadCfg<'a>,
-    update_hash: Option<&Path>,
     toolchain: &ToolchainDesc,
     prefix: &InstallPrefix,
-    add: &[Component],
-    remove: &[Component],
-    force_update: bool,
-) -> Result<Option<String>> {
-    let fresh_install = !prefix.path().exists();
-
-    let res = update_from_dist_(
-        download,
-        update_hash,
-        toolchain,
-        prefix,
-        add,
-        remove,
-        force_update,
-    );
-
-    // Don't leave behind an empty / broken installation directory
-    if res.is_err() && fresh_install {
-        // FIXME Ignoring cascading errors
-        let _ = utils::remove_dir("toolchain", prefix.path(), &|n| {
-            (download.notify_handler)(n.into())
-        });
-    }
-
-    res
-}
-
-pub fn update_from_dist_<'a>(
-    download: DownloadCfg<'a>,
-    update_hash: Option<&Path>,
-    toolchain: &ToolchainDesc,
-    prefix: &InstallPrefix,
-    _add: &[Component],
-    _remove: &[Component],
-    _force_update: bool,
-) -> Result<Option<String>> {
+) -> Result<()> {
     let toolchain_str = toolchain.to_string();
     let manifestation = Manifestation::open(prefix.clone())?;
 
     let url = toolchain.url();
 
-    if let Some(hash_file) = update_hash {
-        if utils::is_file(hash_file) {
-            if let Ok(contents) = utils::read_file("update hash", hash_file) {
-                if contents == url {
-                    // Skip download, url matches
-                    return Ok(None);
-                }
-            } /*else {
-                  (self.notify_handler)(Notification::CantReadUpdateHash(hash_file));
-              }*/
-        } /*else {
-              (self.notify_handler)(Notification::NoUpdateHash(hash_file));
-          }*/
-    }
-
-    match manifestation.update(
+    let res = match manifestation.install(
         &toolchain.origin,
         &url,
         &download.temp_cfg,
@@ -156,8 +94,17 @@ pub fn update_from_dist_<'a>(
                 )
             }),
         Err(e) => Err(e),
+    };
+
+    // Don't leave behind an empty / broken installation directory
+    if res.is_err() {
+        // FIXME Ignoring cascading errors
+        let _ = utils::remove_dir("toolchain", prefix.path(), &|n| {
+            (download.notify_handler)(n.into())
+        });
     }
-    .map(|()| Some(url))
+
+    res
 }
 
 pub fn host_triple() -> &'static str {
