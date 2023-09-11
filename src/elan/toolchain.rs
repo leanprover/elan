@@ -20,7 +20,6 @@ use std::process::Command;
 pub struct Toolchain<'a> {
     cfg: &'a Cfg,
     pub desc: ToolchainDesc,
-    dir_name: String,
     path: PathBuf,
     dist_handler: Box<dyn Fn(elan_dist::Notification) + 'a>,
 }
@@ -50,7 +49,6 @@ impl<'a> Toolchain<'a> {
         Ok(Toolchain {
             cfg: cfg,
             desc: desc.clone(),
-            dir_name: dir_name,
             path: path.clone(),
             dist_handler: Box::new(move |n| (cfg.notify_handler)(n.into())),
         })
@@ -87,9 +85,6 @@ impl<'a> Toolchain<'a> {
             (self.cfg.notify_handler)(Notification::ToolchainNotInstalled(&self.desc));
             return Ok(());
         }
-        if let Some(update_hash) = self.update_hash()? {
-            utils::remove_file("update hash", &update_hash)?;
-        }
         let result = install::uninstall(&self.path, &|n| (self.cfg.notify_handler)(n.into()));
         if !self.exists() {
             (self.cfg.notify_handler)(Notification::UninstalledToolchain(&self.desc));
@@ -99,7 +94,7 @@ impl<'a> Toolchain<'a> {
     fn install(&self, install_method: InstallMethod) -> Result<UpdateStatus> {
         let exists = self.exists();
         if exists {
-            (self.cfg.notify_handler)(Notification::UpdatingToolchain(&self.desc));
+            return Err(format!("'{}' is already installed", self.desc).into())
         } else {
             (self.cfg.notify_handler)(Notification::InstallingToolchain(&self.desc));
         }
@@ -130,13 +125,6 @@ impl<'a> Toolchain<'a> {
             Ok(UpdateStatus::Unchanged)
         }
     }
-    fn update_hash(&self) -> Result<Option<PathBuf>> {
-        if self.is_symlink() {
-            Ok(None)
-        } else {
-            Ok(Some(self.cfg.get_hash_file(&self.dir_name, true)?))
-        }
-    }
 
     fn download_cfg(&self) -> DownloadCfg {
         DownloadCfg {
@@ -145,27 +133,18 @@ impl<'a> Toolchain<'a> {
         }
     }
 
-    pub fn install_from_dist(&self, force_update: bool) -> Result<UpdateStatus> {
-        let update_hash = self.update_hash()?;
+    pub fn install_from_dist(&self) -> Result<UpdateStatus> {
         self.install(InstallMethod::Dist(
             &self.desc,
-            update_hash.as_ref().map(|p| &**p),
             self.download_cfg(),
-            force_update,
         ))
     }
 
     pub fn install_from_dist_if_not_installed(&self) -> Result<UpdateStatus> {
-        let update_hash = self.update_hash()?;
         self.install_if_not_installed(InstallMethod::Dist(
             &self.desc,
-            update_hash.as_ref().map(|p| &**p),
             self.download_cfg(),
-            false,
         ))
-    }
-    pub fn is_tracking(&self) -> bool {
-        self.desc.is_tracking()
     }
 
     pub fn install_from_dir(&self, src: &Path, link: bool) -> Result<()> {

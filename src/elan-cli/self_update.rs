@@ -546,7 +546,7 @@ fn maybe_install_lean(toolchain_str: &str, verbose: bool) -> Result<()> {
     } else if cfg.find_default()?.is_none() {
         let desc = ToolchainDesc::from_str(toolchain_str)?;
         let toolchain = cfg.get_toolchain(&desc, false)?;
-        let status = toolchain.install_from_dist(false)?;
+        let status = toolchain.install_from_dist()?;
         cfg.set_default(&desc)?;
         println!("");
         common::show_channel_update(cfg, &desc, Ok(status))?;

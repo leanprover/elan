@@ -12,14 +12,6 @@ pub static SHOW_HELP: &'static str = r"DISCUSSION:
     If there are multiple toolchains installed then all installed
     toolchains are listed as well.";
 
-pub static UPDATE_HELP: &'static str = r"DISCUSSION:
-    With no toolchain specified, the `update` command updates each of
-    the installed toolchains from the official release channels, then
-    updates elan itself.
-
-    If given a toolchain argument then `update` updates that
-    toolchain, the same as `elan toolchain install`.";
-
 pub static INSTALL_HELP: &'static str = r"DISCUSSION:
     Installs a specific lean toolchain.
 

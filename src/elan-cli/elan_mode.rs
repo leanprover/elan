@@ -22,12 +22,11 @@ pub fn main() -> Result<()> {
 
     match matches.subcommand() {
         ("show", Some(_)) => show(cfg)?,
-        ("install", Some(m)) => update(cfg, m)?,
-        ("update", Some(m)) => update(cfg, m)?,
+        ("install", Some(m)) => install(cfg, m)?,
         ("uninstall", Some(m)) => toolchain_remove(cfg, m)?,
         ("default", Some(m)) => default_(cfg, m)?,
         ("toolchain", Some(c)) => match c.subcommand() {
-            ("install", Some(m)) => update(cfg, m)?,
+            ("install", Some(m)) => install(cfg, m)?,
             ("list", Some(_)) => common::list_toolchains(cfg)?,
             ("link", Some(m)) => toolchain_link(cfg, m)?,
             ("uninstall", Some(m)) => toolchain_remove(cfg, m)?,
@@ -79,7 +78,7 @@ pub fn cli() -> App<'static, 'static> {
             .about("Show the active and installed toolchains")
             .after_help(SHOW_HELP))
         .subcommand(SubCommand::with_name("install")
-            .about("Update Lean toolchains")
+            .about("Install Lean toolchain")
             .after_help(INSTALL_HELP)
             .setting(AppSettings::Hidden) // synonym for 'toolchain install'
             .arg(Arg::with_name("toolchain")
@@ -93,22 +92,6 @@ pub fn cli() -> App<'static, 'static> {
                 .help(TOOLCHAIN_ARG_HELP)
                 .required(true)
                 .multiple(true)))
-        .subcommand(SubCommand::with_name("update")
-            .about("Update Lean toolchains and elan")
-            .after_help(UPDATE_HELP)
-            .arg(Arg::with_name("toolchain")
-                .help(TOOLCHAIN_ARG_HELP)
-                .required(false)
-                .multiple(true))
-            .arg(Arg::with_name("no-self-update")
-                .help("Don't perform self update when running the `elan` command")
-                .long("no-self-update")
-                .takes_value(false)
-                .hidden(true))
-            .arg(Arg::with_name("force")
-                .help("Force an update, even if some components are missing")
-                .long("force")
-                .takes_value(false)))
         .subcommand(SubCommand::with_name("default")
             .about("Set the default toolchain")
             .after_help(DEFAULT_HELP)
@@ -124,8 +107,7 @@ pub fn cli() -> App<'static, 'static> {
             .subcommand(SubCommand::with_name("list")
                 .about("List installed toolchains"))
             .subcommand(SubCommand::with_name("install")
-                .about("Install or update a given toolchain")
-                .aliases(&["update", "add"])
+                .about("Install a given toolchain")
                 .arg(Arg::with_name("toolchain")
                      .help(TOOLCHAIN_ARG_HELP)
                      .required(true)
@@ -269,29 +251,22 @@ fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn update(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    if let Some(names) = m.values_of("toolchain") {
-        for name in names {
-            let desc = ToolchainDesc::from_str(name)?;
-            let toolchain = cfg.get_toolchain(&desc, false)?;
+fn install(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+    let names = m.values_of("toolchain").expect("");
+    for name in names {
+        let desc = ToolchainDesc::from_str(name)?;
+        let toolchain = cfg.get_toolchain(&desc, false)?;
 
-            let status = if !toolchain.exists() || !toolchain.is_custom() {
-                Some(toolchain.install_from_dist(m.is_present("force"))?)
-            } else {
-                None
-            };
+        let status = if !toolchain.exists() || !toolchain.is_custom() {
+            Some(toolchain.install_from_dist()?)
+        } else {
+            None
+        };
 
-            if let Some(status) = status {
-                println!("");
-                common::show_channel_update(cfg, &toolchain.desc, Ok(status))?;
-            }
+        if let Some(status) = status {
+            println!("");
+            common::show_channel_update(cfg, &toolchain.desc, Ok(status))?;
         }
-    } else {
-        common::update_all_channels(
-            cfg,
-            !m.is_present("no-self-update") && !elan::install::NEVER_SELF_UPDATE,
-            m.is_present("force"),
-        )?;
     }
 
     Ok(())

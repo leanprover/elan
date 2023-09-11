@@ -11,7 +11,7 @@ use elan_utils::utils;
 use errors::*;
 use notifications::*;
 use settings::{Settings, SettingsFile};
-use toolchain::{Toolchain, UpdateStatus};
+use toolchain::Toolchain;
 
 use toml;
 
@@ -52,7 +52,6 @@ pub struct Cfg {
     pub elan_dir: PathBuf,
     pub settings_file: SettingsFile,
     pub toolchains_dir: PathBuf,
-    pub update_hash_dir: PathBuf,
     pub temp_cfg: temp::Cfg,
     //pub gpg_key: Cow<'static, str>,
     pub env_override: Option<String>,
@@ -69,7 +68,6 @@ impl Cfg {
         let settings_file = SettingsFile::new(elan_dir.join("settings.toml"));
 
         let toolchains_dir = elan_dir.join("toolchains");
-        let update_hash_dir = elan_dir.join("update-hashes");
 
         // GPG key
         /*let gpg_key = ""; if let Some(path) = env::var_os("ELAN_GPG_KEY")
@@ -94,7 +92,6 @@ impl Cfg {
             elan_dir: elan_dir,
             settings_file: settings_file,
             toolchains_dir: toolchains_dir,
-            update_hash_dir: update_hash_dir,
             temp_cfg: temp_cfg,
             //gpg_key: gpg_key,
             notify_handler: notify_handler,
@@ -125,16 +122,6 @@ impl Cfg {
         let toolchain = self.get_toolchain(name, false)?;
         toolchain.verify()?;
         Ok(toolchain)
-    }
-
-    pub fn get_hash_file(&self, toolchain: &str, create_parent: bool) -> Result<PathBuf> {
-        if create_parent {
-            utils::ensure_dir_exists("update-hash", &self.update_hash_dir, &|n| {
-                (self.notify_handler)(n.into())
-            })?;
-        }
-
-        Ok(self.update_hash_dir.join(toolchain))
     }
 
     pub fn which_binary(&self, path: &Path, binary: &str) -> Result<Option<PathBuf>> {
@@ -220,7 +207,7 @@ impl Cfg {
                     if toolchain.exists() {
                         Ok(Some((toolchain, reason)))
                     } else {
-                        toolchain.install_from_dist(false)?;
+                        toolchain.install_from_dist()?;
                         Ok(Some((toolchain, reason)))
                     }
                 }
@@ -337,36 +324,6 @@ impl Cfg {
         }
     }
 
-    pub fn update_all_channels(
-        &self,
-        force_update: bool,
-    ) -> Result<Vec<(ToolchainDesc, Result<UpdateStatus>)>> {
-        let toolchains = self.list_toolchains()?;
-
-        // Convert the toolchain strings to Toolchain values
-        let toolchains = toolchains.into_iter();
-        let toolchains = toolchains.map(|n| (n.clone(), self.get_toolchain(&n, true)));
-
-        // Filter out toolchains that don't track a release channel
-        let toolchains =
-            toolchains.filter(|&(_, ref t)| t.as_ref().map(|t| t.is_tracking()).unwrap_or(false));
-
-        // Update toolchains and collect the results
-        let toolchains = toolchains.map(|(n, t)| {
-            let t = t.and_then(|t| {
-                let t = t.install_from_dist(force_update);
-                if let Err(ref e) = t {
-                    (self.notify_handler)(Notification::NonFatalError(e));
-                }
-                t
-            });
-
-            (n, t)
-        });
-
-        Ok(toolchains.collect())
-    }
-
     pub fn toolchain_for_dir(&self, path: &Path) -> Result<(Toolchain, Option<OverrideReason>)> {
         self.find_override_toolchain_or_default(path)
             .and_then(|r| r.ok_or(ErrorKind::NoDefaultToolchain.into()))
@@ -386,7 +343,7 @@ impl Cfg {
     ) -> Result<Command> {
         let ref toolchain = self.get_toolchain(toolchain, false)?;
         if install_if_missing && !toolchain.exists() {
-            toolchain.install_from_dist(false)?;
+            toolchain.install_from_dist()?;
         }
 
         toolchain.create_command(binary)
