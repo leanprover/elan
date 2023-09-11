@@ -34,8 +34,8 @@ FLAGS:
     -V, --version           Prints version information
 
 OPTIONS:
-        --default-toolchain <default-toolchain>    Choose a default toolchain to install
-        --default-toolchain none                   Do not install any toolchains
+        --default-toolchain <default-toolchain>    Choose a default toolchain
+        --default-toolchain none                   Do not set a default toolchain
 EOF
 }
 
