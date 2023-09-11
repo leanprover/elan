@@ -18,8 +18,7 @@ pub static INSTALL_HELP: &'static str = r"DISCUSSION:
     The 'install' command is an alias for 'elan update <toolchain>'.";
 
 pub static DEFAULT_HELP: &'static str = r"DISCUSSION:
-    Sets the default toolchain to the one specified. If the toolchain
-    is not already installed then it is installed first.";
+    Sets the default toolchain to the one specified.";
 
 pub static TOOLCHAIN_HELP: &'static str = r"DISCUSSION:
     Many `elan` commands deal with *toolchains*, a single
