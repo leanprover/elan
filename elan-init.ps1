@@ -34,13 +34,7 @@ param(
     [string] $ElanVersion = ""
 )
 
-$cputype = [System.Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE");
-
-if ($cputype -ne "AMD64") {
-    Write-Host "### Elan install only supports 64-bit Windows with AMD64 architecture"
-    return 1
-}
-
+# There are no Windows ARM releases yet, use emulated x64
 $_arch = "x86_64-pc-windows-msvc"
 $_ext = ".exe"
 $temp = [System.IO.Path]::GetTempPath()
