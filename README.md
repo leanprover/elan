@@ -85,10 +85,11 @@ Cargo and run the following:
 cargo build
 ```
 
-The built binaries will show up in `target/debug` folder.  You can test that it works by running the following:
+The `elan-init` installer will show up in `target/debug`. This is also the main `elan` executable, so can test that it works by running the following:
 
 ```
-./target/debug/elan --help
+ln -s ./target/debug/elan-init ./elan
+./elan --help
 ```
 
 ## Build on Windows
