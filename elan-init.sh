@@ -188,8 +188,8 @@ get_architecture() {
         if [ "$(uname -o)" = Android ]; then
             local _ostype=Android
         fi
-        if !(ldd --version 2>&1 | grep -iqE 'glibc|gnu c library|gnu libc'); then
-            err "only glibc systems are supported"
+        if ldd --version 2>&1 | grep -q 'musl'; then
+            err "musl-based systems are unsupported at the moment"
         fi
     fi
 
