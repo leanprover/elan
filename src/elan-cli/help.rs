@@ -113,7 +113,7 @@ pub static RUN_HELP: &'static str = r"DISCUSSION:
 
         $ lake +nightly build
 
-        $ elan run nightly lake build";
+        $ elan run --install nightly lake build";
 
 pub static _DOC_HELP: &'static str = r"DISCUSSION:
     Opens the documentation for the currently active toolchain with
