@@ -39,7 +39,7 @@ curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf 
 
 **Windows**: run the following commands in a terminal:
 ```bash
-curl -O --location https://raw.githubusercontent.com/leanprover/elan/master/elan-init.ps1
+curl -O elan-init.ps1 https://raw.githubusercontent.com/leanprover/elan/master/elan-init.ps1
 powershell -ExecutionPolicy Bypass -f elan-init.ps1
 del elan-init.ps1
 ```
