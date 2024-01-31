@@ -37,7 +37,7 @@ Lean (version 4.0.0-nightly-2023-06-27, commit bb8cc08de85f, Release)
 curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
 ```
 
-**Windows**: run the following commands in a terminal:
+**Windows**: run the following commands in a terminal (Command Prompt or PowerShell ≥ version 7.4.1):
 ```bash
 curl -O --location https://raw.githubusercontent.com/leanprover/elan/master/elan-init.ps1
 powershell -ExecutionPolicy Bypass -f elan-init.ps1
