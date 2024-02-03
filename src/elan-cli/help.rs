@@ -12,22 +12,13 @@ pub static SHOW_HELP: &'static str = r"DISCUSSION:
     If there are multiple toolchains installed then all installed
     toolchains are listed as well.";
 
-pub static UPDATE_HELP: &'static str = r"DISCUSSION:
-    With no toolchain specified, the `update` command updates each of
-    the installed toolchains from the official release channels, then
-    updates elan itself.
-
-    If given a toolchain argument then `update` updates that
-    toolchain, the same as `elan toolchain install`.";
-
 pub static INSTALL_HELP: &'static str = r"DISCUSSION:
     Installs a specific lean toolchain.
 
     The 'install' command is an alias for 'elan update <toolchain>'.";
 
 pub static DEFAULT_HELP: &'static str = r"DISCUSSION:
-    Sets the default toolchain to the one specified. If the toolchain
-    is not already installed then it is installed first.";
+    Sets the default toolchain to the one specified.";
 
 pub static TOOLCHAIN_HELP: &'static str = r"DISCUSSION:
     Many `elan` commands deal with *toolchains*, a single

@@ -19,7 +19,7 @@ impl Manifestation {
     }
 
     /// Installation using the legacy v1 manifest format
-    pub fn update(
+    pub fn install(
         &self,
         origin: &String,
         url: &String,
@@ -76,14 +76,12 @@ impl Manifestation {
         let installer_file = dlcfg.download_and_check(&url)?;
 
         let prefix = self.prefix.path();
+        dbg!(prefix);
 
         notify_handler(Notification::InstallingComponent("lean"));
 
-        // Remove old files
         if utils::is_directory(prefix) {
-            utils::remove_dir("toolchain directory", prefix, &|n| {
-                (notify_handler)(n.into())
-            })?;
+            return Err(format!("'{}' is already installed", prefix.display()).into())
         }
 
         utils::ensure_dir_exists("toolchain directory", prefix, &|n| {
