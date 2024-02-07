@@ -5,9 +5,33 @@ use elan_dist::dist;
 use elan_dist::download::DownloadCfg;
 use elan_dist::prefix::InstallPrefix;
 use elan_dist::Notification;
-use elan_utils::utils;
+use elan_utils::utils::{self, fetch_latest_release_tag};
 use errors::Result;
 use std::path::Path;
+
+
+#[cfg(feature = "no-self-update")]
+pub const NEVER_SELF_UPDATE: bool = true;
+#[cfg(not(feature = "no-self-update"))]
+pub const NEVER_SELF_UPDATE: bool = false;
+
+/// Downloads and returns new elan version string if not already up to date
+pub fn check_self_update() -> Result<Option<String>> {
+    // We should expect people that used their system package manger to install elan to also
+    // regularly update those packages because otherwise we may repeatedly nag them about a new
+    // version that is not even available to them yet
+    if NEVER_SELF_UPDATE {
+        return Ok(None)
+    }
+
+    // Get current version
+    let current_version = env!("CARGO_PKG_VERSION");
+
+    let tag = fetch_latest_release_tag("leanprover/elan")?;
+    let available_version = &tag[1..];
+
+    Ok(if available_version != current_version { None } else { Some(available_version.to_owned()) })
+}
 
 #[derive(Copy, Clone)]
 pub enum InstallMethod<'a> {
@@ -44,6 +68,10 @@ impl<'a> InstallMethod<'a> {
                 Ok(true)
             }
             InstallMethod::Dist(toolchain, update_hash, dl_cfg, force_update) => {
+                if let Some(version) = check_self_update()? {
+                    notify_handler(Notification::NewVersionAvailable(version));
+                }
+
                 let prefix = &InstallPrefix::from(path.to_owned());
                 let maybe_new_hash = dist::update_from_dist(
                     dl_cfg,

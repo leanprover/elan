@@ -54,11 +54,6 @@ pub struct InstallOpts {
     pub no_modify_path: bool,
 }
 
-#[cfg(feature = "no-self-update")]
-pub const NEVER_SELF_UPDATE: bool = true;
-#[cfg(not(feature = "no-self-update"))]
-pub const NEVER_SELF_UPDATE: bool = false;
-
 // The big installation messages. These are macros because the first
 // argument of format! needs to be a literal.
 
@@ -564,7 +559,7 @@ fn maybe_install_lean(toolchain_str: &str, verbose: bool) -> Result<()> {
 }
 
 pub fn uninstall(no_prompt: bool) -> Result<()> {
-    if NEVER_SELF_UPDATE {
+    if elan::install::NEVER_SELF_UPDATE {
         err!("self-uninstall is disabled for this build of elan");
         err!("you should probably use your system package manager to uninstall elan");
         process::exit(1);
@@ -1192,7 +1187,7 @@ fn do_remove_from_path(methods: &[PathUpdateMethod]) -> Result<()> {
 /// elan-init is stored in `ELAN_HOME`/bin, and then deleted next
 /// time elan runs.
 pub fn update() -> Result<()> {
-    if NEVER_SELF_UPDATE {
+    if elan::install::NEVER_SELF_UPDATE {
         err!("self-update is disabled for this build of elan");
         err!("you should probably use your system package manager to update elan");
         process::exit(1);
@@ -1254,19 +1249,10 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
 
     let tempdir = tempdir().chain_err(|| "error creating temp directory")?;
 
-    // Get current version
-    let current_version = env!("CARGO_PKG_VERSION");
-
-    // Download available version
-    info!("checking for self-updates");
-
-    let tag = utils::fetch_latest_release_tag("leanprover/elan")?;
-    let available_version = &tag[1..];
-
-    // If up-to-date
-    if available_version == current_version {
+    let Some(available_version) = elan::install::check_self_update()? else {
+        // If up-to-date
         return Ok(None);
-    }
+    };
 
     let archive_suffix = if cfg!(target_os = "windows") {
         ".zip"
