@@ -76,6 +76,9 @@ impl Manifestation {
 
         notify_handler(Notification::InstallingComponent("lean"));
 
+        // unpack into temporary place, then move atomically to guard against aborts during unpacking
+        let unpack_dir = prefix.with_extension("tmp");
+
         // Remove old files
         if utils::is_directory(prefix) {
             utils::remove_dir("toolchain directory", prefix, &|n| {
@@ -83,20 +86,28 @@ impl Manifestation {
             })?;
         }
 
-        utils::ensure_dir_exists("toolchain directory", prefix, &|n| {
+        if utils::is_directory(&unpack_dir) {
+            utils::remove_dir("temp toolchain directory", &unpack_dir, &|n| {
+                (notify_handler)(n.into())
+            })?;
+        }
+
+        utils::ensure_dir_exists("temp toolchain directory", &unpack_dir, &|n| {
             (notify_handler)(n.into())
         })?;
 
         // Extract new files
         if url.ends_with(".tar.gz") {
-            TarGzPackage::unpack_file(&installer_file, prefix)?
+            TarGzPackage::unpack_file(&installer_file, &unpack_dir)?
         } else if url.ends_with(".tar.zst") {
-            TarZstdPackage::unpack_file(&installer_file, prefix)?
+            TarZstdPackage::unpack_file(&installer_file, &unpack_dir)?
         } else if url.ends_with(".zip") {
-            ZipPackage::unpack_file(&installer_file, prefix)?
+            ZipPackage::unpack_file(&installer_file, &unpack_dir)?
         } else {
             return Err(format!("unsupported archive format: {}", url).into())
         }
+
+        utils::rename_dir("temp toolchain directory", &unpack_dir, prefix)?;
 
         Ok(())
     }
