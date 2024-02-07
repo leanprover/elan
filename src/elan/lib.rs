@@ -25,7 +25,7 @@ pub mod command;
 mod config;
 pub mod env_var;
 mod errors;
-mod install;
+pub mod install;
 mod notifications;
 pub mod settings;
 mod toolchain;

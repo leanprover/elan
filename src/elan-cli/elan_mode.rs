@@ -289,7 +289,7 @@ fn update(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     } else {
         common::update_all_channels(
             cfg,
-            !m.is_present("no-self-update") && !self_update::NEVER_SELF_UPDATE,
+            !m.is_present("no-self-update") && !elan::install::NEVER_SELF_UPDATE,
             m.is_present("force"),
         )?;
     }

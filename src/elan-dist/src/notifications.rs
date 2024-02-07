@@ -30,6 +30,7 @@ pub enum Notification<'a> {
     DownloadedManifest(&'a str, Option<&'a str>),
     DownloadingLegacyManifest,
     ManifestChecksumFailedHack,
+    NewVersionAvailable(String),
 }
 
 impl<'a> From<elan_utils::Notification<'a>> for Notification<'a> {
@@ -63,6 +64,7 @@ impl<'a> Notification<'a> {
             | ManifestChecksumFailedHack
             | RollingBack
             | DownloadingManifest(_)
+            | NewVersionAvailable(_)
             | DownloadedManifest(_, _) => NotificationLevel::Info,
             CantReadUpdateHash(_)
             | ExtensionNotInstalled(_)
@@ -116,6 +118,9 @@ impl<'a> Display for Notification<'a> {
             DownloadingLegacyManifest => write!(f, "manifest not found. trying legacy manifest"),
             ManifestChecksumFailedHack => {
                 write!(f, "update not yet available, sorry! try again later")
+            }
+            NewVersionAvailable(ref version) => {
+                write!(f, "Version {version} of elan is available! Use `elan self update` to update.")
             }
         }
     }
