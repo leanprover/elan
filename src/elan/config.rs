@@ -53,7 +53,6 @@ pub struct Cfg {
     pub settings_file: SettingsFile,
     pub toolchains_dir: PathBuf,
     pub update_hash_dir: PathBuf,
-    pub download_dir: PathBuf,
     pub temp_cfg: temp::Cfg,
     //pub gpg_key: Cow<'static, str>,
     pub env_override: Option<String>,
@@ -71,7 +70,6 @@ impl Cfg {
 
         let toolchains_dir = elan_dir.join("toolchains");
         let update_hash_dir = elan_dir.join("update-hashes");
-        let download_dir = elan_dir.join("downloads");
 
         // GPG key
         /*let gpg_key = ""; if let Some(path) = env::var_os("ELAN_GPG_KEY")
@@ -97,7 +95,6 @@ impl Cfg {
             settings_file: settings_file,
             toolchains_dir: toolchains_dir,
             update_hash_dir: update_hash_dir,
-            download_dir: download_dir,
             temp_cfg: temp_cfg,
             //gpg_key: gpg_key,
             notify_handler: notify_handler,
