@@ -141,7 +141,6 @@ impl<'a> Toolchain<'a> {
     fn download_cfg(&self) -> DownloadCfg {
         DownloadCfg {
             temp_cfg: &self.cfg.temp_cfg,
-            download_dir: &self.cfg.download_dir,
             notify_handler: &*self.dist_handler,
         }
     }

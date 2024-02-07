@@ -1283,7 +1283,7 @@ pub fn prepare_update() -> Result<Option<PathBuf>> {
 
     // Download new version
     info!("downloading self-update");
-    utils::download_file(&download_url, &archive_path, None, &|_| ())?;
+    utils::download_file(&download_url, &archive_path, &|_| ())?;
 
     let file = fs::File::open(archive_path)?;
     if cfg!(target_os = "windows") {

@@ -28,10 +28,7 @@ impl Manifestation {
     ) -> Result<()> {
         notify_handler(Notification::DownloadingComponent("lean"));
 
-        use std::path::PathBuf;
-        let dld_dir = PathBuf::from("bogus");
         let dlcfg = DownloadCfg {
-            download_dir: &dld_dir,
             temp_cfg: temp_cfg,
             notify_handler: notify_handler,
         };

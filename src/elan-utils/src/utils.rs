@@ -2,7 +2,6 @@ use dirs;
 use errors::*;
 use notifications::Notification;
 use raw;
-use sha2::{Digest, Sha256};
 use std::cmp::Ord;
 use std::env;
 use std::ffi::OsString;
@@ -10,7 +9,6 @@ use std::fs::{self, File};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::atomic::{AtomicBool, Ordering};
 use url::Url;
 #[cfg(windows)]
 use winreg;
@@ -125,21 +123,10 @@ pub fn tee_file<W: io::Write>(name: &'static str, path: &Path, w: &mut W) -> Res
 pub fn download_file(
     url: &Url,
     path: &Path,
-    hasher: Option<&mut Sha256>,
-    notify_handler: &dyn Fn(Notification),
-) -> Result<()> {
-    download_file_with_resume(&url, &path, hasher, false, &notify_handler)
-}
-
-pub fn download_file_with_resume(
-    url: &Url,
-    path: &Path,
-    hasher: Option<&mut Sha256>,
-    resume_from_partial: bool,
     notify_handler: &dyn Fn(Notification),
 ) -> Result<()> {
     use download::ErrorKind as DEK;
-    match download_file_(url, path, hasher, resume_from_partial, notify_handler) {
+    match download_file_(url, path, notify_handler) {
         Ok(_) => Ok(()),
         Err(e) => {
             println!("{:?}", e);
@@ -165,44 +152,25 @@ pub fn download_file_with_resume(
     }
 }
 
-static DEPRECATED_HYPER_WARNED: AtomicBool = AtomicBool::new(false);
-
 fn download_file_(
     url: &Url,
     path: &Path,
-    hasher: Option<&mut Sha256>,
-    resume_from_partial: bool,
     notify_handler: &dyn Fn(Notification),
 ) -> Result<()> {
     use download::download_to_path_with_backend;
     use download::{Backend, Event};
-    use std::cell::RefCell;
 
     notify_handler(Notification::DownloadingFile(url, path));
-
-    let hasher = RefCell::new(hasher);
 
     // This callback will write the download to disk and optionally
     // hash the contents, then forward the notification up the stack
     let callback: &dyn Fn(Event) -> download::Result<()> = &|msg| {
-        match msg {
-            Event::DownloadDataReceived(data) => {
-                if let Some(ref mut h) = *hasher.borrow_mut() {
-                    h.update(data);
-                }
-            }
-            _ => (),
-        }
-
         match msg {
             Event::DownloadContentLengthReceived(len) => {
                 notify_handler(Notification::DownloadContentLengthReceived(len));
             }
             Event::DownloadDataReceived(data) => {
                 notify_handler(Notification::DownloadDataReceived(data));
-            }
-            Event::ResumingPartialDownload => {
-                notify_handler(Notification::ResumingPartialDownload);
             }
         }
 
@@ -211,19 +179,9 @@ fn download_file_(
 
     // Download the file
 
-    // Keep the hyper env var around for a bit
-    let use_hyper_backend = env::var_os("ELAN_USE_HYPER").is_some();
-    if use_hyper_backend && DEPRECATED_HYPER_WARNED.swap(true, Ordering::Relaxed) {
-        notify_handler(Notification::UsingHyperDeprecated);
-    }
-    let use_reqwest_backend = use_hyper_backend || env::var_os("ELAN_USE_REQWEST").is_some();
-    let (backend, notification) = if use_reqwest_backend {
-        (Backend::Reqwest, Notification::UsingReqwest)
-    } else {
-        (Backend::Curl, Notification::UsingCurl)
-    };
+    let (backend, notification) = (Backend::Curl, Notification::UsingCurl);
     notify_handler(notification);
-    download_to_path_with_backend(backend, url, path, resume_from_partial, Some(callback))?;
+    download_to_path_with_backend(backend, url, path, Some(callback))?;
 
     notify_handler(Notification::DownloadFinished);
 
