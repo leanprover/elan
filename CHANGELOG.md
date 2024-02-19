@@ -1,3 +1,8 @@
+# Unreleased
+
+- Fix partial toolchains potentially being left in place when unpacking is aborted (#121)
+- Check for elan updates during toolchain downloads (#122)
+
 # 3.0.0 - 2023-09-08
 
 - Default to stable toolchain again in time for first Lean 4 stable release (#104)
