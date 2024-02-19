@@ -1,4 +1,4 @@
-# Unreleased
+# 3.1.0 - 2024-02-19
 
 - Fix partial toolchains potentially being left in place when unpacking is aborted (#121)
 - Check for elan updates during toolchain downloads (#122)
