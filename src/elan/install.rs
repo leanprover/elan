@@ -30,6 +30,7 @@ pub fn check_self_update() -> Result<Option<String>> {
     let tag = fetch_latest_release_tag("leanprover/elan")?;
     let available_version = &tag[1..];
 
+    dbg!((available_version, current_version));
     Ok(if available_version != current_version { None } else { Some(available_version.to_owned()) })
 }
 
