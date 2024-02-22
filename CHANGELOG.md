@@ -1,4 +1,4 @@
-# Unreleased
+# 3.1.1 - 2024-02-22
 
 - Fix update check
 
