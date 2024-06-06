@@ -48,16 +48,9 @@ Alternatively, on **any supported platform**: Grab the [latest release](https://
 
 The installation will tell you where it will install elan to (`~/.elan` by default), and also ask you about editing your shell config to extend `PATH`. elan can be uninstalled via `elan self uninstall`, which should revert these changes.
 
-## Homebrew
+## NixOS
 
-```bash
-$ brew install elan-init
-```
-
-Please note that native macOS/aarch64 releases are unavailable for some toolchains. See [Manual Installation](#manual-installation) for more information.
-
-## Nix
-
+The toolchains downloaded by elan require some patching on NixOS, which is done automatically by the version available in Nixpkgs.
 ```bash
 $ nix-env -iA nixpkgs.elan
 ```
