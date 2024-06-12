@@ -15,6 +15,8 @@ use toolchain::Toolchain;
 
 use toml;
 
+use crate::lookup_toolchain_desc;
+
 #[derive(Debug)]
 pub enum OverrideReason {
     Environment,
@@ -138,7 +140,7 @@ impl Cfg {
             .with(|s| Ok(s.default_toolchain.clone()))?;
 
         if let Some(name) = opt_name {
-            let toolchain = self.verify_toolchain(&ToolchainDesc::from_str(&name)?)?;
+            let toolchain = self.verify_toolchain(&lookup_toolchain_desc(&self, &name)?)?;
             Ok(Some(toolchain))
         } else {
             Ok(None)
@@ -150,7 +152,7 @@ impl Cfg {
 
         // First check ELAN_TOOLCHAIN
         if let Some(ref name) = self.env_override {
-            override_ = Some((ToolchainDesc::from_str(name)?, OverrideReason::Environment));
+            override_ = Some((lookup_toolchain_desc(&self, name)?, OverrideReason::Environment));
         }
 
         // Then walk up the directory tree from 'path' looking for either the
@@ -238,7 +240,7 @@ impl Cfg {
             if let Ok(s) = utils::read_file("toolchain file", &toolchain_file) {
                 if let Some(s) = s.lines().next() {
                     let toolchain_name = s.trim();
-                    let desc = ToolchainDesc::from_str(toolchain_name)?;
+                    let desc = lookup_toolchain_desc(&self, toolchain_name)?;
                     let reason = OverrideReason::ToolchainFile(toolchain_file);
                     return Ok(Some((desc, reason)));
                 }
@@ -256,7 +258,7 @@ impl Cfg {
                 {
                     None => {}
                     Some(toml::Value::String(s)) => {
-                        let desc = ToolchainDesc::from_str(s)?;
+                        let desc = lookup_toolchain_desc(&self, s)?;
                         return Ok(Some((desc, OverrideReason::LeanpkgFile(leanpkg_file))))
                     }
                     Some(a) => {
@@ -271,7 +273,7 @@ impl Cfg {
                 if let Some(last) = d.file_name() {
                     if let Some(last) = last.to_str() {
                         return Ok(Some((
-                            ToolchainDesc::from_str(last)?,
+                            lookup_toolchain_desc(&self, last)?,
                             OverrideReason::InToolchainDirectory(d.into()),
                         )));
                     }
@@ -310,7 +312,8 @@ impl Cfg {
 
             utils::toolchain_sort(&mut toolchains);
 
-            let toolchains: Vec<_> = toolchains.iter().map(|s| ToolchainDesc::from_str(&s)).collect::<elan_dist::Result<Vec<_>>>()?;
+            // ignore legacy toolchains in non-resolved format
+            let toolchains: Vec<_> = toolchains.iter().flat_map(|s| ToolchainDesc::from_resolved_str(&s)).collect();
             Ok(toolchains)
         } else {
             Ok(Vec::new())

@@ -1,16 +1,12 @@
 use download::DownloadCfg;
-use elan_utils::utils::fetch_url;
 use elan_utils::{self, utils};
 use errors::*;
 use manifestation::Manifestation;
 use prefix::InstallPrefix;
+use regex::Regex;
 use temp;
 
 use std::fmt;
-
-use regex::Regex;
-
-const DEFAULT_ORIGIN: &str = "leanprover/lean4";
 
 // Fully-resolved toolchain descriptors. These always have full target
 // triples attached to them and are used for canonical identification,
@@ -25,26 +21,13 @@ pub struct ToolchainDesc {
 }
 
 impl ToolchainDesc {
-    pub fn from_str(name: &str) -> Result<Self> {
-        let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?([a-zA-Z0-9-.]+)$";
+    pub fn from_resolved_str(name: &str) -> Result<Self> {
+        let pattern = r"^([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:]([a-zA-Z0-9-.]+)$";
 
         let re = Regex::new(&pattern).unwrap();
         if let Some(c) = re.captures(name) {
-            let mut origin = c.get(1).map(|s| s.as_str()).unwrap_or(DEFAULT_ORIGIN).to_owned();
-            let mut release = c.get(2).unwrap().as_str().to_owned();
-            if release.starts_with("nightly") && !origin.ends_with("-nightly") {
-                origin = format!("{}-nightly", origin);
-            }
-            if release == "lean-toolchain" {
-                let toolchain_url = format!("https://raw.githubusercontent.com/{}/HEAD/lean-toolchain", origin);
-                return ToolchainDesc::from_str(fetch_url(&toolchain_url)?.trim())
-            }
-            if release == "stable" || release == "nightly" {
-                release = utils::fetch_latest_release_tag(&origin)?;
-            }
-            if release.starts_with(char::is_numeric) {
-                release = format!("v{}", release)
-            }
+            let origin = c.get(1).unwrap().as_str().to_owned();
+            let release = c.get(2).unwrap().as_str().to_owned();
             Ok(ToolchainDesc { origin, release })
         } else {
             Err(ErrorKind::InvalidToolchainName(name.to_string()).into())

@@ -16,6 +16,10 @@ error_chain! {
     }
 
     errors {
+        InvalidToolchainName(t: String) {
+            description("invalid toolchain name")
+            display("invalid toolchain name: '{}'", t)
+        }
         UnknownMetadataVersion(v: String) {
             description("unknown metadata version")
             display("unknown metadata version: '{}'", v)

@@ -1,7 +1,6 @@
 use clap::{App, AppSettings, Arg, ArgMatches, Shell, SubCommand};
 use common;
-use elan::{command, Cfg, Toolchain};
-use elan_dist::dist::ToolchainDesc;
+use elan::{command, lookup_toolchain_desc, Cfg, Toolchain};
 use elan_utils::utils;
 use errors::*;
 use help::*;
@@ -232,7 +231,7 @@ pub fn cli() -> App<'static, 'static> {
 
 fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref name = m.value_of("toolchain").expect("");
-    let toolchain = ToolchainDesc::from_str(name)?;
+    let toolchain = lookup_toolchain_desc(cfg, name)?;
     let ref toolchain = cfg.get_toolchain(&toolchain, false)?;
 
     let status = if !toolchain.exists() || !toolchain.is_custom() {
@@ -254,7 +253,7 @@ fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 fn install(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let names = m.values_of("toolchain").expect("");
     for name in names {
-        let desc = ToolchainDesc::from_str(name)?;
+        let desc = lookup_toolchain_desc(cfg, name)?;
         let toolchain = cfg.get_toolchain(&desc, false)?;
 
         let status = if !toolchain.exists() || !toolchain.is_custom() {
@@ -276,7 +275,7 @@ fn run(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
     let args = m.values_of("command").unwrap();
     let args: Vec<_> = args.collect();
-    let desc = ToolchainDesc::from_str(toolchain)?;
+    let desc = lookup_toolchain_desc(cfg, toolchain)?;
     let cmd = cfg.create_command_for_toolchain(&desc, m.is_present("install"), args[0])?;
 
     Ok(command::run_command_for_dir(
@@ -375,7 +374,7 @@ fn show(cfg: &Cfg) -> Result<()> {
 fn explicit_or_dir_toolchain<'a>(cfg: &'a Cfg, m: &ArgMatches) -> Result<Toolchain<'a>> {
     let toolchain = m.value_of("toolchain");
     if let Some(toolchain) = toolchain {
-      let desc = ToolchainDesc::from_str(toolchain)?;
+      let desc = lookup_toolchain_desc(cfg, toolchain)?;
         let toolchain = cfg.get_toolchain(&desc, false)?;
         return Ok(toolchain);
     }
@@ -389,7 +388,7 @@ fn explicit_or_dir_toolchain<'a>(cfg: &'a Cfg, m: &ArgMatches) -> Result<Toolcha
 fn toolchain_link(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
     let ref path = m.value_of("path").expect("");
-    let desc = ToolchainDesc::from_str(toolchain)?;
+    let desc = lookup_toolchain_desc(cfg, toolchain)?;
     let toolchain = cfg.get_toolchain(&desc, true)?;
 
     Ok(toolchain.install_from_dir(Path::new(path), true)?)
@@ -397,7 +396,7 @@ fn toolchain_link(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 
 fn toolchain_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     for toolchain in m.values_of("toolchain").expect("") {
-        let desc = ToolchainDesc::from_str(toolchain)?;
+        let desc = lookup_toolchain_desc(cfg, toolchain)?;
         let toolchain = cfg.get_toolchain(&desc, false)?;
         toolchain.remove()?;
     }
@@ -406,7 +405,7 @@ fn toolchain_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 
 fn override_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
-    let desc = ToolchainDesc::from_str(toolchain)?;
+    let desc = lookup_toolchain_desc(cfg, toolchain)?;
     let toolchain = cfg.get_toolchain(&desc, false)?;
 
     let status = if !toolchain.exists() || !toolchain.is_custom() {

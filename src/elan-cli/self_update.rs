@@ -31,8 +31,8 @@
 //! and racy on Windows.
 
 use common::{self, Confirm};
+use elan::lookup_toolchain_desc;
 use elan_dist::dist;
-use elan_dist::dist::ToolchainDesc;
 use elan_utils::utils;
 use errors::*;
 use flate2;
@@ -233,9 +233,9 @@ pub fn install(no_prompt: bool, verbose: bool, mut opts: InstallOpts) -> Result<
             do_add_to_path(&get_add_path_methods())?;
         }
         if opts.default_toolchain != "none" {
-            // sanity-check reference
-            let _ = ToolchainDesc::from_str(&opts.default_toolchain)?;
             let ref cfg = common::set_globals(verbose)?;
+            // sanity-check reference
+            let _ = lookup_toolchain_desc(cfg, &opts.default_toolchain)?;
             cfg.set_default(&opts.default_toolchain)?;
         }
 

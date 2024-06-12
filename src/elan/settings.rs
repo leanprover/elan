@@ -176,7 +176,7 @@ impl Settings {
 
         for (k, v) in pkg_table {
             if let toml::Value::String(t) = v {
-                result.insert(k, ToolchainDesc::from_str(&t)?);
+                result.insert(k, ToolchainDesc::from_resolved_str(&t)?);
             }
         }
 

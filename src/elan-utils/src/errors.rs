@@ -1,5 +1,6 @@
 use download;
 use std::ffi::OsString;
+use std::io;
 use std::path::PathBuf;
 use url::Url;
 
@@ -8,7 +9,9 @@ error_chain! {
         Download(download::Error, download::ErrorKind);
     }
 
-    foreign_links { }
+    foreign_links {
+        Io(io::Error);
+    }
 
     errors {
         LocatingWorkingDir {

@@ -4,6 +4,7 @@ use elan_dist::dist::ToolchainDesc;
 use elan_dist::download::DownloadCfg;
 use elan_dist::manifest::Component;
 use elan_utils::utils;
+use elan_utils::utils::fetch_url;
 use env_var;
 use errors::*;
 use install::{self, InstallMethod};
@@ -15,6 +16,9 @@ use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use regex::Regex;
+
+const DEFAULT_ORIGIN: &str = "leanprover/lean4";
 
 /// A fully resolved reference to a toolchain which may or may not exist
 pub struct Toolchain<'a> {
@@ -36,6 +40,33 @@ pub enum UpdateStatus {
     Installed,
     Updated,
     Unchanged,
+}
+
+pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
+    let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?([a-zA-Z0-9-.]+)$";
+
+    let re = Regex::new(&pattern).unwrap();
+    if let Some(c) = re.captures(name) {
+        let mut origin = c.get(1).map(|s| s.as_str()).unwrap_or(DEFAULT_ORIGIN).to_owned();
+        let mut release = c.get(2).unwrap().as_str().to_owned();
+        if release.starts_with("nightly") && !origin.ends_with("-nightly") {
+            origin = format!("{}-nightly", origin);
+        }
+        if release == "lean-toolchain" {
+            let toolchain_url = format!("https://raw.githubusercontent.com/{}/HEAD/lean-toolchain", origin);
+            return lookup_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())
+        }
+        if release == "stable" || release == "nightly" {
+            release = utils::fetch_latest_release_tag(&origin,
+Some(&move |n| (cfg.notify_handler)(n.into())))?;
+        }
+        if release.starts_with(char::is_numeric) {
+            release = format!("v{}", release)
+        }
+        Ok(ToolchainDesc { origin, release })
+    } else {
+        Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
+    }
 }
 
 impl<'a> Toolchain<'a> {
