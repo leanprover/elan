@@ -105,9 +105,9 @@ impl<'a> Display for Notification<'a> {
             MissingInstalledComponent(c) => {
                 write!(f, "during uninstall component {} was not found", c)
             }
-            DownloadingComponent(c) => write!(f, "downloading component '{}'", c),
-            InstallingComponent(c) => write!(f, "installing component '{}'", c),
-            RemovingComponent(c) => write!(f, "removing component '{}'", c),
+            DownloadingComponent(c) => write!(f, "downloading {}", c),
+            InstallingComponent(c) => write!(f, "installing {}", c),
+            RemovingComponent(c) => write!(f, "removing {}", c),
             DownloadingManifest(t) => write!(f, "syncing channel updates for '{}'", t),
             DownloadedManifest(date, Some(version)) => {
                 write!(f, "latest update on {}, lean version {}", date, version)
