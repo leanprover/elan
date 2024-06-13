@@ -18,16 +18,13 @@ impl Manifestation {
         Ok(Manifestation { prefix })
     }
 
-    /// Installation using the legacy v1 manifest format
-    pub fn update(
+    pub fn install(
         &self,
         origin: &String,
         url: &String,
         temp_cfg: &temp::Cfg,
         notify_handler: &dyn Fn(Notification),
     ) -> Result<()> {
-        notify_handler(Notification::DownloadingComponent("lean"));
-
         let dlcfg = DownloadCfg {
             temp_cfg: temp_cfg,
             notify_handler: notify_handler,
@@ -69,21 +66,19 @@ impl Manifestation {
             );
         }
         let url = format!("https://github.com/{}", url.unwrap());
+        notify_handler(Notification::DownloadingComponent(&url));
 
         let installer_file = dlcfg.download_and_check(&url)?;
 
         let prefix = self.prefix.path();
 
-        notify_handler(Notification::InstallingComponent("lean"));
+        notify_handler(Notification::InstallingComponent(&prefix.to_string_lossy()));
 
         // unpack into temporary place, then move atomically to guard against aborts during unpacking
         let unpack_dir = prefix.with_extension("tmp");
 
-        // Remove old files
         if utils::is_directory(prefix) {
-            utils::remove_dir("toolchain directory", prefix, &|n| {
-                (notify_handler)(n.into())
-            })?;
+            return Err(format!("'{}' is already installed", prefix.display()).into())
         }
 
         if utils::is_directory(&unpack_dir) {

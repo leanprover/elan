@@ -11,9 +11,11 @@ use elan_utils::utils;
 use errors::*;
 use notifications::*;
 use settings::{Settings, SettingsFile};
-use toolchain::{Toolchain, UpdateStatus};
+use toolchain::Toolchain;
 
 use toml;
+
+use crate::lookup_toolchain_desc;
 
 #[derive(Debug)]
 pub enum OverrideReason {
@@ -52,7 +54,6 @@ pub struct Cfg {
     pub elan_dir: PathBuf,
     pub settings_file: SettingsFile,
     pub toolchains_dir: PathBuf,
-    pub update_hash_dir: PathBuf,
     pub temp_cfg: temp::Cfg,
     //pub gpg_key: Cow<'static, str>,
     pub env_override: Option<String>,
@@ -69,7 +70,6 @@ impl Cfg {
         let settings_file = SettingsFile::new(elan_dir.join("settings.toml"));
 
         let toolchains_dir = elan_dir.join("toolchains");
-        let update_hash_dir = elan_dir.join("update-hashes");
 
         // GPG key
         /*let gpg_key = ""; if let Some(path) = env::var_os("ELAN_GPG_KEY")
@@ -94,7 +94,6 @@ impl Cfg {
             elan_dir: elan_dir,
             settings_file: settings_file,
             toolchains_dir: toolchains_dir,
-            update_hash_dir: update_hash_dir,
             temp_cfg: temp_cfg,
             //gpg_key: gpg_key,
             notify_handler: notify_handler,
@@ -102,7 +101,7 @@ impl Cfg {
         })
     }
 
-    pub fn set_default(&self, toolchain: &ToolchainDesc) -> Result<()> {
+    pub fn set_default(&self, toolchain: &str) -> Result<()> {
         self.settings_file.with_mut(|s| {
             s.default_toolchain = Some(toolchain.to_owned());
             Ok(())
@@ -118,23 +117,13 @@ impl Cfg {
             })?;
         }
 
-        Toolchain::from(self, name)
+        Ok(Toolchain::from(self, name))
     }
 
     pub fn verify_toolchain(&self, name: &ToolchainDesc) -> Result<Toolchain> {
         let toolchain = self.get_toolchain(name, false)?;
-        toolchain.verify()?;
+        toolchain.install_from_dist_if_not_installed()?;
         Ok(toolchain)
-    }
-
-    pub fn get_hash_file(&self, toolchain: &str, create_parent: bool) -> Result<PathBuf> {
-        if create_parent {
-            utils::ensure_dir_exists("update-hash", &self.update_hash_dir, &|n| {
-                (self.notify_handler)(n.into())
-            })?;
-        }
-
-        Ok(self.update_hash_dir.join(toolchain))
     }
 
     pub fn which_binary(&self, path: &Path, binary: &str) -> Result<Option<PathBuf>> {
@@ -151,10 +140,7 @@ impl Cfg {
             .with(|s| Ok(s.default_toolchain.clone()))?;
 
         if let Some(name) = opt_name {
-            let toolchain = self
-                .verify_toolchain(&name)
-                .chain_err(|| ErrorKind::ToolchainNotInstalled(name))?;
-
+            let toolchain = self.verify_toolchain(&lookup_toolchain_desc(&self, &name)?)?;
             Ok(Some(toolchain))
         } else {
             Ok(None)
@@ -166,7 +152,7 @@ impl Cfg {
 
         // First check ELAN_TOOLCHAIN
         if let Some(ref name) = self.env_override {
-            override_ = Some((ToolchainDesc::from_str(name)?, OverrideReason::Environment));
+            override_ = Some((lookup_toolchain_desc(&self, name)?, OverrideReason::Environment));
         }
 
         // Then walk up the directory tree from 'path' looking for either the
@@ -220,7 +206,7 @@ impl Cfg {
                     if toolchain.exists() {
                         Ok(Some((toolchain, reason)))
                     } else {
-                        toolchain.install_from_dist(false)?;
+                        toolchain.install_from_dist()?;
                         Ok(Some((toolchain, reason)))
                     }
                 }
@@ -254,7 +240,7 @@ impl Cfg {
             if let Ok(s) = utils::read_file("toolchain file", &toolchain_file) {
                 if let Some(s) = s.lines().next() {
                     let toolchain_name = s.trim();
-                    let desc = ToolchainDesc::from_str(toolchain_name)?;
+                    let desc = lookup_toolchain_desc(&self, toolchain_name)?;
                     let reason = OverrideReason::ToolchainFile(toolchain_file);
                     return Ok(Some((desc, reason)));
                 }
@@ -272,7 +258,7 @@ impl Cfg {
                 {
                     None => {}
                     Some(toml::Value::String(s)) => {
-                        let desc = ToolchainDesc::from_str(s)?;
+                        let desc = lookup_toolchain_desc(&self, s)?;
                         return Ok(Some((desc, OverrideReason::LeanpkgFile(leanpkg_file))))
                     }
                     Some(a) => {
@@ -287,7 +273,7 @@ impl Cfg {
                 if let Some(last) = d.file_name() {
                     if let Some(last) = last.to_str() {
                         return Ok(Some((
-                            ToolchainDesc::from_str(last)?,
+                            lookup_toolchain_desc(&self, last)?,
                             OverrideReason::InToolchainDirectory(d.into()),
                         )));
                     }
@@ -311,10 +297,6 @@ impl Cfg {
         )
     }
 
-    pub fn get_default(&self) -> Result<Option<ToolchainDesc>> {
-        self.settings_file.with(|s| Ok(s.default_toolchain.clone()))
-    }
-
     pub fn list_toolchains(&self) -> Result<Vec<ToolchainDesc>> {
         // de-sanitize toolchain file names (best effort...)
         fn insane(s: String) -> String {
@@ -330,41 +312,12 @@ impl Cfg {
 
             utils::toolchain_sort(&mut toolchains);
 
-            let toolchains: Vec<_> = toolchains.iter().map(|s| ToolchainDesc::from_str(&s)).collect::<elan_dist::Result<Vec<_>>>()?;
+            // ignore legacy toolchains in non-resolved format
+            let toolchains: Vec<_> = toolchains.iter().flat_map(|s| ToolchainDesc::from_resolved_str(&s)).collect();
             Ok(toolchains)
         } else {
             Ok(Vec::new())
         }
-    }
-
-    pub fn update_all_channels(
-        &self,
-        force_update: bool,
-    ) -> Result<Vec<(ToolchainDesc, Result<UpdateStatus>)>> {
-        let toolchains = self.list_toolchains()?;
-
-        // Convert the toolchain strings to Toolchain values
-        let toolchains = toolchains.into_iter();
-        let toolchains = toolchains.map(|n| (n.clone(), self.get_toolchain(&n, true)));
-
-        // Filter out toolchains that don't track a release channel
-        let toolchains =
-            toolchains.filter(|&(_, ref t)| t.as_ref().map(|t| t.is_tracking()).unwrap_or(false));
-
-        // Update toolchains and collect the results
-        let toolchains = toolchains.map(|(n, t)| {
-            let t = t.and_then(|t| {
-                let t = t.install_from_dist(force_update);
-                if let Err(ref e) = t {
-                    (self.notify_handler)(Notification::NonFatalError(e));
-                }
-                t
-            });
-
-            (n, t)
-        });
-
-        Ok(toolchains.collect())
     }
 
     pub fn toolchain_for_dir(&self, path: &Path) -> Result<(Toolchain, Option<OverrideReason>)> {
@@ -386,7 +339,7 @@ impl Cfg {
     ) -> Result<Command> {
         let ref toolchain = self.get_toolchain(toolchain, false)?;
         if install_if_missing && !toolchain.exists() {
-            toolchain.install_from_dist(false)?;
+            toolchain.install_from_dist()?;
         }
 
         toolchain.create_command(binary)

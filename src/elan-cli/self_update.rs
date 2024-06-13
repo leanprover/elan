@@ -31,8 +31,8 @@
 //! and racy on Windows.
 
 use common::{self, Confirm};
+use elan::lookup_toolchain_desc;
 use elan_dist::dist;
-use elan_dist::dist::ToolchainDesc;
 use elan_utils::utils;
 use errors::*;
 use flate2;
@@ -232,7 +232,12 @@ pub fn install(no_prompt: bool, verbose: bool, mut opts: InstallOpts) -> Result<
         if !opts.no_modify_path {
             do_add_to_path(&get_add_path_methods())?;
         }
-        maybe_install_lean(&opts.default_toolchain, verbose)?;
+        if opts.default_toolchain != "none" {
+            let ref cfg = common::set_globals(verbose)?;
+            // sanity-check reference
+            let _ = lookup_toolchain_desc(cfg, &opts.default_toolchain)?;
+            cfg.set_default(&opts.default_toolchain)?;
+        }
 
         if cfg!(unix) {
             let ref env_file = utils::elan_home()?.join("env");
@@ -528,31 +533,6 @@ pub fn install_proxies() -> Result<()> {
     drop(tool_handles);
     for path in link_afterwards {
         utils::hard_or_symlink_file(elan_path, &path)?;
-    }
-
-    Ok(())
-}
-
-fn maybe_install_lean(toolchain_str: &str, verbose: bool) -> Result<()> {
-    let ref cfg = common::set_globals(verbose)?;
-
-    // If there is already an install, then `toolchain_str` may not be
-    // a toolchain the user actually wants. Don't do anything.  FIXME:
-    // This logic should be part of InstallOpts so that it isn't
-    // possible to select a toolchain then have it not be installed.
-    if toolchain_str == "none" {
-        info!("skipping toolchain installation");
-        println!("");
-    } else if cfg.find_default()?.is_none() {
-        let desc = ToolchainDesc::from_str(toolchain_str)?;
-        let toolchain = cfg.get_toolchain(&desc, false)?;
-        let status = toolchain.install_from_dist(false)?;
-        cfg.set_default(&desc)?;
-        println!("");
-        common::show_channel_update(cfg, &desc, Ok(status))?;
-    } else {
-        info!("updating existing elan installation");
-        println!("");
     }
 
     Ok(())

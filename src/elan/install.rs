@@ -27,7 +27,7 @@ pub fn check_self_update() -> Result<Option<String>> {
     // Get current version
     let current_version = env!("CARGO_PKG_VERSION");
 
-    let tag = fetch_latest_release_tag("leanprover/elan")?;
+    let tag = fetch_latest_release_tag("leanprover/elan", None)?;
     let available_version = &tag[1..];
 
     Ok(if available_version == current_version { None } else { Some(available_version.to_owned()) })
@@ -37,12 +37,9 @@ pub fn check_self_update() -> Result<Option<String>> {
 pub enum InstallMethod<'a> {
     Copy(&'a Path),
     Link(&'a Path),
-    // bool is whether to force an update
     Dist(
         &'a dist::ToolchainDesc,
-        Option<&'a Path>,
         DownloadCfg<'a>,
-        bool,
     ),
 }
 
@@ -67,31 +64,19 @@ impl<'a> InstallMethod<'a> {
                 utils::symlink_dir(src, &path, &|n| notify_handler(n.into()))?;
                 Ok(true)
             }
-            InstallMethod::Dist(toolchain, update_hash, dl_cfg, force_update) => {
+            InstallMethod::Dist(toolchain, dl_cfg) => {
                 if let Some(version) = check_self_update()? {
                     notify_handler(Notification::NewVersionAvailable(version));
                 }
 
                 let prefix = &InstallPrefix::from(path.to_owned());
-                let maybe_new_hash = dist::update_from_dist(
+                dist::install_from_dist(
                     dl_cfg,
-                    update_hash,
                     toolchain,
                     prefix,
-                    &[],
-                    &[],
-                    force_update,
                 )?;
 
-                if let Some(hash) = maybe_new_hash {
-                    if let Some(hash_file) = update_hash {
-                        utils::write_file("update hash", hash_file, &hash)?;
-                    }
-
-                    Ok(true)
-                } else {
-                    Ok(false)
-                }
+                Ok(true)
             }
         }
     }

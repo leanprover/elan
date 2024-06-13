@@ -4,6 +4,7 @@ use elan_dist::dist::ToolchainDesc;
 use elan_dist::download::DownloadCfg;
 use elan_dist::manifest::Component;
 use elan_utils::utils;
+use elan_utils::utils::fetch_url;
 use env_var;
 use errors::*;
 use install::{self, InstallMethod};
@@ -15,12 +16,14 @@ use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use regex::Regex;
+
+const DEFAULT_ORIGIN: &str = "leanprover/lean4";
 
 /// A fully resolved reference to a toolchain which may or may not exist
 pub struct Toolchain<'a> {
     cfg: &'a Cfg,
     pub desc: ToolchainDesc,
-    dir_name: String,
     path: PathBuf,
     dist_handler: Box<dyn Fn(elan_dist::Notification) + 'a>,
 }
@@ -39,21 +42,51 @@ pub enum UpdateStatus {
     Unchanged,
 }
 
+pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
+    let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?([a-zA-Z0-9-.]+)$";
+
+    let re = Regex::new(&pattern).unwrap();
+    if let Some(c) = re.captures(name) {
+        let mut release = c.get(2).unwrap().as_str().to_owned();
+        let local_tc = Toolchain::from(cfg, &ToolchainDesc::Local { name: release.clone() });
+        if local_tc.exists() && local_tc.is_custom() {
+            return Ok(ToolchainDesc::Local { name: release })
+        }
+        let mut origin = c.get(1).map(|s| s.as_str()).unwrap_or(DEFAULT_ORIGIN).to_owned();
+        if release.starts_with("nightly") && !origin.ends_with("-nightly") {
+            origin = format!("{}-nightly", origin);
+        }
+        if release == "lean-toolchain" {
+            let toolchain_url = format!("https://raw.githubusercontent.com/{}/HEAD/lean-toolchain", origin);
+            return lookup_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())
+        }
+        if release == "stable" || release == "nightly" {
+            release = utils::fetch_latest_release_tag(&origin,
+Some(&move |n| (cfg.notify_handler)(n.into())))?;
+        }
+        if release.starts_with(char::is_numeric) {
+            release = format!("v{}", release)
+        }
+        Ok(ToolchainDesc::Remote { origin, release })
+    } else {
+        Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
+    }
+}
+
 impl<'a> Toolchain<'a> {
-    pub fn from(cfg: &'a Cfg, desc: &ToolchainDesc) -> Result<Self> {
+    pub fn from(cfg: &'a Cfg, desc: &ToolchainDesc) -> Self {
         //We need to replace ":" and "/" with "-" in the toolchain name in order to make a name which is a valid
         //name for a directory.
         let dir_name = desc.to_string().replace("/", "--").replace(":", "---");
 
         let path = cfg.toolchains_dir.join(&dir_name[..]);
 
-        Ok(Toolchain {
+        Toolchain {
             cfg: cfg,
             desc: desc.clone(),
-            dir_name: dir_name,
             path: path.clone(),
             dist_handler: Box::new(move |n| (cfg.notify_handler)(n.into())),
-        })
+        }
     }
     pub fn name(&self) -> String {
         self.desc.to_string()
@@ -87,9 +120,6 @@ impl<'a> Toolchain<'a> {
             (self.cfg.notify_handler)(Notification::ToolchainNotInstalled(&self.desc));
             return Ok(());
         }
-        if let Some(update_hash) = self.update_hash()? {
-            utils::remove_file("update hash", &update_hash)?;
-        }
         let result = install::uninstall(&self.path, &|n| (self.cfg.notify_handler)(n.into()));
         if !self.exists() {
             (self.cfg.notify_handler)(Notification::UninstalledToolchain(&self.desc));
@@ -99,7 +129,7 @@ impl<'a> Toolchain<'a> {
     fn install(&self, install_method: InstallMethod) -> Result<UpdateStatus> {
         let exists = self.exists();
         if exists {
-            (self.cfg.notify_handler)(Notification::UpdatingToolchain(&self.desc));
+            return Err(format!("'{}' is already installed", self.desc).into())
         } else {
             (self.cfg.notify_handler)(Notification::InstallingToolchain(&self.desc));
         }
@@ -130,13 +160,6 @@ impl<'a> Toolchain<'a> {
             Ok(UpdateStatus::Unchanged)
         }
     }
-    fn update_hash(&self) -> Result<Option<PathBuf>> {
-        if self.is_symlink() {
-            Ok(None)
-        } else {
-            Ok(Some(self.cfg.get_hash_file(&self.dir_name, true)?))
-        }
-    }
 
     fn download_cfg(&self) -> DownloadCfg {
         DownloadCfg {
@@ -145,27 +168,18 @@ impl<'a> Toolchain<'a> {
         }
     }
 
-    pub fn install_from_dist(&self, force_update: bool) -> Result<UpdateStatus> {
-        let update_hash = self.update_hash()?;
+    pub fn install_from_dist(&self) -> Result<UpdateStatus> {
         self.install(InstallMethod::Dist(
             &self.desc,
-            update_hash.as_ref().map(|p| &**p),
             self.download_cfg(),
-            force_update,
         ))
     }
 
     pub fn install_from_dist_if_not_installed(&self) -> Result<UpdateStatus> {
-        let update_hash = self.update_hash()?;
         self.install_if_not_installed(InstallMethod::Dist(
             &self.desc,
-            update_hash.as_ref().map(|p| &**p),
             self.download_cfg(),
-            false,
         ))
-    }
-    pub fn is_tracking(&self) -> bool {
-        self.desc.is_tracking()
     }
 
     pub fn install_from_dir(&self, src: &Path, link: bool) -> Result<()> {
@@ -262,9 +276,6 @@ impl<'a> Toolchain<'a> {
         Ok(utils::open_browser(&self.doc_path(relative)?)?)
     }
 
-    pub fn make_default(&self) -> Result<()> {
-        self.cfg.set_default(&self.desc)
-    }
     pub fn make_override(&self, path: &Path) -> Result<()> {
         Ok(self.cfg.settings_file.with_mut(|s| {
             s.add_override(path, self.desc.clone(), self.cfg.notify_handler.as_ref());

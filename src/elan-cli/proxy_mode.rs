@@ -1,8 +1,7 @@
 use common::set_globals;
 use elan::command::run_command_for_dir;
-use elan::Cfg;
+use elan::{lookup_toolchain_desc, Cfg};
 use elan_utils::utils;
-use elan_dist::dist::ToolchainDesc;
 use errors::*;
 use job;
 use std::env;
@@ -50,7 +49,7 @@ fn direct_proxy(cfg: &Cfg, arg0: &str, toolchain: Option<&str>, args: &[OsString
     let cmd = match toolchain {
         None => cfg.create_command_for_dir(&utils::current_dir()?, arg0)?,
         Some(tc) => {
-            let desc = ToolchainDesc::from_str(tc)?;
+            let desc = lookup_toolchain_desc(cfg, tc)?;
             cfg.create_command_for_toolchain(&desc, true, arg0)?
         }
     };

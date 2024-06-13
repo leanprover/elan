@@ -8,7 +8,6 @@ extern crate zstd;
 extern crate tar;
 
 use errors::*;
-use temp;
 
 use std::fs::{self, File};
 use std::io::{self, Read, Seek};
@@ -17,9 +16,9 @@ use std::path::{Path, PathBuf};
 use zip::ZipArchive;
 
 #[derive(Debug)]
-pub struct TarPackage<'a>(temp::Dir<'a>);
+pub struct TarPackage();
 
-impl<'a> TarPackage<'a> {
+impl TarPackage {
     pub fn unpack<R: Read>(stream: R, path: &Path) -> Result<()> {
         let mut archive = tar::Archive::new(stream);
         // The lean-installer packages unpack to a directory called
@@ -62,9 +61,9 @@ fn unpack_without_first_dir<R: Read>(archive: &mut tar::Archive<R>, path: &Path)
 }
 
 #[derive(Debug)]
-pub struct ZipPackage<'a>(temp::Dir<'a>);
+pub struct ZipPackage();
 
-impl<'a> ZipPackage<'a> {
+impl ZipPackage {
     pub fn unpack<R: Read + Seek>(stream: R, path: &Path) -> Result<()> {
         let mut archive = ZipArchive::new(stream).chain_err(|| ErrorKind::ExtractingPackage)?;
         /*
@@ -132,9 +131,9 @@ impl<'a> ZipPackage<'a> {
 }
 
 #[derive(Debug)]
-pub struct TarGzPackage<'a>(TarPackage<'a>);
+pub struct TarGzPackage();
 
-impl<'a> TarGzPackage<'a> {
+impl TarGzPackage {
     pub fn unpack<R: Read>(stream: R, path: &Path) -> Result<()> {
         let stream = flate2::read::GzDecoder::new(stream);
 
@@ -147,9 +146,9 @@ impl<'a> TarGzPackage<'a> {
 }
 
 #[derive(Debug)]
-pub struct TarZstdPackage<'a>(TarPackage<'a>);
+pub struct TarZstdPackage();
 
-impl<'a> TarZstdPackage<'a> {
+impl TarZstdPackage {
     pub fn unpack<R: Read>(stream: R, path: &Path) -> Result<()> {
         let stream = zstd::stream::read::Decoder::new(stream)?;
 

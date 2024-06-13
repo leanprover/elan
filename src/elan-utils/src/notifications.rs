@@ -23,6 +23,7 @@ pub enum Notification<'a> {
     UsingCurl,
     UsingReqwest,
     UsingHyperDeprecated,
+    UsingCachedRelease(&'a str),
 }
 
 impl<'a> Notification<'a> {
@@ -39,7 +40,7 @@ impl<'a> Notification<'a> {
             | ResumingPartialDownload
             | UsingCurl
             | UsingReqwest => NotificationLevel::Verbose,
-            UsingHyperDeprecated | NoCanonicalPath(_) => NotificationLevel::Warn,
+            UsingHyperDeprecated | NoCanonicalPath(_) | UsingCachedRelease(_) => NotificationLevel::Warn,
         }
     }
 }
@@ -67,6 +68,7 @@ impl<'a> Display for Notification<'a> {
             UsingHyperDeprecated => f.write_str(
                 "ELAN_USE_HYPER environment variable is deprecated, use ELAN_USE_REQWEST instead",
             ),
+            UsingCachedRelease(tag) => write!(f, "failed to query latest release, using cached version '{}'", tag),
         }
     }
 }
