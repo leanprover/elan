@@ -43,6 +43,12 @@ impl ToolchainDesc {
             Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
         }
     }
+
+    pub fn from_toolchain_dir(dir_name: &str) -> Result<Self> {
+        // de-sanitize toolchain file names (best effort...)
+        let name = dir_name.replace("---", ":").replace("--", "/");
+        Self::from_resolved_str(&name)
+    }
 }
 
 impl fmt::Display for ToolchainDesc {
