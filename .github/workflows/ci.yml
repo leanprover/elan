@@ -76,8 +76,7 @@ jobs:
         shell: bash
         run: |
           cd target/${{ matrix.target  }}/release
-          which tar
-          tar --portability -czf ../../../elan-${{ matrix.release-target-name || matrix.target }}.tar.gz elan-init || gtar --portability -czf ../../../elan-${{ matrix.release-target-name || matrix.target }}.tar.gz elan-init
+          tar --portability -czf ../../../elan-${{ matrix.release-target-name || matrix.target }}.tar.gz elan-init
         if: matrix.os != 'windows-latest'
       - name: Package
         run: |
