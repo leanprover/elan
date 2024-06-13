@@ -4,7 +4,6 @@ use errors::*;
 use manifestation::Manifestation;
 use prefix::InstallPrefix;
 use regex::Regex;
-use temp;
 
 use std::fmt;
 
@@ -45,9 +44,6 @@ impl ToolchainDesc {
         }
     }
 }
-
-#[derive(Debug)]
-pub struct Manifest<'a>(temp::File<'a>, String);
 
 impl fmt::Display for ToolchainDesc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
