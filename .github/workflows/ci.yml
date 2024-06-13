@@ -4,7 +4,7 @@ on:
     branches:
       - '*'
     tags:
-      - 'v*'
+      - '*'
   pull_request:
     branches:
       - '*'
@@ -103,8 +103,9 @@ jobs:
           cd foo
           lake build
       - uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/v')
         with:
           files: elan-${{ matrix.release-target-name || matrix.target }}*
+          draft: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
