@@ -23,10 +23,6 @@ error_chain! {
         PermissionDenied {
             description("permission denied")
         }
-        ToolchainNotInstalled(t: String) {
-            description("toolchain is not installed")
-            display("toolchain '{}' is not installed", t)
-        }
         InfiniteRecursion {
             description("infinite recursion detected")
         }

@@ -120,12 +120,6 @@ impl Cfg {
         Ok(Toolchain::from(self, name))
     }
 
-    pub fn verify_toolchain(&self, name: &ToolchainDesc) -> Result<Toolchain> {
-        let toolchain = self.get_toolchain(name, false)?;
-        toolchain.install_from_dist_if_not_installed()?;
-        Ok(toolchain)
-    }
-
     pub fn which_binary(&self, path: &Path, binary: &str) -> Result<Option<PathBuf>> {
         if let Some((toolchain, _)) = self.find_override_toolchain_or_default(path)? {
             Ok(Some(toolchain.binary_file(binary)))
@@ -134,13 +128,13 @@ impl Cfg {
         }
     }
 
-    pub fn find_default(&self) -> Result<Option<Toolchain>> {
+    pub fn resolve_default(&self) -> Result<Option<ToolchainDesc>> {
         let opt_name = self
             .settings_file
             .with(|s| Ok(s.default_toolchain.clone()))?;
 
         if let Some(name) = opt_name {
-            let toolchain = self.verify_toolchain(&lookup_toolchain_desc(&self, &name)?)?;
+            let toolchain = lookup_toolchain_desc(&self, &name)?;
             Ok(Some(toolchain))
         } else {
             Ok(None)
@@ -273,7 +267,7 @@ impl Cfg {
                 if let Some(last) = d.file_name() {
                     if let Some(last) = last.to_str() {
                         return Ok(Some((
-                            lookup_toolchain_desc(&self, last)?,
+                            ToolchainDesc::from_toolchain_dir(last)?,
                             OverrideReason::InToolchainDirectory(d.into()),
                         )));
                     }
@@ -292,22 +286,25 @@ impl Cfg {
             if let Some((toolchain, reason)) = self.find_override(path)? {
                 Some((toolchain, Some(reason)))
             } else {
-                self.find_default()?.map(|toolchain| (toolchain, None))
+                if let Some(tc) = self.resolve_default()? {
+                    Some((self.get_toolchain(&tc, false)?, None))
+                } else {
+                    None
+                }
             },
         )
     }
 
     pub fn list_toolchains(&self) -> Result<Vec<ToolchainDesc>> {
-        // de-sanitize toolchain file names (best effort...)
-        fn insane(s: String) -> String {
-            s.replace("---", ":").replace("--", "/")
-        }
         if utils::is_directory(&self.toolchains_dir) {
             let mut toolchains: Vec<_> = utils::read_dir("toolchains", &self.toolchains_dir)?
                 .filter_map(io::Result::ok)
                 .filter(|e| e.file_type().map(|f| !f.is_file()).unwrap_or(false))
                 .filter_map(|e| e.file_name().into_string().ok())
-                .map(insane)
+                .map(|n| ToolchainDesc::from_toolchain_dir(&n).map_err(|e| e.into()))
+                .collect::<Result<Vec<ToolchainDesc>>>()?
+                .into_iter()
+                .map(|tc| tc.to_string())
                 .collect();
 
             utils::toolchain_sort(&mut toolchains);
