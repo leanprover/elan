@@ -134,14 +134,22 @@ impl Cfg {
         }
     }
 
-    pub fn find_default(&self) -> Result<Option<Toolchain>> {
+    pub fn get_default(&self) -> Result<Option<ToolchainDesc>> {
         let opt_name = self
             .settings_file
             .with(|s| Ok(s.default_toolchain.clone()))?;
 
         if let Some(name) = opt_name {
-            let toolchain = self.verify_toolchain(&lookup_toolchain_desc(&self, &name)?)?;
+            let toolchain = lookup_toolchain_desc(&self, &name)?;
             Ok(Some(toolchain))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn find_default(&self) -> Result<Option<Toolchain>> {
+        if let Some(tc) = self.get_default()? {
+            Ok(Some(self.get_toolchain(&tc, false)?))
         } else {
             Ok(None)
         }
