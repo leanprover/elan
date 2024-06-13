@@ -128,7 +128,7 @@ impl Cfg {
         }
     }
 
-    pub fn get_default(&self) -> Result<Option<ToolchainDesc>> {
+    pub fn resolve_default(&self) -> Result<Option<ToolchainDesc>> {
         let opt_name = self
             .settings_file
             .with(|s| Ok(s.default_toolchain.clone()))?;
@@ -136,14 +136,6 @@ impl Cfg {
         if let Some(name) = opt_name {
             let toolchain = lookup_toolchain_desc(&self, &name)?;
             Ok(Some(toolchain))
-        } else {
-            Ok(None)
-        }
-    }
-
-    pub fn find_default(&self) -> Result<Option<Toolchain>> {
-        if let Some(tc) = self.get_default()? {
-            Ok(Some(self.get_toolchain(&tc, false)?))
         } else {
             Ok(None)
         }
@@ -294,7 +286,11 @@ impl Cfg {
             if let Some((toolchain, reason)) = self.find_override(path)? {
                 Some((toolchain, Some(reason)))
             } else {
-                self.find_default()?.map(|toolchain| (toolchain, None))
+                if let Some(tc) = self.resolve_default()? {
+                    Some((self.get_toolchain(&tc, false)?, None))
+                } else {
+                    None
+                }
             },
         )
     }
