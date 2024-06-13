@@ -48,7 +48,8 @@ pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
     let re = Regex::new(&pattern).unwrap();
     if let Some(c) = re.captures(name) {
         let mut release = c.get(2).unwrap().as_str().to_owned();
-        if Toolchain::from(cfg, &ToolchainDesc::Local { name: release.clone() }).is_custom() {
+        let local_tc = Toolchain::from(cfg, &ToolchainDesc::Local { name: release.clone() });
+        if local_tc.exists() && local_tc.is_custom() {
             return Ok(ToolchainDesc::Local { name: release })
         }
         let mut origin = c.get(1).map(|s| s.as_str()).unwrap_or(DEFAULT_ORIGIN).to_owned();
