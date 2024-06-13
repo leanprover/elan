@@ -54,7 +54,7 @@ impl fmt::Display for ToolchainDesc {
         match self {
             ToolchainDesc::Local { name } => write!(f, "{}", name),
             ToolchainDesc::Remote { origin, release } =>
-                write!(f, "{}/{}", origin, release)
+                write!(f, "{}:{}", origin, release)
         }
     }
 }
