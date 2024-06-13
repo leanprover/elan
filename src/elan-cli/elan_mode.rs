@@ -232,22 +232,10 @@ pub fn cli() -> App<'static, 'static> {
 
 fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref name = m.value_of("toolchain").expect("");
-    let toolchain = lookup_toolchain_desc(cfg, name)?;
-    let ref toolchain = cfg.get_toolchain(&toolchain, false)?;
-
-    let status = if !toolchain.exists() || !toolchain.is_custom() {
-        Some(toolchain.install_from_dist_if_not_installed()?)
-    } else {
-        None
-    };
+    // sanity-check
+    let _ = lookup_toolchain_desc(cfg, name)?;
 
     cfg.set_default(name)?;
-
-    if let Some(status) = status {
-        println!("");
-        common::show_channel_update(cfg, &toolchain.desc, Ok(status))?;
-    }
-
     Ok(())
 }
 
@@ -394,7 +382,7 @@ fn explicit_or_dir_toolchain<'a>(cfg: &'a Cfg, m: &ArgMatches) -> Result<Toolcha
 fn toolchain_link(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
     let ref path = m.value_of("path").expect("");
-    let desc = ToolchainDesc::from_resolved_str(toolchain)?;
+    let desc = ToolchainDesc::Local { name: toolchain.to_string() };
     let toolchain = cfg.get_toolchain(&desc, true)?;
 
     Ok(toolchain.install_from_dir(Path::new(path), true)?)
