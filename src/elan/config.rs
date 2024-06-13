@@ -117,7 +117,7 @@ impl Cfg {
             })?;
         }
 
-        Toolchain::from(self, name)
+        Ok(Toolchain::from(self, name))
     }
 
     pub fn verify_toolchain(&self, name: &ToolchainDesc) -> Result<Toolchain> {

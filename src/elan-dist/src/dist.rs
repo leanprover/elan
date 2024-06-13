@@ -12,34 +12,37 @@ use std::fmt;
 // triples attached to them and are used for canonical identification,
 // such as naming their installation directory.
 #[derive(Debug, Clone, PartialEq)]
-pub struct ToolchainDesc {
-    // The GitHub source repository to use (if "nightly" is specified, we append "-nightly" to this).
-    // Defaults to `DEFAULT_ORIGIN`.
-    pub origin: String,
-    // The release name, usually a Git tag
-    pub release: String,
+pub enum ToolchainDesc {
+    // A linked toolchain
+    Local { name: String },
+    Remote {
+        // The GitHub source repository to use (if "nightly" is specified, we append "-nightly" to this).
+        origin: String,
+        // The release name, usually a Git tag
+        release: String,
+    }
 }
 
 impl ToolchainDesc {
     pub fn from_resolved_str(name: &str) -> Result<Self> {
-        let pattern = r"^([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:]([a-zA-Z0-9-.]+)$";
+        let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?([a-zA-Z0-9-.]+)$";
 
         let re = Regex::new(&pattern).unwrap();
         if let Some(c) = re.captures(name) {
-            let origin = c.get(1).unwrap().as_str().to_owned();
-            let release = c.get(2).unwrap().as_str().to_owned();
-            Ok(ToolchainDesc { origin, release })
+            match c.get(1) {
+                Some(origin) => {
+                    let origin = origin.as_str().to_owned();
+                    let release = c.get(2).unwrap().as_str().to_owned();
+                    Ok(ToolchainDesc::Remote { origin, release })
+                }
+                None => {
+                    let name = c.get(2).unwrap().as_str().to_owned();
+                    Ok(ToolchainDesc::Local { name })
+                }
+            }
         } else {
             Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
         }
-    }
-
-    pub fn manifest_name(&self) -> String {
-        self.release.clone()
-    }
-
-    fn url(&self) -> String {
-        format!("https://github.com/{}/releases/expanded_assets/{}", self.origin, self.release)
     }
 }
 
@@ -48,7 +51,11 @@ pub struct Manifest<'a>(temp::File<'a>, String);
 
 impl fmt::Display for ToolchainDesc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}", self.origin, self.release)
+        match self {
+            ToolchainDesc::Local { name } => write!(f, "{}", name),
+            ToolchainDesc::Remote { origin, release } =>
+                write!(f, "{}/{}", origin, release)
+        }
     }
 }
 
@@ -60,10 +67,12 @@ pub fn install_from_dist<'a>(
     let toolchain_str = toolchain.to_string();
     let manifestation = Manifestation::open(prefix.clone())?;
 
-    let url = toolchain.url();
-
+    let ToolchainDesc::Remote { origin, release } = toolchain else {
+        return Ok(())
+    };
+    let url = format!("https://github.com/{}/releases/expanded_assets/{}", origin, release);
     let res = match manifestation.install(
-        &toolchain.origin,
+        &origin,
         &url,
         &download.temp_cfg,
         download.notify_handler.clone(),

@@ -47,8 +47,11 @@ pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
 
     let re = Regex::new(&pattern).unwrap();
     if let Some(c) = re.captures(name) {
-        let mut origin = c.get(1).map(|s| s.as_str()).unwrap_or(DEFAULT_ORIGIN).to_owned();
         let mut release = c.get(2).unwrap().as_str().to_owned();
+        if Toolchain::from(cfg, &ToolchainDesc::Local { name: release.clone() }).is_custom() {
+            return Ok(ToolchainDesc::Local { name: release })
+        }
+        let mut origin = c.get(1).map(|s| s.as_str()).unwrap_or(DEFAULT_ORIGIN).to_owned();
         if release.starts_with("nightly") && !origin.ends_with("-nightly") {
             origin = format!("{}-nightly", origin);
         }
@@ -63,26 +66,26 @@ Some(&move |n| (cfg.notify_handler)(n.into())))?;
         if release.starts_with(char::is_numeric) {
             release = format!("v{}", release)
         }
-        Ok(ToolchainDesc { origin, release })
+        Ok(ToolchainDesc::Remote { origin, release })
     } else {
         Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
     }
 }
 
 impl<'a> Toolchain<'a> {
-    pub fn from(cfg: &'a Cfg, desc: &ToolchainDesc) -> Result<Self> {
+    pub fn from(cfg: &'a Cfg, desc: &ToolchainDesc) -> Self {
         //We need to replace ":" and "/" with "-" in the toolchain name in order to make a name which is a valid
         //name for a directory.
         let dir_name = desc.to_string().replace("/", "--").replace(":", "---");
 
         let path = cfg.toolchains_dir.join(&dir_name[..]);
 
-        Ok(Toolchain {
+        Toolchain {
             cfg: cfg,
             desc: desc.clone(),
             path: path.clone(),
             dist_handler: Box::new(move |n| (cfg.notify_handler)(n.into())),
-        })
+        }
     }
     pub fn name(&self) -> String {
         self.desc.to_string()

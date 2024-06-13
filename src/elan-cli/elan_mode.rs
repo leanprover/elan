@@ -1,6 +1,7 @@
 use clap::{App, AppSettings, Arg, ArgMatches, Shell, SubCommand};
 use common;
 use elan::{command, lookup_toolchain_desc, Cfg, Toolchain};
+use elan_dist::dist::ToolchainDesc;
 use elan_utils::utils;
 use errors::*;
 use help::*;
@@ -388,7 +389,7 @@ fn explicit_or_dir_toolchain<'a>(cfg: &'a Cfg, m: &ArgMatches) -> Result<Toolcha
 fn toolchain_link(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
     let ref path = m.value_of("path").expect("");
-    let desc = lookup_toolchain_desc(cfg, toolchain)?;
+    let desc = ToolchainDesc::from_resolved_str(toolchain)?;
     let toolchain = cfg.get_toolchain(&desc, true)?;
 
     Ok(toolchain.install_from_dir(Path::new(path), true)?)
