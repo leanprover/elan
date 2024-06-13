@@ -63,7 +63,7 @@ jobs:
         if: startsWith(matrix.os, 'macos-')
         shell: bash
         run: |
-          brew install coreutils
+          brew install gnu-tar
           echo $HOMEBREW_PREFIX/opt/gnu-tar/libexec/gnubin >> $GITHUB_PATH
       - name: Build
         run: |
