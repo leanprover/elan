@@ -200,9 +200,7 @@ impl<'a> Toolchain<'a> {
     }
 
     pub fn create_command<T: AsRef<OsStr>>(&self, binary: T) -> Result<Command> {
-        if !self.exists() {
-            return Err(ErrorKind::ToolchainNotInstalled(self.desc.clone()).into());
-        }
+        self.install_from_dist_if_not_installed()?;
 
         let bin_path = self.binary_file(&binary);
         let path = if utils::is_file(&bin_path) {

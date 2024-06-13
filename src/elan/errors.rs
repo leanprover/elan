@@ -24,10 +24,6 @@ error_chain! {
             description("unknown metadata version")
             display("unknown metadata version: '{}'", v)
         }
-        ToolchainNotInstalled(t: ToolchainDesc) {
-            description("toolchain is not installed")
-            display("toolchain '{}' is not installed", t)
-        }
         NoDefaultToolchain {
             description("no default toolchain configured. run `elan default stable` to install & configure the latest Lean 4 stable release.")
         }
