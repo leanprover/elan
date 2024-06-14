@@ -10,6 +10,7 @@ use elan_dist::temp;
 use elan_utils::utils;
 use errors::*;
 use notifications::*;
+use serde_derive::Serialize;
 use settings::{Settings, SettingsFile};
 use toolchain::Toolchain;
 
@@ -17,12 +18,17 @@ use toml;
 
 use crate::lookup_toolchain_desc;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub enum OverrideReason {
+    /// `ELAN_TOOLCHAIN` environment variable override
     Environment,
+    /// `elan override` override
     OverrideDB(PathBuf),
+    /// `lean-toolchain` override
     ToolchainFile(PathBuf),
+    /// `leanpkg.toml` override lol
     LeanpkgFile(PathBuf),
+    /// inside a toolchain directory
     InToolchainDirectory(PathBuf),
 }
 

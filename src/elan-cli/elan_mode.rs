@@ -1,6 +1,6 @@
 use clap::{App, AppSettings, Arg, ArgMatches, Shell, SubCommand};
 use common;
-use elan::{command, lookup_toolchain_desc, Cfg, Toolchain};
+use elan::{command, json, lookup_toolchain_desc, Cfg, Toolchain};
 use elan_dist::dist::ToolchainDesc;
 use elan_utils::utils;
 use errors::*;
@@ -55,7 +55,8 @@ pub fn main() -> Result<()> {
                     &mut io::stdout(),
                 );
             }
-        }
+        },
+        ("dump-state", Some(_)) => json::StateDump::new(cfg)?.print()?,
         (_, _) => unreachable!(),
     }
 
