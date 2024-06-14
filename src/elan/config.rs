@@ -128,12 +128,14 @@ impl Cfg {
         }
     }
 
-    pub fn resolve_default(&self) -> Result<Option<ToolchainDesc>> {
-        let opt_name = self
+    pub fn get_default(&self) -> Result<Option<String>> {
+        self
             .settings_file
-            .with(|s| Ok(s.default_toolchain.clone()))?;
+            .with(|s| Ok(s.default_toolchain.clone()))
+    }
 
-        if let Some(name) = opt_name {
+    pub fn resolve_default(&self) -> Result<Option<ToolchainDesc>> {
+        if let Some(name) = self.get_default()? {
             let toolchain = lookup_toolchain_desc(&self, &name)?;
             Ok(Some(toolchain))
         } else {

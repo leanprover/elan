@@ -245,32 +245,8 @@ pub fn lean_version(toolchain: &Toolchain) -> String {
             String::from("(lean does not exist)")
         }
     } else {
-        String::from("(toolchain not installed)")
+        String::from("(toolchain will be installed on first use)")
     }
-}
-
-pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
-    let toolchains = cfg.list_toolchains()?;
-
-    if toolchains.is_empty() {
-        println!("no installed toolchains");
-    } else {
-        if let Ok(Some(def_toolchain)) = cfg.resolve_default() {
-            for toolchain in toolchains {
-                let if_default = if def_toolchain == toolchain {
-                    " (default)"
-                } else {
-                    ""
-                };
-                println!("{}{}", &toolchain, if_default);
-            }
-        } else {
-            for toolchain in toolchains {
-                println!("{}", &toolchain);
-            }
-        }
-    }
-    Ok(())
 }
 
 pub fn list_overrides(cfg: &Cfg) -> Result<()> {

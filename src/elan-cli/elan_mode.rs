@@ -27,7 +27,7 @@ pub fn main() -> Result<()> {
         ("default", Some(m)) => default_(cfg, m)?,
         ("toolchain", Some(c)) => match c.subcommand() {
             ("install", Some(m)) => install(cfg, m)?,
-            ("list", Some(_)) => common::list_toolchains(cfg)?,
+            ("list", Some(_)) => list_toolchains(cfg)?,
             ("link", Some(m)) => toolchain_link(cfg, m)?,
             ("uninstall", Some(m)) => toolchain_remove(cfg, m)?,
             (_, _) => unreachable!(),
@@ -288,6 +288,34 @@ fn which(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
+pub fn mk_toolchain_label(tc: &ToolchainDesc, default_tc: &Option<String>, resolved_default_tc: &Option<ToolchainDesc>) -> String {
+    if resolved_default_tc.as_ref() == Some(&tc) {
+        if default_tc == &resolved_default_tc.as_ref().map(|tc| tc.to_string()) {
+            format!("{} (default)", tc)
+        } else {
+            format!("{} (resolved from default '{}')", tc, default_tc.as_ref().unwrap())
+        }
+    } else {
+        format!("{}", tc)
+    }
+}
+
+pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
+    let toolchains = cfg.list_toolchains()?;
+    let default_tc = cfg.get_default()?;
+    let resolved_default_tc =
+      default_tc.as_ref().map(|tc| lookup_toolchain_desc(cfg, tc)).transpose()?;
+
+    if toolchains.is_empty() {
+        println!("no installed toolchains");
+    } else {
+        for tc in toolchains {
+            println!("{}", mk_toolchain_label(&tc, &default_tc, &resolved_default_tc));
+        }
+    }
+    Ok(())
+}
+
 fn show(cfg: &Cfg) -> Result<()> {
     let ref cwd = utils::current_dir()?;
     let installed_toolchains = cfg.list_toolchains()?;
@@ -303,17 +331,15 @@ fn show(cfg: &Cfg) -> Result<()> {
         .count()
         > 1;
 
+    let default_tc = cfg.get_default()?;
+    let resolved_default_tc =
+      default_tc.as_ref().map(|tc| lookup_toolchain_desc(cfg, tc)).transpose()?;
     if show_installed_toolchains {
         if show_headers {
             print_header("installed toolchains")
         }
-        let default_tc = cfg.resolve_default()?;
         for t in installed_toolchains {
-            if default_tc.as_ref() == Some(&t) {
-                println!("{} (default)", t);
-            } else {
-                println!("{}", t);
-            }
+            println!("{}", mk_toolchain_label(&t, &default_tc, &resolved_default_tc));
         }
         if show_headers {
             println!("")
@@ -332,7 +358,7 @@ fn show(cfg: &Cfg) -> Result<()> {
                     println!("{}", common::lean_version(toolchain));
                 }
                 Some((ref toolchain, None)) => {
-                    println!("{} (default)", toolchain.name());
+                    println!("{}", mk_toolchain_label(&toolchain.desc, &default_tc, &resolved_default_tc));
                     println!("{}", common::lean_version(toolchain));
                 }
                 None => {
