@@ -1,6 +1,6 @@
 //! Just a dumping ground for cli stuff
 
-use elan::{self, Cfg, Notification, Toolchain, UpdateStatus};
+use elan::{Cfg, Notification, Toolchain};
 use elan_dist::dist::ToolchainDesc;
 use elan_utils::notify::NotificationLevel;
 use elan_utils::utils;
@@ -11,7 +11,6 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::Duration;
-use std::{cmp, iter};
 use term2;
 use wait_timeout::ChildExt;
 
@@ -133,67 +132,25 @@ pub fn set_globals(verbose: bool) -> Result<Cfg> {
 
 pub fn show_channel_update(
     cfg: &Cfg,
-    name: &ToolchainDesc,
-    updated: elan::Result<UpdateStatus>,
+    desc: &ToolchainDesc,
 ) -> Result<()> {
-    show_channel_updates(cfg, vec![(name.clone(), updated)])
-}
+    let ref toolchain = cfg.get_toolchain(&desc, false).expect("");
+    let version = lean_version(toolchain);
+    let name = desc.to_string();
 
-fn show_channel_updates(
-    cfg: &Cfg,
-    toolchains: Vec<(ToolchainDesc, elan::Result<UpdateStatus>)>,
-) -> Result<()> {
-    let data = toolchains.into_iter().map(|(desc, result)| {
-        let ref toolchain = cfg.get_toolchain(&desc, false).expect("");
-        let version = lean_version(toolchain);
-        let name = desc.to_string();
-
-        let banner;
-        let color;
-        match result {
-            Ok(UpdateStatus::Installed) => {
-                banner = "installed";
-                color = Some(term2::color::BRIGHT_GREEN);
-            }
-            Ok(UpdateStatus::Updated) => {
-                banner = "updated";
-                color = Some(term2::color::BRIGHT_GREEN);
-            }
-            Ok(UpdateStatus::Unchanged) => {
-                banner = "unchanged";
-                color = None;
-            }
-            Err(_) => {
-                banner = "update failed";
-                color = Some(term2::color::BRIGHT_RED);
-            }
-        }
-
-        let width = name.len() + 1 + banner.len();
-
-        (name, banner, width, color, version)
-    });
+    let banner = "installed";
+    let color = Some(term2::color::BRIGHT_GREEN);
 
     let mut t = term2::stdout();
 
-    let data: Vec<_> = data.collect();
-    let max_width = data
-        .iter()
-        .fold(0, |a, &(_, _, width, _, _)| cmp::max(a, width));
-
-    for (name, banner, width, color, version) in data {
-        let padding = max_width - width;
-        let padding: String = iter::repeat(' ').take(padding).collect();
-        let _ = write!(t, "  {}", padding);
-        let _ = t.attr(term2::Attr::Bold);
-        if let Some(color) = color {
-            let _ = t.fg(color);
-        }
-        let _ = write!(t, "{} ", name);
-        let _ = write!(t, "{}", banner);
-        let _ = t.reset();
-        let _ = writeln!(t, " - {}", version);
+    let _ = t.attr(term2::Attr::Bold);
+    if let Some(color) = color {
+        let _ = t.fg(color);
     }
+    let _ = write!(t, "{} ", name);
+    let _ = write!(t, "{}", banner);
+    let _ = t.reset();
+    let _ = writeln!(t, " - {}", version);
     let _ = writeln!(t, "");
 
     Ok(())

@@ -245,15 +245,10 @@ fn install(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
         let desc = lookup_toolchain_desc(cfg, name)?;
         let toolchain = cfg.get_toolchain(&desc, false)?;
 
-        let status = if !toolchain.exists() || !toolchain.is_custom() {
-            Some(toolchain.install_from_dist()?)
-        } else {
-            None
-        };
-
-        if let Some(status) = status {
+        if !toolchain.exists() || !toolchain.is_custom() {
+            toolchain.install_from_dist()?;
             println!("");
-            common::show_channel_update(cfg, &toolchain.desc, Ok(status))?;
+            common::show_channel_update(cfg, &toolchain.desc)?;
         }
     }
 
@@ -427,20 +422,7 @@ fn override_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let ref toolchain = m.value_of("toolchain").expect("");
     let desc = lookup_toolchain_desc(cfg, toolchain)?;
     let toolchain = cfg.get_toolchain(&desc, false)?;
-
-    let status = if !toolchain.exists() || !toolchain.is_custom() {
-        Some(toolchain.install_from_dist_if_not_installed()?)
-    } else {
-        None
-    };
-
     toolchain.make_override(&utils::current_dir()?)?;
-
-    if let Some(status) = status {
-        println!("");
-        common::show_channel_update(cfg, &toolchain.desc, Ok(status))?;
-    }
-
     Ok(())
 }
 
