@@ -9,6 +9,7 @@ use elan_dist::dist::ToolchainDesc;
 use elan_dist::temp;
 use elan_utils::utils;
 use errors::*;
+use itertools::Itertools;
 use notifications::*;
 use settings::{Settings, SettingsFile};
 use toolchain::Toolchain;
@@ -296,6 +297,12 @@ impl Cfg {
                 }
             },
         )
+    }
+
+    pub fn get_overrides(&self) -> Result<Vec<(String, ToolchainDesc)>> {
+        self.settings_file.with(|s| {
+            Ok(s.overrides.clone().into_iter().collect_vec())
+        })
     }
 
     pub fn list_toolchains(&self) -> Result<Vec<ToolchainDesc>> {
