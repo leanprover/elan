@@ -15,7 +15,7 @@ use toolchain::Toolchain;
 
 use toml;
 
-use crate::lookup_toolchain_desc;
+use crate::{gc, lookup_toolchain_desc};
 
 #[derive(Debug)]
 pub enum OverrideReason {
@@ -238,6 +238,7 @@ impl Cfg {
                     let toolchain_name = s.trim();
                     let desc = lookup_toolchain_desc(&self, toolchain_name)?;
                     let reason = OverrideReason::ToolchainFile(toolchain_file);
+                    gc::add_root(self, d)?;
                     return Ok(Some((desc, reason)));
                 }
             }
@@ -311,7 +312,6 @@ impl Cfg {
 
             utils::toolchain_sort(&mut toolchains);
 
-            // ignore legacy toolchains in non-resolved format
             let toolchains: Vec<_> = toolchains.iter().flat_map(|s| ToolchainDesc::from_resolved_str(&s)).collect();
             Ok(toolchains)
         } else {

@@ -1,6 +1,6 @@
 use clap::{App, AppSettings, Arg, ArgMatches, Shell, SubCommand};
 use common;
-use elan::{command, lookup_toolchain_desc, Cfg, Toolchain};
+use elan::{command, gc, lookup_toolchain_desc, Cfg, Toolchain};
 use elan_dist::dist::ToolchainDesc;
 use elan_utils::utils;
 use errors::*;
@@ -30,6 +30,7 @@ pub fn main() -> Result<()> {
             ("list", Some(_)) => list_toolchains(cfg)?,
             ("link", Some(m)) => toolchain_link(cfg, m)?,
             ("uninstall", Some(m)) => toolchain_remove(cfg, m)?,
+            ("gc", Some(m)) => toolchain_gc(cfg, m)?,
             (_, _) => unreachable!(),
         },
         ("override", Some(c)) => match c.subcommand() {
@@ -126,7 +127,13 @@ pub fn cli() -> App<'static, 'static> {
                     .help(TOOLCHAIN_ARG_HELP)
                     .required(true))
                 .arg(Arg::with_name("path")
-                    .required(true))))
+                    .required(true)))
+            .subcommand(SubCommand::with_name("gc")
+                .about("Garbage-collect toolchains not used by any known project")
+                .after_help(TOOLCHAIN_GC_HELP)
+                .arg(Arg::with_name("delete")
+                    .long("delete")
+                    .help("Delete collected toolchains instead of only reporting them"))))
         .subcommand(SubCommand::with_name("override")
             .about("Modify directory toolchain overrides")
             .after_help(OVERRIDE_HELP)
@@ -414,6 +421,26 @@ fn toolchain_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
         let desc = lookup_toolchain_desc(cfg, toolchain)?;
         let toolchain = cfg.get_toolchain(&desc, false)?;
         toolchain.remove()?;
+    }
+    Ok(())
+}
+
+fn toolchain_gc(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
+    let toolchains = gc::get_unreachable_toolchains(cfg)?;
+    if toolchains.is_empty() {
+        println!("No unused toolchains found");
+        return Ok(())
+    }
+    let delete = m.is_present("delete");
+    if !delete {
+        println!("The following toolchains are not used by any known project; rerun with `--delete` to delete them:");
+    }
+    for t in toolchains.into_iter() {
+        if delete {
+            t.remove()?;
+        } else {
+            println!("- {}", t.path().display());
+        }
     }
     Ok(())
 }

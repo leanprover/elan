@@ -61,6 +61,16 @@ pub static TOOLCHAIN_LINK_HELP: &'static str = r"DISCUSSION:
     If you now compile a crate in the current directory, the custom
     toolchain 'master' will be used.";
 
+pub static TOOLCHAIN_GC_HELP: &'static str = r"DISCUSSION:
+    Experimental. Toolchains are classified as 'in use' if there is a
+    directory with a `lean-toolchain` file referencing the toolchain
+    and that toolchain file has been used through `elan` before without
+    the directory being moved afterwards.
+
+    For safety reasons, the command currently requires passing `--delete`
+    to actually remove toolchains but this may be relaxed in the future
+    when the implementation is deemed stable.";
+
 pub static OVERRIDE_HELP: &'static str = r"DISCUSSION:
     Overrides configure elan to use a specific toolchain when
     running in a specific directory.
