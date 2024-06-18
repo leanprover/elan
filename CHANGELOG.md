@@ -13,6 +13,9 @@
   * The `update-hashes/` directory is not used anymore, deleting `toolchains/` or direct
     subdirectories does not break elan anymore.
 - More useful download and installation info messages
+- Experimental `elan toolchain gc` command. See `elan toolchain gc --help` for documentation.
+  `lean-toolchain` files will only be known to the GC after being used at least once with this
+  version of elan.
 
 # 3.1.1 - 2024-02-22
 

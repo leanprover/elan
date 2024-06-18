@@ -29,3 +29,4 @@ pub mod install;
 mod notifications;
 pub mod settings;
 mod toolchain;
+pub mod gc;
