@@ -6,8 +6,11 @@
     `v4.9.0`, and `leanprover/lean4:v4.9.0` and ensuring that e.g. `stable` has the same meaning for
     everyone at a given point in time.
   * Accordingly, `elan update` has been removed as updates of non-fixed toolchains are now implicit.
+  * This also fixes `lake +stable new ...` putting an unadvisable `leanprover/lean4:stable`
+    reference in `lean-toolchain`.
   * The configured default toolchain name is stored unresolved (and not immediately installed) but
-    is resolved before every use.
+    is resolved before every use. This also means that passing `--default-toolchain none` to the
+    elan install script is not necessary anymore to speed up installation.
   * In case of a network error resolving a toolchain, elan falls back to the previous resolution if
     any and prints a warning.
   * The `update-hashes/` directory is not used anymore, deleting `toolchains/` or direct
