@@ -19,7 +19,7 @@ use toml;
 
 use crate::{gc, lookup_toolchain_desc};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone)]
 pub enum OverrideReason {
     /// `ELAN_TOOLCHAIN` environment variable override
     Environment,

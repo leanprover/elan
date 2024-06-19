@@ -37,6 +37,7 @@ extern crate time;
 extern crate toml;
 extern crate wait_timeout;
 extern crate zip;
+extern crate serde_derive;
 
 #[cfg(windows)]
 extern crate gcc;
@@ -58,6 +59,7 @@ mod proxy_mode;
 mod self_update;
 mod setup_mode;
 mod term2;
+mod json_dump;
 
 use elan::env_var::LEAN_RECURSION_COUNT_MAX;
 use errors::*;

@@ -1,6 +1,6 @@
 use clap::{App, AppSettings, Arg, ArgMatches, Shell, SubCommand};
 use common;
-use elan::{command, gc, json, lookup_toolchain_desc, Cfg, Toolchain};
+use elan::{command, gc, lookup_toolchain_desc, Cfg, Toolchain};
 use elan_dist::dist::ToolchainDesc;
 use elan_utils::utils;
 use errors::*;
@@ -12,6 +12,8 @@ use std::iter;
 use std::path::Path;
 use std::process::Command;
 use term2;
+
+use crate::json_dump;
 
 pub fn main() -> Result<()> {
     ::self_update::cleanup_self_updater()?;
@@ -57,7 +59,7 @@ pub fn main() -> Result<()> {
                 );
             }
         },
-        ("dump-state", Some(_)) => json::StateDump::new(cfg)?.print()?,
+        ("dump-state", Some(_)) => json_dump::StateDump::new(cfg)?.print()?,
         (_, _) => unreachable!(),
     }
 
@@ -177,6 +179,7 @@ pub fn cli() -> App<'static, 'static> {
             .about("Display which binary will be run for a given command")
             .arg(Arg::with_name("command")
                 .required(true)))
+        .subcommand(SubCommand::with_name("dump-state").setting(AppSettings::Hidden))
         /*.subcommand(SubCommand::with_name("doc")
             .alias("docs")
             .about("Open the documentation for the current toolchain")
