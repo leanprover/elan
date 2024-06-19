@@ -1,3 +1,25 @@
+# Unreleased
+
+- Revamp toolchain resolution and storage
+  * Toolchain references are now always resolved to a fixed `<owner>/<repo>:<version>` format before
+    downloading, resolving the issue of having the same toolchain installed as e.g. `stable`,
+    `v4.9.0`, and `leanprover/lean4:v4.9.0` and ensuring that e.g. `stable` has the same meaning for
+    everyone at a given point in time.
+  * Accordingly, `elan update` has been removed as updates of non-fixed toolchains are now implicit.
+  * This also fixes `lake +stable new ...` putting an unadvisable `leanprover/lean4:stable`
+    reference in `lean-toolchain`.
+  * The configured default toolchain name is stored unresolved (and not immediately installed) but
+    is resolved before every use. This also means that passing `--default-toolchain none` to the
+    elan install script is not necessary anymore to speed up installation.
+  * In case of a network error resolving a toolchain, elan falls back to the previous resolution if
+    any and prints a warning.
+  * The `update-hashes/` directory is not used anymore, deleting `toolchains/` or direct
+    subdirectories does not break elan anymore.
+- More useful download and installation info messages
+- Experimental `elan toolchain gc` command. See `elan toolchain gc --help` for documentation.
+  `lean-toolchain` files will only be known to the GC after being used at least once with this
+  version of elan.
+
 # 3.1.1 - 2024-02-22
 
 - Fix update check

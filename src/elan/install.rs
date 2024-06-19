@@ -44,7 +44,7 @@ pub enum InstallMethod<'a> {
 }
 
 impl<'a> InstallMethod<'a> {
-    pub fn run(self, path: &Path, notify_handler: &dyn Fn(Notification)) -> Result<bool> {
+    pub fn run(self, path: &Path, notify_handler: &dyn Fn(Notification)) -> Result<()> {
         if path.exists() {
             // Don't uninstall first for Dist method
             match self {
@@ -58,11 +58,11 @@ impl<'a> InstallMethod<'a> {
         match self {
             InstallMethod::Copy(src) => {
                 utils::copy_dir(src, path, &|n| notify_handler(n.into()))?;
-                Ok(true)
+                Ok(())
             }
             InstallMethod::Link(src) => {
                 utils::symlink_dir(src, &path, &|n| notify_handler(n.into()))?;
-                Ok(true)
+                Ok(())
             }
             InstallMethod::Dist(toolchain, dl_cfg) => {
                 if let Some(version) = check_self_update()? {
@@ -76,7 +76,7 @@ impl<'a> InstallMethod<'a> {
                     prefix,
                 )?;
 
-                Ok(true)
+                Ok(())
             }
         }
     }
