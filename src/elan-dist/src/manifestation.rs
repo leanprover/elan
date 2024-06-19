@@ -65,7 +65,7 @@ impl Manifestation {
                 format!("binary package was not provided for '{}'", informal_target).into(),
             );
         }
-        let url = format!("https://github.com/{}", url.unwrap());
+        let url = format!("https://github.com{}", url.unwrap());
         notify_handler(Notification::DownloadingComponent(&url));
 
         let installer_file = dlcfg.download_and_check(&url)?;
