@@ -13,6 +13,8 @@ use std::path::Path;
 use std::process::Command;
 use term2;
 
+use crate::json_dump;
+
 pub fn main() -> Result<()> {
     ::self_update::cleanup_self_updater()?;
 
@@ -56,7 +58,8 @@ pub fn main() -> Result<()> {
                     &mut io::stdout(),
                 );
             }
-        }
+        },
+        ("dump-state", Some(_)) => json_dump::StateDump::new(cfg)?.print()?,
         (_, _) => unreachable!(),
     }
 
@@ -176,6 +179,7 @@ pub fn cli() -> App<'static, 'static> {
             .about("Display which binary will be run for a given command")
             .arg(Arg::with_name("command")
                 .required(true)))
+        .subcommand(SubCommand::with_name("dump-state").setting(AppSettings::Hidden))
         /*.subcommand(SubCommand::with_name("doc")
             .alias("docs")
             .about("Open the documentation for the current toolchain")
