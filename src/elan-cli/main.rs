@@ -24,7 +24,7 @@ extern crate elan;
 extern crate flate2;
 extern crate itertools;
 extern crate json;
-extern crate markdown;
+extern crate pulldown_cmark;
 extern crate rand;
 extern crate regex;
 extern crate same_file;
