@@ -176,7 +176,7 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             Tag::TableHead => {}
             Tag::TableRow => {}
             Tag::TableCell => {}
-            Tag::BlockQuote => {}
+            Tag::BlockQuote(_) => {}
             Tag::CodeBlock(_) | Tag::HtmlBlock { .. } => {
                 self.wrapper.write_line();
                 self.wrapper.indent += 2;
@@ -264,6 +264,8 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             TaskListMarker(true) => {}
             TaskListMarker(false) => {}
             InlineHtml(_) => {}
+            InlineMath(_) => {}
+            DisplayMath(_) => {}
         }
     }
 }
