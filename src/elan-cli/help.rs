@@ -1,4 +1,4 @@
-pub static ELAN_HELP: &'static str = r"DISCUSSION:
+pub static ELAN_HELP: &str = r"DISCUSSION:
     elan manages your installations of the Lean theorem prover.
     It places `lean` and `lake` binaries in your `PATH` that automatically
     select and, if necessary, download the Lean version described in your
@@ -6,21 +6,21 @@ pub static ELAN_HELP: &'static str = r"DISCUSSION:
     and uninstall Lean versions manually using the commands of the `elan`
     executable.";
 
-pub static SHOW_HELP: &'static str = r"DISCUSSION:
+pub static SHOW_HELP: &str = r"DISCUSSION:
     Shows the name of the active toolchain and the version of `lean`.
 
     If there are multiple toolchains installed then all installed
     toolchains are listed as well.";
 
-pub static INSTALL_HELP: &'static str = r"DISCUSSION:
+pub static INSTALL_HELP: &str = r"DISCUSSION:
     Installs a specific lean toolchain.
 
     The 'install' command is an alias for 'elan update <toolchain>'.";
 
-pub static DEFAULT_HELP: &'static str = r"DISCUSSION:
+pub static DEFAULT_HELP: &str = r"DISCUSSION:
     Sets the default toolchain to the one specified.";
 
-pub static TOOLCHAIN_HELP: &'static str = r"DISCUSSION:
+pub static TOOLCHAIN_HELP: &str = r"DISCUSSION:
     Many `elan` commands deal with *toolchains*, a single
     installation of the Lean theorem prover. `elan` supports multiple
     types of toolchains. The most basic track the official release
@@ -46,7 +46,7 @@ pub static TOOLCHAIN_HELP: &'static str = r"DISCUSSION:
     often used to for developing Lean itself. For more information see
     `elan toolchain help link`.";
 
-pub static TOOLCHAIN_LINK_HELP: &'static str = r"DISCUSSION:
+pub static TOOLCHAIN_LINK_HELP: &str = r"DISCUSSION:
     'toolchain' is the custom name to be assigned to the new toolchain.
 
     'path' specifies the directory where the binaries and libraries for
@@ -61,7 +61,7 @@ pub static TOOLCHAIN_LINK_HELP: &'static str = r"DISCUSSION:
     If you now compile a crate in the current directory, the custom
     toolchain 'master' will be used.";
 
-pub static TOOLCHAIN_GC_HELP: &'static str = r"DISCUSSION:
+pub static TOOLCHAIN_GC_HELP: &str = r"DISCUSSION:
     Experimental. A toolchain is classified as 'in use' if
     * it is the default toolchain,
     * it is registered as an override, or
@@ -72,7 +72,7 @@ pub static TOOLCHAIN_GC_HELP: &'static str = r"DISCUSSION:
     to actually remove toolchains but this may be relaxed in the future
     when the implementation is deemed stable.";
 
-pub static OVERRIDE_HELP: &'static str = r"DISCUSSION:
+pub static OVERRIDE_HELP: &str = r"DISCUSSION:
     Overrides configure elan to use a specific toolchain when
     running in a specific directory.
 
@@ -95,14 +95,14 @@ pub static OVERRIDE_HELP: &'static str = r"DISCUSSION:
     override and use the default toolchain again, `elan override
     unset`.";
 
-pub static OVERRIDE_UNSET_HELP: &'static str = r"DISCUSSION:
+pub static OVERRIDE_UNSET_HELP: &str = r"DISCUSSION:
     If `--path` argument is present, removes the override toolchain
     for the specified directory. If `--nonexistent` argument is
     present, removes the override toolchain for all nonexistent
     directories. Otherwise, removes the override toolchain for the
     current directory.";
 
-pub static RUN_HELP: &'static str = r"DISCUSSION:
+pub static RUN_HELP: &str = r"DISCUSSION:
     Configures an environment to use the given toolchain and then runs
     the specified program. The command may be any program, not just
     lean or lake. This can be used for testing arbitrary toolchains
@@ -117,14 +117,14 @@ pub static RUN_HELP: &'static str = r"DISCUSSION:
 
         $ elan run --install nightly lake build";
 
-pub static _DOC_HELP: &'static str = r"DISCUSSION:
+pub static _DOC_HELP: &str = r"DISCUSSION:
     Opens the documentation for the currently active toolchain with
     the default browser.
 
     By default, it opens the documentation index. Use the various
     flags to open specific pieces of documentation.";
 
-pub static COMPLETIONS_HELP: &'static str = r"DISCUSSION:
+pub static COMPLETIONS_HELP: &str = r"DISCUSSION:
     One can generate a completion script for `elan` that is
     compatible with a given shell. The script is output on `stdout`
     allowing one to re-direct the output to the file of their
@@ -225,6 +225,6 @@ pub static COMPLETIONS_HELP: &'static str = r"DISCUSSION:
 
         PS C:\> elan completions powershell >> %USERPROFILE%\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1";
 
-pub static TOOLCHAIN_ARG_HELP: &'static str = "Toolchain name, such as 'stable', 'nightly', \
+pub static TOOLCHAIN_ARG_HELP: &str = "Toolchain name, such as 'stable', 'nightly', \
      or '3.3.0'. For more information see `elan \
      help toolchain`";

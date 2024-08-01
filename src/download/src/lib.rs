@@ -45,10 +45,10 @@ pub fn download_to_path_with_backend(
 
     || -> Result<()> {
         let file = OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .open(&path)
-                    .chain_err(|| "error creating file for download")?;
+            .write(true)
+            .create(true)
+            .open(&path)
+            .chain_err(|| "error creating file for download")?;
 
         let file = RefCell::new(file);
 
@@ -93,10 +93,7 @@ pub mod curl {
 
     thread_local!(pub static EASY: RefCell<Easy> = RefCell::new(Easy::new()));
 
-    pub fn download(
-        url: &Url,
-        callback: &dyn Fn(Event) -> Result<()>,
-    ) -> Result<()> {
+    pub fn download(url: &Url, callback: &dyn Fn(Event) -> Result<()>) -> Result<()> {
         // Fetch either a cached libcurl handle (which will preserve open
         // connections) or create a new one if it isn't listed.
         //

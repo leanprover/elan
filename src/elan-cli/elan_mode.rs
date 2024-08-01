@@ -8,7 +8,6 @@ use help::*;
 use self_update;
 use std::error::Error;
 use std::io::{self, Write};
-use std::iter;
 use std::path::Path;
 use std::process::Command;
 use term2;
@@ -16,9 +15,9 @@ use term2;
 pub fn main() -> Result<()> {
     ::self_update::cleanup_self_updater()?;
 
-    let ref matches = cli().get_matches();
+    let matches = &cli().get_matches();
     let verbose = matches.is_present("verbose");
-    let ref cfg = common::set_globals(verbose)?;
+    let cfg = &(common::set_globals(verbose)?);
 
     match matches.subcommand() {
         ("show", Some(_)) => show(cfg)?,
@@ -238,7 +237,7 @@ pub fn cli() -> App<'static, 'static> {
 }
 
 fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let ref name = m.value_of("toolchain").expect("");
+    let name = m.value_of("toolchain").expect("");
     // sanity-check
     let _ = lookup_toolchain_desc(cfg, name)?;
 
@@ -254,7 +253,7 @@ fn install(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 
         if !toolchain.exists() || !toolchain.is_custom() {
             toolchain.install_from_dist()?;
-            println!("");
+            println!();
             common::show_channel_update(cfg, &toolchain.desc)?;
         }
     }
@@ -263,17 +262,13 @@ fn install(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 }
 
 fn run(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let ref toolchain = m.value_of("toolchain").expect("");
+    let toolchain = m.value_of("toolchain").expect("");
     let args = m.values_of("command").unwrap();
     let args: Vec<_> = args.collect();
     let desc = lookup_toolchain_desc(cfg, toolchain)?;
     let cmd = cfg.create_command_for_toolchain(&desc, m.is_present("install"), args[0])?;
 
-    Ok(command::run_command_for_dir(
-        cmd,
-        args[0],
-        &args[1..],
-    )?)
+    Ok(command::run_command_for_dir(cmd, args[0], &args[1..])?)
 }
 
 fn which(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
@@ -290,12 +285,20 @@ fn which(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-pub fn mk_toolchain_label(tc: &ToolchainDesc, default_tc: &Option<String>, resolved_default_tc: &Option<ToolchainDesc>) -> String {
-    if resolved_default_tc.as_ref() == Some(&tc) {
+pub fn mk_toolchain_label(
+    tc: &ToolchainDesc,
+    default_tc: &Option<String>,
+    resolved_default_tc: &Option<ToolchainDesc>,
+) -> String {
+    if resolved_default_tc.as_ref() == Some(tc) {
         if default_tc == &resolved_default_tc.as_ref().map(|tc| tc.to_string()) {
             format!("{} (default)", tc)
         } else {
-            format!("{} (resolved from default '{}')", tc, default_tc.as_ref().unwrap())
+            format!(
+                "{} (resolved from default '{}')",
+                tc,
+                default_tc.as_ref().unwrap()
+            )
         }
     } else {
         format!("{}", tc)
@@ -305,21 +308,26 @@ pub fn mk_toolchain_label(tc: &ToolchainDesc, default_tc: &Option<String>, resol
 pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
     let toolchains = cfg.list_toolchains()?;
     let default_tc = cfg.get_default()?;
-    let resolved_default_tc =
-      default_tc.as_ref().map(|tc| lookup_toolchain_desc(cfg, tc)).transpose()?;
+    let resolved_default_tc = default_tc
+        .as_ref()
+        .map(|tc| lookup_toolchain_desc(cfg, tc))
+        .transpose()?;
 
     if toolchains.is_empty() {
         println!("no installed toolchains");
     } else {
         for tc in toolchains {
-            println!("{}", mk_toolchain_label(&tc, &default_tc, &resolved_default_tc));
+            println!(
+                "{}",
+                mk_toolchain_label(&tc, &default_tc, &resolved_default_tc)
+            );
         }
     }
     Ok(())
 }
 
 fn show(cfg: &Cfg) -> Result<()> {
-    let ref cwd = utils::current_dir()?;
+    let cwd = &(utils::current_dir()?);
     let installed_toolchains = cfg.list_toolchains()?;
     let active_toolchain = cfg.find_override_toolchain_or_default(cwd);
 
@@ -334,17 +342,22 @@ fn show(cfg: &Cfg) -> Result<()> {
         > 1;
 
     let default_tc = cfg.get_default()?;
-    let resolved_default_tc =
-      default_tc.as_ref().map(|tc| lookup_toolchain_desc(cfg, tc)).transpose()?;
+    let resolved_default_tc = default_tc
+        .as_ref()
+        .map(|tc| lookup_toolchain_desc(cfg, tc))
+        .transpose()?;
     if show_installed_toolchains {
         if show_headers {
             print_header("installed toolchains")
         }
         for t in installed_toolchains {
-            println!("{}", mk_toolchain_label(&t, &default_tc, &resolved_default_tc));
+            println!(
+                "{}",
+                mk_toolchain_label(&t, &default_tc, &resolved_default_tc)
+            );
         }
         if show_headers {
-            println!("")
+            println!()
         };
     }
 
@@ -360,7 +373,10 @@ fn show(cfg: &Cfg) -> Result<()> {
                     println!("{}", common::lean_version(toolchain));
                 }
                 Some((ref toolchain, None)) => {
-                    println!("{}", mk_toolchain_label(&toolchain.desc, &default_tc, &resolved_default_tc));
+                    println!(
+                        "{}",
+                        mk_toolchain_label(&toolchain.desc, &default_tc, &resolved_default_tc)
+                    );
                     println!("{}", common::lean_version(toolchain));
                 }
                 None => {
@@ -377,7 +393,7 @@ fn show(cfg: &Cfg) -> Result<()> {
         }
 
         if show_headers {
-            println!("")
+            println!()
         };
     }
 
@@ -385,8 +401,8 @@ fn show(cfg: &Cfg) -> Result<()> {
         let mut t = term2::stdout();
         let _ = t.attr(term2::Attr::Bold);
         let _ = writeln!(t, "{}", s);
-        let _ = writeln!(t, "{}", iter::repeat("-").take(s.len()).collect::<String>());
-        let _ = writeln!(t, "");
+        let _ = writeln!(t, "{}", "-".repeat(s.len()));
+        let _ = writeln!(t);
         let _ = t.reset();
     }
 
@@ -396,21 +412,23 @@ fn show(cfg: &Cfg) -> Result<()> {
 fn explicit_or_dir_toolchain<'a>(cfg: &'a Cfg, m: &ArgMatches) -> Result<Toolchain<'a>> {
     let toolchain = m.value_of("toolchain");
     if let Some(toolchain) = toolchain {
-      let desc = lookup_toolchain_desc(cfg, toolchain)?;
+        let desc = lookup_toolchain_desc(cfg, toolchain)?;
         let toolchain = cfg.get_toolchain(&desc, false)?;
         return Ok(toolchain);
     }
 
-    let ref cwd = utils::current_dir()?;
+    let cwd = &(utils::current_dir()?);
     let (toolchain, _) = cfg.toolchain_for_dir(cwd)?;
 
     Ok(toolchain)
 }
 
 fn toolchain_link(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let ref toolchain = m.value_of("toolchain").expect("");
-    let ref path = m.value_of("path").expect("");
-    let desc = ToolchainDesc::Local { name: toolchain.to_string() };
+    let toolchain = &m.value_of("toolchain").expect("");
+    let path = &m.value_of("path").expect("");
+    let desc = ToolchainDesc::Local {
+        name: toolchain.to_string(),
+    };
     let toolchain = cfg.get_toolchain(&desc, true)?;
 
     Ok(toolchain.install_from_dir(Path::new(path), true)?)
@@ -429,7 +447,7 @@ fn toolchain_gc(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let toolchains = gc::get_unreachable_toolchains(cfg)?;
     if toolchains.is_empty() {
         println!("No unused toolchains found");
-        return Ok(())
+        return Ok(());
     }
     let delete = m.is_present("delete");
     if !delete {
@@ -446,7 +464,7 @@ fn toolchain_gc(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
 }
 
 fn override_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
-    let ref toolchain = m.value_of("toolchain").expect("");
+    let toolchain = m.value_of("toolchain").expect("");
     let desc = lookup_toolchain_desc(cfg, toolchain)?;
     let toolchain = cfg.get_toolchain(&desc, false)?;
     toolchain.make_override(&utils::current_dir()?)?;
@@ -471,18 +489,16 @@ fn override_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
             info!("no nonexistent paths detected");
         }
         list
+    } else if m.is_present("path") {
+        vec![m.value_of("path").unwrap().to_string()]
     } else {
-        if m.is_present("path") {
-            vec![m.value_of("path").unwrap().to_string()]
-        } else {
-            vec![utils::current_dir()?.to_str().unwrap().to_string()]
-        }
+        vec![utils::current_dir()?.to_str().unwrap().to_string()]
     };
 
     for path in paths {
         if cfg
             .settings_file
-            .with_mut(|s| Ok(s.remove_override(&Path::new(&path), cfg.notify_handler.as_ref())))?
+            .with_mut(|s| Ok(s.remove_override(Path::new(&path), cfg.notify_handler.as_ref())))?
         {
             info!("override toolchain for '{}' removed", path);
         } else {

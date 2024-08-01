@@ -120,11 +120,7 @@ pub fn tee_file<W: io::Write>(name: &'static str, path: &Path, w: &mut W) -> Res
     })
 }
 
-pub fn download_file(
-    url: &Url,
-    path: &Path,
-    notify_handler: &dyn Fn(Notification),
-) -> Result<()> {
+pub fn download_file(url: &Url, path: &Path, notify_handler: &dyn Fn(Notification)) -> Result<()> {
     use download::ErrorKind as DEK;
     match download_file_(url, path, notify_handler) {
         Ok(_) => Ok(()),
@@ -152,11 +148,7 @@ pub fn download_file(
     }
 }
 
-fn download_file_(
-    url: &Url,
-    path: &Path,
-    notify_handler: &dyn Fn(Notification),
-) -> Result<()> {
+fn download_file_(url: &Url, path: &Path, notify_handler: &dyn Fn(Notification)) -> Result<()> {
     use download::download_to_path_with_backend;
     use download::{Backend, Event};
 
@@ -470,11 +462,16 @@ pub fn fetch_url(url: &str) -> Result<String> {
             .unwrap();
         transfer.perform().chain_err(|| "error during download")
     })?;
-    ::std::str::from_utf8(&data).chain_err(|| "failed to decode response").map(|s| s.to_owned())
+    ::std::str::from_utf8(&data)
+        .chain_err(|| "failed to decode response")
+        .map(|s| s.to_owned())
 }
 
 // fetch from HTML page instead of Github API to avoid rate limit
-pub fn fetch_latest_release_tag(repo_slug: &str, notify_handler: Option<&dyn Fn(Notification)>) -> Result<String> {
+pub fn fetch_latest_release_tag(
+    repo_slug: &str,
+    notify_handler: Option<&dyn Fn(Notification)>,
+) -> Result<String> {
     use regex::Regex;
 
     let latest_url = format!("https://github.com/{}/releases/latest", repo_slug);
@@ -496,7 +493,7 @@ pub fn fetch_latest_release_tag(repo_slug: &str, notify_handler: Option<&dyn Fn(
                 if cache_path.exists() {
                     let tag = fs::read_to_string(cache_path)?;
                     handler(Notification::UsingCachedRelease(&tag));
-                    return Ok(tag)
+                    return Ok(tag);
                 }
             }
             Err(e)

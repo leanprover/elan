@@ -9,7 +9,6 @@ use elan_utils::utils::{self, fetch_latest_release_tag};
 use errors::Result;
 use std::path::Path;
 
-
 #[cfg(feature = "no-self-update")]
 pub const NEVER_SELF_UPDATE: bool = true;
 #[cfg(not(feature = "no-self-update"))]
@@ -21,7 +20,7 @@ pub fn check_self_update() -> Result<Option<String>> {
     // regularly update those packages because otherwise we may repeatedly nag them about a new
     // version that is not even available to them yet
     if NEVER_SELF_UPDATE {
-        return Ok(None)
+        return Ok(None);
     }
 
     // Get current version
@@ -30,17 +29,18 @@ pub fn check_self_update() -> Result<Option<String>> {
     let tag = fetch_latest_release_tag("leanprover/elan", None)?;
     let available_version = &tag[1..];
 
-    Ok(if available_version == current_version { None } else { Some(available_version.to_owned()) })
+    Ok(if available_version == current_version {
+        None
+    } else {
+        Some(available_version.to_owned())
+    })
 }
 
 #[derive(Copy, Clone)]
 pub enum InstallMethod<'a> {
     Copy(&'a Path),
     Link(&'a Path),
-    Dist(
-        &'a dist::ToolchainDesc,
-        DownloadCfg<'a>,
-    ),
+    Dist(&'a dist::ToolchainDesc, DownloadCfg<'a>),
 }
 
 impl<'a> InstallMethod<'a> {
@@ -61,7 +61,7 @@ impl<'a> InstallMethod<'a> {
                 Ok(())
             }
             InstallMethod::Link(src) => {
-                utils::symlink_dir(src, &path, &|n| notify_handler(n.into()))?;
+                utils::symlink_dir(src, path, &|n| notify_handler(n.into()))?;
                 Ok(())
             }
             InstallMethod::Dist(toolchain, dl_cfg) => {
@@ -70,11 +70,7 @@ impl<'a> InstallMethod<'a> {
                 }
 
                 let prefix = &InstallPrefix::from(path.to_owned());
-                dist::install_from_dist(
-                    dl_cfg,
-                    toolchain,
-                    prefix,
-                )?;
+                dist::install_from_dist(dl_cfg, toolchain, prefix)?;
 
                 Ok(())
             }
