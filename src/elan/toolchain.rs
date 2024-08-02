@@ -10,13 +10,13 @@ use errors::*;
 use install::{self, InstallMethod};
 use notifications::*;
 
+use regex::Regex;
 use std::env;
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use regex::Regex;
 
 const DEFAULT_ORIGIN: &str = "leanprover/lean4";
 
@@ -39,24 +39,38 @@ pub struct ComponentStatus {
 pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
     let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?([a-zA-Z0-9-.]+)$";
 
-    let re = Regex::new(&pattern).unwrap();
+    let re = Regex::new(pattern).unwrap();
     if let Some(c) = re.captures(name) {
         let mut release = c.get(2).unwrap().as_str().to_owned();
-        let local_tc = Toolchain::from(cfg, &ToolchainDesc::Local { name: release.clone() });
+        let local_tc = Toolchain::from(
+            cfg,
+            &ToolchainDesc::Local {
+                name: release.clone(),
+            },
+        );
         if local_tc.exists() && local_tc.is_custom() {
-            return Ok(ToolchainDesc::Local { name: release })
+            return Ok(ToolchainDesc::Local { name: release });
         }
-        let mut origin = c.get(1).map(|s| s.as_str()).unwrap_or(DEFAULT_ORIGIN).to_owned();
+        let mut origin = c
+            .get(1)
+            .map(|s| s.as_str())
+            .unwrap_or(DEFAULT_ORIGIN)
+            .to_owned();
         if release.starts_with("nightly") && !origin.ends_with("-nightly") {
             origin = format!("{}-nightly", origin);
         }
         if release == "lean-toolchain" {
-            let toolchain_url = format!("https://raw.githubusercontent.com/{}/HEAD/lean-toolchain", origin);
-            return lookup_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())
+            let toolchain_url = format!(
+                "https://raw.githubusercontent.com/{}/HEAD/lean-toolchain",
+                origin
+            );
+            return lookup_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim());
         }
         if release == "stable" || release == "nightly" {
-            release = utils::fetch_latest_release_tag(&origin,
-Some(&move |n| (cfg.notify_handler)(n.into())))?;
+            release = utils::fetch_latest_release_tag(
+                &origin,
+                Some(&move |n| (cfg.notify_handler)(n.into())),
+            )?;
         }
         if release.starts_with(char::is_numeric) {
             release = format!("v{}", release)
@@ -76,7 +90,7 @@ impl<'a> Toolchain<'a> {
         let path = cfg.toolchains_dir.join(&dir_name[..]);
 
         Toolchain {
-            cfg: cfg,
+            cfg,
             desc: desc.clone(),
             path: path.clone(),
             dist_handler: Box::new(move |n| (cfg.notify_handler)(n.into())),
@@ -118,12 +132,12 @@ impl<'a> Toolchain<'a> {
         if !self.exists() {
             (self.cfg.notify_handler)(Notification::UninstalledToolchain(&self.desc));
         }
-        Ok(result?)
+        result
     }
     fn install(&self, install_method: InstallMethod) -> Result<()> {
         let exists = self.exists();
         if exists {
-            return Err(format!("'{}' is already installed", self.desc).into())
+            return Err(format!("'{}' is already installed", self.desc).into());
         } else {
             (self.cfg.notify_handler)(Notification::InstallingToolchain(&self.desc));
         }
@@ -151,17 +165,11 @@ impl<'a> Toolchain<'a> {
     }
 
     pub fn install_from_dist(&self) -> Result<()> {
-        self.install(InstallMethod::Dist(
-            &self.desc,
-            self.download_cfg(),
-        ))
+        self.install(InstallMethod::Dist(&self.desc, self.download_cfg()))
     }
 
     pub fn install_from_dist_if_not_installed(&self) -> Result<()> {
-        self.install_if_not_installed(InstallMethod::Dist(
-            &self.desc,
-            self.download_cfg(),
-        ))
+        self.install_if_not_installed(InstallMethod::Dist(&self.desc, self.download_cfg()))
     }
 
     pub fn install_from_dir(&self, src: &Path, link: bool) -> Result<()> {
@@ -202,11 +210,11 @@ impl<'a> Toolchain<'a> {
             Path::new(&binary)
         };
         let mut cmd: Command;
-        if cfg!(windows) && path.extension() == None {
+        if cfg!(windows) && path.extension().is_none() {
             cmd = Command::new("sh");
             cmd.arg(format!("'{}'", path.to_str().unwrap()));
         } else {
-            cmd = Command::new(&path);
+            cmd = Command::new(path);
         };
         self.set_env(&mut cmd);
         Ok(cmd)
@@ -217,7 +225,7 @@ impl<'a> Toolchain<'a> {
 
         env_var::inc("LEAN_RECURSION_COUNT", cmd);
 
-        cmd.env("ELAN_TOOLCHAIN", &self.name());
+        cmd.env("ELAN_TOOLCHAIN", self.name());
         cmd.env("ELAN_HOME", &self.cfg.elan_dir);
     }
 
@@ -257,10 +265,10 @@ impl<'a> Toolchain<'a> {
     }
 
     pub fn make_override(&self, path: &Path) -> Result<()> {
-        Ok(self.cfg.settings_file.with_mut(|s| {
+        self.cfg.settings_file.with_mut(|s| {
             s.add_override(path, self.desc.clone(), self.cfg.notify_handler.as_ref());
             Ok(())
-        })?)
+        })
     }
 
     pub fn binary_file<T: AsRef<OsStr>>(&self, binary: T) -> PathBuf {

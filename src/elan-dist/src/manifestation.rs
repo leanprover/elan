@@ -78,7 +78,7 @@ impl Manifestation {
         let unpack_dir = prefix.with_extension("tmp");
 
         if utils::is_directory(prefix) {
-            return Err(format!("'{}' is already installed", prefix.display()).into())
+            return Err(format!("'{}' is already installed", prefix.display()).into());
         }
 
         if utils::is_directory(&unpack_dir) {
@@ -99,7 +99,7 @@ impl Manifestation {
         } else if url.ends_with(".zip") {
             ZipPackage::unpack_file(&installer_file, &unpack_dir)?
         } else {
-            return Err(format!("unsupported archive format: {}", url).into())
+            return Err(format!("unsupported archive format: {}", url).into());
         }
 
         utils::rename_dir("temp toolchain directory", &unpack_dir, prefix)?;

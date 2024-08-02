@@ -8,8 +8,8 @@ use toml;
 use toml_utils::*;
 use utils;
 
-pub const SUPPORTED_METADATA_VERSIONS: [&'static str; 2] = ["2", "12"];
-pub const DEFAULT_METADATA_VERSION: &'static str = "12";
+pub const SUPPORTED_METADATA_VERSIONS: [&str; 2] = ["2", "12"];
+pub const DEFAULT_METADATA_VERSION: &str = "12";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SettingsFile {
@@ -20,7 +20,7 @@ pub struct SettingsFile {
 impl SettingsFile {
     pub fn new(path: PathBuf) -> Self {
         SettingsFile {
-            path: path,
+            path,
             cache: RefCell::new(None),
         }
     }
@@ -122,7 +122,7 @@ impl Settings {
         notify_handler: &dyn Fn(Notification),
     ) -> Option<ToolchainDesc> {
         let key = Self::path_to_key(dir, notify_handler);
-        self.overrides.get(&key).map(|s| s.clone())
+        self.overrides.get(&key).cloned()
     }
 
     pub fn parse(data: &str) -> Result<Self> {
@@ -139,7 +139,7 @@ impl Settings {
             return Err(ErrorKind::UnknownMetadataVersion(version).into());
         }
         Ok(Settings {
-            version: version,
+            version,
             default_toolchain: get_opt_string(&mut table, "default_toolchain", path)?,
             overrides: Self::table_to_overrides(&mut table, path)?,
             telemetry: if get_opt_bool(&mut table, "telemetry", path)?.unwrap_or(false) {

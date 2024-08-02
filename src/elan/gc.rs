@@ -1,4 +1,7 @@
-use std::{collections::HashSet, path::{Path, PathBuf}};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+};
 
 use itertools::Itertools;
 
@@ -32,14 +35,17 @@ pub fn add_root(cfg: &Cfg, root: &Path) -> elan_utils::Result<()> {
 
 pub fn get_unreachable_toolchains(cfg: &Cfg) -> crate::Result<Vec<Toolchain>> {
     let roots = get_roots(cfg)?;
-    let mut used_toolchains = roots.into_iter().filter_map(|r| {
-        let path = PathBuf::from(r).join("lean-toolchain");
-        if path.exists() {
-            Some(std::fs::read_to_string(path).unwrap().trim().to_string())
-        } else {
-            None
-        }
-    }).collect::<HashSet<_>>();
+    let mut used_toolchains = roots
+        .into_iter()
+        .filter_map(|r| {
+            let path = PathBuf::from(r).join("lean-toolchain");
+            if path.exists() {
+                Some(std::fs::read_to_string(path).unwrap().trim().to_string())
+            } else {
+                None
+            }
+        })
+        .collect::<HashSet<_>>();
     if let Some(default) = cfg.get_default()? {
         let default = lookup_toolchain_desc(cfg, &default)?;
         used_toolchains.insert(default.to_string());
@@ -50,7 +56,9 @@ pub fn get_unreachable_toolchains(cfg: &Cfg) -> crate::Result<Vec<Toolchain>> {
     for o in cfg.get_overrides()? {
         used_toolchains.insert(o.1.to_string());
     }
-    Ok(cfg.list_toolchains()?.into_iter()
+    Ok(cfg
+        .list_toolchains()?
+        .into_iter()
         .map(|t| Toolchain::from(cfg, &t))
         .filter(|t| !t.is_custom() && !used_toolchains.contains(&t.desc.to_string()))
         .collect_vec())

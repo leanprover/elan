@@ -110,7 +110,7 @@ impl DownloadTracker {
         if self.displayed_charcount.is_some() {
             // Display the finished state
             self.display();
-            let _ = writeln!(self.term.as_mut().unwrap(), "");
+            let _ = writeln!(self.term.as_mut().unwrap());
         }
         self.prepare_for_new_download();
     }
@@ -159,19 +159,11 @@ impl DownloadTracker {
                 let eta_h = HumanReadable(remaining / speed);
                 format!(
                     "{} / {} ({:3.0} %) {}/s ETA: {:#}",
-                    total_h,
-                    content_len_h,
-                    percent,
-                    speed_h,
-                    eta_h
+                    total_h, content_len_h, percent, speed_h, eta_h
                 )
             }
             None => {
-                format!(
-                    "Total: {} Speed: {}/s",
-                    total_h,
-                    speed_h
-                )
+                format!("Total: {} Speed: {}/s", total_h, speed_h)
             }
         };
 

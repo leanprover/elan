@@ -13,13 +13,15 @@ use std::fmt;
 #[derive(Debug, Clone, PartialEq)]
 pub enum ToolchainDesc {
     // A linked toolchain
-    Local { name: String },
+    Local {
+        name: String,
+    },
     Remote {
         // The GitHub source repository to use (if "nightly" is specified, we append "-nightly" to this).
         origin: String,
         // The release name, usually a Git tag
         release: String,
-    }
+    },
 }
 
 impl ToolchainDesc {
@@ -55,8 +57,7 @@ impl fmt::Display for ToolchainDesc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ToolchainDesc::Local { name } => write!(f, "{}", name),
-            ToolchainDesc::Remote { origin, release } =>
-                write!(f, "{}:{}", origin, release)
+            ToolchainDesc::Remote { origin, release } => write!(f, "{}:{}", origin, release),
         }
     }
 }
@@ -70,9 +71,12 @@ pub fn install_from_dist<'a>(
     let manifestation = Manifestation::open(prefix.clone())?;
 
     let ToolchainDesc::Remote { origin, release } = toolchain else {
-        return Ok(())
+        return Ok(());
     };
-    let url = format!("https://github.com/{}/releases/expanded_assets/{}", origin, release);
+    let url = format!(
+        "https://github.com/{}/releases/expanded_assets/{}",
+        origin, release
+    );
     let res = match manifestation.install(
         &origin,
         &url,

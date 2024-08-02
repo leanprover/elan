@@ -26,7 +26,7 @@ pub fn confirm(question: &str, default: bool) -> Result<bool> {
         _ => false,
     };
 
-    println!("");
+    println!();
 
     Ok(r)
 }
@@ -38,7 +38,7 @@ pub enum Confirm {
 }
 
 pub fn confirm_advanced() -> Result<Confirm> {
-    println!("");
+    println!();
     println!("1) Proceed with installation (default)");
     println!("2) Customize installation");
     println!("3) Cancel installation");
@@ -52,7 +52,7 @@ pub fn confirm_advanced() -> Result<Confirm> {
         _ => Confirm::No,
     };
 
-    println!("");
+    println!();
 
     Ok(r)
 }
@@ -62,7 +62,7 @@ pub fn question_str(question: &str, default: &str) -> Result<String> {
     let _ = std::io::stdout().flush();
     let input = read_line()?;
 
-    println!("");
+    println!();
 
     if input.is_empty() {
         Ok(default.to_string())
@@ -77,7 +77,7 @@ pub fn question_bool(question: &str, default: bool) -> Result<bool> {
     let _ = std::io::stdout().flush();
     let input = read_line()?;
 
-    println!("");
+    println!();
 
     if input.is_empty() {
         Ok(default)
@@ -130,11 +130,8 @@ pub fn set_globals(verbose: bool) -> Result<Cfg> {
     }))?)
 }
 
-pub fn show_channel_update(
-    cfg: &Cfg,
-    desc: &ToolchainDesc,
-) -> Result<()> {
-    let ref toolchain = cfg.get_toolchain(&desc, false).expect("");
+pub fn show_channel_update(cfg: &Cfg, desc: &ToolchainDesc) -> Result<()> {
+    let toolchain = &cfg.get_toolchain(desc, false).expect("");
     let version = lean_version(toolchain);
     let name = desc.to_string();
 
@@ -151,7 +148,7 @@ pub fn show_channel_update(
     let _ = write!(t, "{}", banner);
     let _ = t.reset();
     let _ = writeln!(t, " - {}", version);
-    let _ = writeln!(t, "");
+    let _ = writeln!(t);
 
     Ok(())
 }
@@ -226,7 +223,7 @@ pub fn list_overrides(cfg: &Cfg) -> Result<()> {
             )
         }
         if any_not_exist {
-            println!("");
+            println!();
             info!(
                 "you may remove overrides for non-existent directories with
 `elan override unset --nonexistent`"
@@ -253,10 +250,9 @@ pub fn report_error(e: &Error) {
     if show_backtrace() {
         if let Some(backtrace) = e.backtrace() {
             info!("backtrace:");
-            println!("");
+            println!();
             println!("{:?}", backtrace);
         }
-    } else {
     }
 
     fn show_backtrace() -> bool {

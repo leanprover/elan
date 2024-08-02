@@ -120,7 +120,10 @@ impl<'a> Display for Notification<'a> {
                 write!(f, "update not yet available, sorry! try again later")
             }
             NewVersionAvailable(ref version) => {
-                write!(f, "Version {version} of elan is available! Use `elan self update` to update.")
+                write!(
+                    f,
+                    "Version {version} of elan is available! Use `elan self update` to update."
+                )
             }
         }
     }

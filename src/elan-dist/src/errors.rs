@@ -3,8 +3,8 @@ use manifest::Component;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use temp;
-use toml;
 use time::error::ComponentRange;
+use toml;
 
 error_chain! {
     links {

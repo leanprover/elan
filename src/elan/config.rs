@@ -92,13 +92,13 @@ impl Cfg {
         );
 
         Ok(Cfg {
-            elan_dir: elan_dir,
-            settings_file: settings_file,
-            toolchains_dir: toolchains_dir,
-            temp_cfg: temp_cfg,
+            elan_dir,
+            settings_file,
+            toolchains_dir,
+            temp_cfg,
             //gpg_key: gpg_key,
-            notify_handler: notify_handler,
-            env_override: env_override,
+            notify_handler,
+            env_override,
         })
     }
 
@@ -130,14 +130,12 @@ impl Cfg {
     }
 
     pub fn get_default(&self) -> Result<Option<String>> {
-        self
-            .settings_file
-            .with(|s| Ok(s.default_toolchain.clone()))
+        self.settings_file.with(|s| Ok(s.default_toolchain.clone()))
     }
 
     pub fn resolve_default(&self) -> Result<Option<ToolchainDesc>> {
         if let Some(name) = self.get_default()? {
-            let toolchain = lookup_toolchain_desc(&self, &name)?;
+            let toolchain = lookup_toolchain_desc(self, &name)?;
             Ok(Some(toolchain))
         } else {
             Ok(None)
@@ -149,7 +147,10 @@ impl Cfg {
 
         // First check ELAN_TOOLCHAIN
         if let Some(ref name) = self.env_override {
-            override_ = Some((lookup_toolchain_desc(&self, name)?, OverrideReason::Environment));
+            override_ = Some((
+                lookup_toolchain_desc(self, name)?,
+                OverrideReason::Environment,
+            ));
         }
 
         // Then walk up the directory tree from 'path' looking for either the
@@ -170,7 +171,8 @@ impl Cfg {
 
             let reason_err = match reason {
                 OverrideReason::Environment => {
-                    format!("the ELAN_TOOLCHAIN environment variable specifies an uninstalled toolchain")
+                    "the ELAN_TOOLCHAIN environment variable specifies an uninstalled toolchain"
+                        .to_string()
                 }
                 OverrideReason::OverrideDB(ref path) => {
                     format!(
@@ -237,7 +239,7 @@ impl Cfg {
             if let Ok(s) = utils::read_file("toolchain file", &toolchain_file) {
                 if let Some(s) = s.lines().next() {
                     let toolchain_name = s.trim();
-                    let desc = lookup_toolchain_desc(&self, toolchain_name)?;
+                    let desc = lookup_toolchain_desc(self, toolchain_name)?;
                     let reason = OverrideReason::ToolchainFile(toolchain_file);
                     gc::add_root(self, d)?;
                     return Ok(Some((desc, reason)));
@@ -256,8 +258,8 @@ impl Cfg {
                 {
                     None => {}
                     Some(toml::Value::String(s)) => {
-                        let desc = lookup_toolchain_desc(&self, s)?;
-                        return Ok(Some((desc, OverrideReason::LeanpkgFile(leanpkg_file))))
+                        let desc = lookup_toolchain_desc(self, s)?;
+                        return Ok(Some((desc, OverrideReason::LeanpkgFile(leanpkg_file))));
                     }
                     Some(a) => {
                         return Err(ErrorKind::InvalidLeanVersion(leanpkg_file, a.type_str()).into())
@@ -289,20 +291,17 @@ impl Cfg {
         Ok(
             if let Some((toolchain, reason)) = self.find_override(path)? {
                 Some((toolchain, Some(reason)))
+            } else if let Some(tc) = self.resolve_default()? {
+                Some((self.get_toolchain(&tc, false)?, None))
             } else {
-                if let Some(tc) = self.resolve_default()? {
-                    Some((self.get_toolchain(&tc, false)?, None))
-                } else {
-                    None
-                }
+                None
             },
         )
     }
 
     pub fn get_overrides(&self) -> Result<Vec<(String, ToolchainDesc)>> {
-        self.settings_file.with(|s| {
-            Ok(s.overrides.clone().into_iter().collect_vec())
-        })
+        self.settings_file
+            .with(|s| Ok(s.overrides.clone().into_iter().collect_vec()))
     }
 
     pub fn list_toolchains(&self) -> Result<Vec<ToolchainDesc>> {
@@ -319,7 +318,10 @@ impl Cfg {
 
             utils::toolchain_sort(&mut toolchains);
 
-            let toolchains: Vec<_> = toolchains.iter().flat_map(|s| ToolchainDesc::from_resolved_str(&s)).collect();
+            let toolchains: Vec<_> = toolchains
+                .iter()
+                .flat_map(|s| ToolchainDesc::from_resolved_str(s))
+                .collect();
             Ok(toolchains)
         } else {
             Ok(Vec::new())
@@ -343,7 +345,7 @@ impl Cfg {
         install_if_missing: bool,
         binary: &str,
     ) -> Result<Command> {
-        let ref toolchain = self.get_toolchain(toolchain, false)?;
+        let toolchain = &(self.get_toolchain(toolchain, false)?);
         if install_if_missing && !toolchain.exists() {
             toolchain.install_from_dist()?;
         }

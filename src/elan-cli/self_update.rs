@@ -167,7 +167,7 @@ macro_rules! pre_uninstall_msg {
     };
 }
 
-static TOOLS: &'static [&'static str] = &[
+static TOOLS: &[&str] = &[
     "lean",
     "leanpkg",
     "leanchecker",
@@ -176,7 +176,7 @@ static TOOLS: &'static [&'static str] = &[
     "lake",
 ];
 
-static UPDATE_ROOT: &'static str = "https://github.com/leanprover/elan/releases/download";
+static UPDATE_ROOT: &str = "https://github.com/leanprover/elan/releases/download";
 
 /// `ELAN_HOME` suitable for display, possibly with $HOME
 /// substituted for the directory prefix
@@ -206,7 +206,7 @@ pub fn install(no_prompt: bool, verbose: bool, mut opts: InstallOpts) -> Result<
     do_anti_sudo_check(no_prompt)?;
 
     if !no_prompt {
-        let ref msg = pre_install_msg(opts.no_modify_path)?;
+        let msg = &(pre_install_msg(opts.no_modify_path)?);
 
         term2::stdout().md(msg);
 
@@ -233,15 +233,15 @@ pub fn install(no_prompt: bool, verbose: bool, mut opts: InstallOpts) -> Result<
             do_add_to_path(&get_add_path_methods())?;
         }
         if opts.default_toolchain != "none" {
-            let ref cfg = common::set_globals(verbose)?;
+            let cfg = &(common::set_globals(verbose)?);
             // sanity-check reference
             let _ = lookup_toolchain_desc(cfg, &opts.default_toolchain)?;
             cfg.set_default(&opts.default_toolchain)?;
         }
 
         if cfg!(unix) {
-            let ref env_file = utils::elan_home()?.join("env");
-            let ref env_str = format!("{}\n", shell_export_string()?);
+            let env_file = &utils::elan_home()?.join("env");
+            let env_str = &format!("{}\n", shell_export_string()?);
             utils::write_file("env", env_file, env_str)?;
         }
 
@@ -263,18 +263,16 @@ pub fn install(no_prompt: bool, verbose: bool, mut opts: InstallOpts) -> Result<
             } else {
                 format!(post_install_msg_win!(), elan_home = elan_home)
             }
+        } else if cfg!(unix) {
+            format!(
+                post_install_msg_unix_no_modify_path!(),
+                elan_home = elan_home
+            )
         } else {
-            if cfg!(unix) {
-                format!(
-                    post_install_msg_unix_no_modify_path!(),
-                    elan_home = elan_home
-                )
-            } else {
-                format!(
-                    post_install_msg_win_no_modify_path!(),
-                    elan_home = elan_home
-                )
-            }
+            format!(
+                post_install_msg_win_no_modify_path!(),
+                elan_home = elan_home
+            )
         };
         term2::stdout().md(msg);
     }
@@ -371,7 +369,7 @@ fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
             .to_str()
             .ok();
         let env_home = env::var_os("HOME");
-        let env_home = env_home.as_ref().map(Deref::deref);
+        let env_home = env_home.as_deref();
         match (env_home, pw_dir) {
             (None, _) | (_, None) => false,
             (Some(eh), Some(pd)) => eh != pd,
@@ -460,7 +458,7 @@ fn customize_install(mut opts: InstallOpts) -> Result<InstallOpts> {
          You may simply press the Enter key to leave unchanged."
     );
 
-    println!("");
+    println!();
 
     opts.default_toolchain = common::question_str(
         "Default toolchain? (stable/nightly/<specific version>/none)",
@@ -474,9 +472,9 @@ fn customize_install(mut opts: InstallOpts) -> Result<InstallOpts> {
 }
 
 fn install_bins() -> Result<()> {
-    let ref bin_path = utils::elan_home()?.join("bin");
-    let ref this_exe_path = utils::current_exe()?;
-    let ref elan_path = bin_path.join(&format!("elan{}", EXE_SUFFIX));
+    let bin_path = &utils::elan_home()?.join("bin");
+    let this_exe_path = &(utils::current_exe()?);
+    let elan_path = &bin_path.join(&format!("elan{}", EXE_SUFFIX));
 
     utils::ensure_dir_exists("bin", bin_path, &|_| {})?;
     // NB: Even on Linux we can't just copy the new binary over the (running)
@@ -490,8 +488,8 @@ fn install_bins() -> Result<()> {
 }
 
 pub fn install_proxies() -> Result<()> {
-    let ref bin_path = utils::elan_home()?.join("bin");
-    let ref elan_path = bin_path.join(&format!("elan{}", EXE_SUFFIX));
+    let bin_path = &utils::elan_home()?.join("bin");
+    let elan_path = &bin_path.join(&format!("elan{}", EXE_SUFFIX));
 
     let elan = Handle::from_path(elan_path)?;
 
@@ -557,15 +555,15 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
         process::exit(0);
     }
 
-    let ref elan_home = utils::elan_home()?;
+    let elan_home = &(utils::elan_home()?);
 
     if !elan_home.join(&format!("bin/elan{}", EXE_SUFFIX)).exists() {
         return Err(ErrorKind::NotSelfInstalled(elan_home.clone()).into());
     }
 
     if !no_prompt {
-        println!("");
-        let ref msg = format!(pre_uninstall_msg!(), elan_home = canonical_elan_home()?);
+        println!();
+        let msg = &format!(pre_uninstall_msg!(), elan_home = canonical_elan_home()?);
         term2::stdout().md(msg);
         if !common::confirm("\nContinue? (y/N)", false)? {
             info!("aborting uninstallation");
@@ -578,7 +576,7 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
     info!("removing elan home");
 
     // Remove ELAN_HOME/bin from PATH
-    let ref remove_path_methods = get_remove_path_methods()?;
+    let remove_path_methods = &(get_remove_path_methods()?);
     do_remove_from_path(remove_path_methods)?;
 
     // Delete everything in ELAN_HOME *except* the elan bin
@@ -599,7 +597,7 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
     // until this process exits (on windows).
     let tools = TOOLS.iter().map(|t| format!("{}{}", t, EXE_SUFFIX));
     let tools: Vec<_> = tools.chain(vec![format!("elan{}", EXE_SUFFIX)]).collect();
-    for dirent in fs::read_dir(&elan_home.join("bin")).chain_err(|| read_dir_err)? {
+    for dirent in fs::read_dir(elan_home.join("bin")).chain_err(|| read_dir_err)? {
         let dirent = dirent.chain_err(|| read_dir_err)?;
         let name = dirent.file_name();
         let file_is_tool = name.to_str().map(|n| tools.iter().any(|t| *t == n));
@@ -648,7 +646,7 @@ fn get_msi_product_code() -> Result<String> {
 
 #[cfg(unix)]
 fn delete_elan_and_elan_home() -> Result<()> {
-    let ref elan_home = utils::elan_home()?;
+    let elan_home = &(utils::elan_home()?);
     utils::remove_dir("elan_home", elan_home, &|_| ())?;
 
     Ok(())
@@ -905,7 +903,7 @@ fn get_add_path_methods() -> Vec<PathUpdateMethod> {
         }
     }
 
-    let rcfiles = profiles.into_iter().filter_map(|f| f);
+    let rcfiles = profiles.into_iter().flatten();
     rcfiles.map(PathUpdateMethod::RcFile).collect()
 }
 
@@ -925,7 +923,7 @@ fn do_add_to_path(methods: &[PathUpdateMethod]) -> Result<()> {
             } else {
                 String::new()
             };
-            let ref addition = format!("\n{}", shell_export_string()?);
+            let addition = &format!("\n{}", shell_export_string()?);
             if !file.contains(addition) {
                 utils::append_file("rcfile", rcpath, addition)?;
             }
@@ -1037,12 +1035,12 @@ fn get_remove_path_methods() -> Result<Vec<PathUpdateMethod>> {
     let bash_profile = utils::home_dir().map(|p| p.join(".bash_profile"));
 
     let rcfiles = vec![profile, bash_profile];
-    let existing_rcfiles = rcfiles.into_iter().filter_map(|f| f).filter(|f| f.exists());
+    let existing_rcfiles = rcfiles.into_iter().flatten().filter(|f| f.exists());
 
     let export_str = shell_export_string()?;
     let matching_rcfiles = existing_rcfiles.filter(|f| {
-        let file = utils::read_file("rcfile", f).unwrap_or(String::new());
-        let ref addition = format!("\n{}", export_str);
+        let file = utils::read_file("rcfile", f).unwrap_or_default();
+        let addition = &format!("\n{}", export_str);
         file.contains(addition)
     });
 
@@ -1138,7 +1136,7 @@ fn do_remove_from_path(methods: &[PathUpdateMethod]) -> Result<()> {
             if let Some(i) = idx {
                 let mut new_file_bytes = file_bytes[..i].to_vec();
                 new_file_bytes.extend(&file_bytes[i + addition_bytes.len()..]);
-                let ref new_file = String::from_utf8(new_file_bytes).unwrap();
+                let new_file = &String::from_utf8(new_file_bytes).unwrap();
                 utils::write_file("rcfile", rcpath, new_file)?;
             } else {
                 // Weird case. rcfile no longer needs to be modified?
@@ -1213,9 +1211,9 @@ fn parse_new_elan_version(version: String) -> String {
 }
 
 pub fn prepare_update() -> Result<Option<PathBuf>> {
-    let ref elan_home = utils::elan_home()?;
-    let ref elan_path = elan_home.join(&format!("bin/elan{}", EXE_SUFFIX));
-    let ref setup_path = elan_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
+    let elan_home = &(utils::elan_home()?);
+    let elan_path = &elan_home.join(&format!("bin/elan{}", EXE_SUFFIX));
+    let setup_path = &elan_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
 
     if !elan_path.exists() {
         return Err(ErrorKind::NotSelfInstalled(elan_home.clone()).into());
@@ -1324,14 +1322,14 @@ pub fn self_replace() -> Result<()> {
 
 pub fn cleanup_self_updater() -> Result<()> {
     let elan_home = utils::elan_home()?;
-    let ref setup = elan_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
+    let setup = &elan_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
 
     if setup.exists() {
         utils::remove_file("setup", setup)?;
     }
 
     // Transitional
-    let ref old_setup = elan_home.join(&format!("bin/multilean-setup{}", EXE_SUFFIX));
+    let old_setup = &elan_home.join(&format!("bin/multilean-setup{}", EXE_SUFFIX));
 
     if old_setup.exists() {
         utils::remove_file("setup", old_setup)?;
