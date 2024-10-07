@@ -83,7 +83,7 @@ jobs:
           cd target/${{ matrix.target  }}/release
           Compress-Archive elan-init.exe ../../../elan-${{ matrix.release-target-name || matrix.target }}.zip
         if: matrix.os == 'windows-latest'
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v3
         with:
           name: build-${{ matrix.name }}
           path: elan-${{ matrix.release-target-name || matrix.target }}*
