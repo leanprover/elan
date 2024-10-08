@@ -88,6 +88,16 @@ pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
     lookup_toolchain_desc_ext(cfg, name, false)
 }
 
+pub fn read_toolchain_desc_from_file(cfg: &Cfg, toolchain_file: &Path) -> Result<ToolchainDesc> {
+    let s = utils::read_file("toolchain file", &toolchain_file)?;
+    if let Some(s) = s.lines().next() {
+        let toolchain_name = s.trim();
+        lookup_toolchain_desc(cfg, toolchain_name)
+    } else {
+        Err(Error::from(format!("empty toolchain file '{}'", toolchain_file.display())))
+    }
+}
+
 impl<'a> Toolchain<'a> {
     pub fn from(cfg: &'a Cfg, desc: &ToolchainDesc) -> Self {
         //We need to replace ":" and "/" with "-" in the toolchain name in order to make a name which is a valid

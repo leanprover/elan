@@ -17,7 +17,7 @@ use toolchain::Toolchain;
 
 use toml;
 
-use crate::{gc, lookup_toolchain_desc};
+use crate::{gc, lookup_toolchain_desc, read_toolchain_desc_from_file};
 
 #[derive(Debug, Serialize, Clone)]
 pub enum OverrideReason {
@@ -242,14 +242,10 @@ impl Cfg {
 
             // Then look for 'lean-toolchain'
             let toolchain_file = d.join("lean-toolchain");
-            if let Ok(s) = utils::read_file("toolchain file", &toolchain_file) {
-                if let Some(s) = s.lines().next() {
-                    let toolchain_name = s.trim();
-                    let desc = lookup_toolchain_desc(self, toolchain_name)?;
-                    let reason = OverrideReason::ToolchainFile(toolchain_file);
-                    gc::add_root(self, d)?;
-                    return Ok(Some((desc, reason)));
-                }
+            if let Ok(desc) = read_toolchain_desc_from_file(self, &toolchain_file) {
+                let reason = OverrideReason::ToolchainFile(toolchain_file);
+                gc::add_root(self, d)?;
+                return Ok(Some((desc, reason)));
             }
 
             // Then look for 'leanpkg.toml'
