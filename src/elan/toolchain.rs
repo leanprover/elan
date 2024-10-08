@@ -66,7 +66,9 @@ pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
             );
             return lookup_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim());
         }
-        if release == "stable" || release == "nightly" {
+        let mut from_channel = None;
+        if release == "stable" || release == "beta" || release == "nightly" {
+            from_channel = Some(release);
             release = utils::fetch_latest_release_tag(
                 &origin,
                 Some(&move |n| (cfg.notify_handler)(n.into())),
@@ -75,7 +77,7 @@ pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
         if release.starts_with(char::is_numeric) {
             release = format!("v{}", release)
         }
-        Ok(ToolchainDesc::Remote { origin, release })
+        Ok(ToolchainDesc::Remote { origin, release, from_channel })
     } else {
         Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
     }

@@ -475,7 +475,6 @@ pub fn fetch_latest_release_tag(
     use regex::Regex;
 
     let latest_url = format!("https://github.com/{}/releases/latest", repo_slug);
-    let cache_path = elan_home()?.join("cached-tags").join(repo_slug);
     match fetch_url(&latest_url) {
         Ok(redirect) => {
             let re = Regex::new(r#"/tag/([-a-z0-9.]+)"#).unwrap();
@@ -484,12 +483,11 @@ pub fn fetch_latest_release_tag(
                 Some(cap) => cap.get(1).unwrap().as_str().to_string(),
                 None => return Err("failed to parse latest release tag".into()),
             };
-            fs::create_dir_all(cache_path.parent().unwrap())?;
-            fs::write(cache_path, &tag)?;
             Ok(tag)
         }
         Err(e) => {
             if let Some(handler) = notify_handler {
+                let cache_path = elan_home()?.join("cached-tags").join(repo_slug);
                 if cache_path.exists() {
                     let tag = fs::read_to_string(cache_path)?;
                     handler(Notification::UsingCachedRelease(&tag));

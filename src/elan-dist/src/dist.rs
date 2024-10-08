@@ -1,11 +1,11 @@
 use download::DownloadCfg;
-use elan_utils::{self, utils};
+use elan_utils::{self, utils::{self, elan_home}};
 use errors::*;
 use manifestation::Manifestation;
 use prefix::InstallPrefix;
 use regex::Regex;
 
-use std::fmt;
+use std::{fmt, fs};
 
 // Fully-resolved toolchain descriptors. These always have full target
 // triples attached to them and are used for canonical identification,
@@ -21,6 +21,8 @@ pub enum ToolchainDesc {
         origin: String,
         // The release name, usually a Git tag
         release: String,
+        // The channel name the release was resolved from, if any
+        from_channel: Option<String>,
     },
 }
 
@@ -34,7 +36,7 @@ impl ToolchainDesc {
                 Some(origin) => {
                     let origin = origin.as_str().to_owned();
                     let release = c.get(2).unwrap().as_str().to_owned();
-                    Ok(ToolchainDesc::Remote { origin, release })
+                    Ok(ToolchainDesc::Remote { origin, release, from_channel: None })
                 }
                 None => {
                     let name = c.get(2).unwrap().as_str().to_owned();
@@ -57,7 +59,7 @@ impl fmt::Display for ToolchainDesc {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ToolchainDesc::Local { name } => write!(f, "{}", name),
-            ToolchainDesc::Remote { origin, release } => write!(f, "{}:{}", origin, release),
+            ToolchainDesc::Remote { origin, release, .. } => write!(f, "{}:{}", origin, release),
         }
     }
 }
@@ -70,7 +72,7 @@ pub fn install_from_dist<'a>(
     let toolchain_str = toolchain.to_string();
     let manifestation = Manifestation::open(prefix.clone())?;
 
-    let ToolchainDesc::Remote { origin, release } = toolchain else {
+    let ToolchainDesc::Remote { origin, release, from_channel } = toolchain else {
         return Ok(());
     };
     let url = format!(
@@ -81,7 +83,7 @@ pub fn install_from_dist<'a>(
         &origin,
         &url,
         &download.temp_cfg,
-        download.notify_handler.clone(),
+        download.notify_handler,
     ) {
         Ok(()) => Ok(()),
         e @ Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => e
@@ -100,6 +102,13 @@ pub fn install_from_dist<'a>(
         let _ = utils::remove_dir("toolchain", prefix.path(), &|n| {
             (download.notify_handler)(n.into())
         });
+    }
+
+    if let Some(_channel) = from_channel {
+        // TODO: this should save `channel` instead of `origin` when we want to use release.lean-lang.org
+        let cache_path = elan_home()?.join("cached-tags").join(origin);
+        fs::create_dir_all(cache_path.parent().unwrap())?;
+        fs::write(cache_path, &release)?;
     }
 
     res
