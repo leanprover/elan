@@ -33,33 +33,35 @@ pub fn add_root(cfg: &Cfg, root: &Path) -> elan_utils::Result<()> {
     Ok(())
 }
 
-pub fn get_unreachable_toolchains(cfg: &Cfg) -> crate::Result<Vec<Toolchain>> {
+pub fn analyze_toolchains(cfg: &Cfg) -> crate::Result<(Vec<Toolchain>, Vec<(String, String)>)> {
     let roots = get_roots(cfg)?;
     let mut used_toolchains = roots
         .into_iter()
         .filter_map(|r| {
-            let path = PathBuf::from(r).join("lean-toolchain");
+            let path = PathBuf::from(r.clone()).join("lean-toolchain");
             if path.exists() {
-                Some(std::fs::read_to_string(path).unwrap().trim().to_string())
+                Some((r, std::fs::read_to_string(path).unwrap().trim().to_string()))
             } else {
                 None
             }
         })
-        .collect::<HashSet<_>>();
+        .collect::<Vec<_>>();
     if let Some(default) = cfg.get_default()? {
         let default = lookup_toolchain_desc(cfg, &default)?;
-        used_toolchains.insert(default.to_string());
+        used_toolchains.push(("default toolchain".to_string(), default.to_string()));
     }
     if let Some(ref env_override) = cfg.env_override {
-        used_toolchains.insert(env_override.clone());
+        used_toolchains.push(("ELAN_TOOLCHAIN".to_string(), env_override.clone()));
     }
-    for o in cfg.get_overrides()? {
-        used_toolchains.insert(o.1.to_string());
+    for (path, tc) in cfg.get_overrides()? {
+        used_toolchains.push((format!("{} (override)", path), tc.to_string()));
     }
-    Ok(cfg
+    let used_toolchains_set = used_toolchains.iter().map(|p| p.1.to_string()).collect::<HashSet<_>>();
+    let unused_toolchains = cfg
         .list_toolchains()?
         .into_iter()
         .map(|t| Toolchain::from(cfg, &t))
-        .filter(|t| !t.is_custom() && !used_toolchains.contains(&t.desc.to_string()))
-        .collect_vec())
+        .filter(|t| !t.is_custom() && !used_toolchains_set.contains(&t.desc.to_string()))
+        .collect_vec();
+    Ok((unused_toolchains, used_toolchains))
 }

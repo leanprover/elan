@@ -452,20 +452,26 @@ fn toolchain_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
 }
 
 fn toolchain_gc(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
-    let toolchains = gc::get_unreachable_toolchains(cfg)?;
-    if toolchains.is_empty() {
-        println!("No unused toolchains found");
-        return Ok(());
-    }
+    let (unused_toolchains, used_toolchains) = gc::analyze_toolchains(cfg)?;
     let delete = m.is_present("delete");
-    if !delete {
-        println!("The following toolchains are not used by any known project; rerun with `--delete` to delete them:");
+    if unused_toolchains.is_empty() {
+        println!("No unused toolchains found");
+    } else {
+        if !delete {
+            println!("The following toolchains are not used by any known project; rerun with `--delete` to delete them:");
+        }
+        for t in unused_toolchains.into_iter() {
+            if delete {
+                t.remove()?;
+            } else {
+                println!("- {}", t.desc);
+            }
+        }
     }
-    for t in toolchains.into_iter() {
-        if delete {
-            t.remove()?;
-        } else {
-            println!("- {}", t.path().display());
+    if !delete {
+        println!("Known projects:");
+        for (root, tc) in used_toolchains.into_iter() {
+            println!("- {}: {}", root, tc);
         }
     }
     Ok(())
