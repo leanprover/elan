@@ -26,7 +26,7 @@ pub fn check_self_update() -> Result<Option<String>> {
     // Get current version
     let current_version = env!("CARGO_PKG_VERSION");
 
-    let tag = fetch_latest_release_tag("leanprover/elan", None)?;
+    let tag = fetch_latest_release_tag("leanprover/elan", None, false)?;
     let available_version = &tag[1..];
 
     Ok(if available_version == current_version {

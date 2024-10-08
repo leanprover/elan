@@ -471,11 +471,17 @@ pub fn fetch_url(url: &str) -> Result<String> {
 pub fn fetch_latest_release_tag(
     repo_slug: &str,
     notify_handler: Option<&dyn Fn(Notification)>,
+    no_net: bool
 ) -> Result<String> {
     use regex::Regex;
 
     let latest_url = format!("https://github.com/{}/releases/latest", repo_slug);
-    match fetch_url(&latest_url) {
+    let res = if no_net {
+        Err(Error::from("Cannot fetch latest release tag under `--no-net`"))
+    } else {
+        fetch_url(&latest_url)
+    };
+    match res {
         Ok(redirect) => {
             let re = Regex::new(r#"/tag/([-a-z0-9.]+)"#).unwrap();
             let capture = re.captures(&redirect);

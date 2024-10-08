@@ -36,7 +36,7 @@ pub struct ComponentStatus {
     pub available: bool,
 }
 
-pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
+pub fn lookup_toolchain_desc_ext(cfg: &Cfg, name: &str, no_net: bool) -> Result<ToolchainDesc> {
     let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?([a-zA-Z0-9-.]+)$";
 
     let re = Regex::new(pattern).unwrap();
@@ -64,7 +64,7 @@ pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
                 "https://raw.githubusercontent.com/{}/HEAD/lean-toolchain",
                 origin
             );
-            return lookup_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim());
+            return lookup_toolchain_desc_ext(cfg, fetch_url(&toolchain_url)?.trim(), no_net);
         }
         let mut from_channel = None;
         if release == "stable" || release == "beta" || release == "nightly" {
@@ -72,6 +72,7 @@ pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
             release = utils::fetch_latest_release_tag(
                 &origin,
                 Some(&move |n| (cfg.notify_handler)(n.into())),
+                no_net
             )?;
         }
         if release.starts_with(char::is_numeric) {
@@ -81,6 +82,10 @@ pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
     } else {
         Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
     }
+}
+
+pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
+    lookup_toolchain_desc_ext(cfg, name, false)
 }
 
 impl<'a> Toolchain<'a> {

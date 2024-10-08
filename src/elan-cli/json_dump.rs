@@ -1,4 +1,4 @@
-use elan::{lookup_toolchain_desc, utils::{self, fetch_latest_release_tag}, Cfg, Toolchain};
+use elan::{lookup_toolchain_desc_ext, utils::{self, fetch_latest_release_tag}, Cfg, Toolchain};
 use std::{io, path::PathBuf};
 
 use serde_derive::Serialize;
@@ -50,8 +50,8 @@ pub struct StateDump {
 }
 
 impl StateDump {
-    pub fn new(cfg: &Cfg) -> crate::Result<StateDump> {
-        let newest = fetch_latest_release_tag("leanprover/elan", None);
+    pub fn new(cfg: &Cfg, no_net: bool) -> crate::Result<StateDump> {
+        let newest = fetch_latest_release_tag("leanprover/elan", None, no_net);
         let ref cwd = utils::current_dir()?;
         let active_override = cfg.find_override(cwd)?;
         let default = cfg.get_default()?;
@@ -69,7 +69,7 @@ impl StateDump {
                     }).collect(),
                 default: default.as_ref().map(|default| DefaultToolchain {
                     unresolved: default.clone(),
-                    resolved: lookup_toolchain_desc(cfg, &default)
+                    resolved: lookup_toolchain_desc_ext(cfg, &default, no_net)
                       .map(|t| t.to_string())
                       .map_err(|e| e.to_string()),
                 }),
@@ -77,7 +77,7 @@ impl StateDump {
                 resolved_active: active_override
                     .map(|p| p.0.desc.to_string())
                     .or(default)
-                    .map(|t| lookup_toolchain_desc(cfg, &t)
+                    .map(|t| lookup_toolchain_desc_ext(cfg, &t, no_net)
                         .map(|tc| tc.to_string())
                         .map_err(|e| e.to_string()))
             },

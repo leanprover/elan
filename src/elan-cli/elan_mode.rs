@@ -58,7 +58,7 @@ pub fn main() -> Result<()> {
                 );
             }
         },
-        ("dump-state", Some(_)) => json_dump::StateDump::new(cfg)?.print()?,
+        ("dump-state", Some(m)) => dump_state(cfg, m)?,
         (_, _) => unreachable!(),
     }
 
@@ -178,7 +178,11 @@ pub fn cli() -> App<'static, 'static> {
             .about("Display which binary will be run for a given command")
             .arg(Arg::with_name("command")
                 .required(true)))
-        .subcommand(SubCommand::with_name("dump-state").setting(AppSettings::Hidden))
+        .subcommand(SubCommand::with_name("dump-state")
+            .setting(AppSettings::Hidden)
+            .arg(Arg::with_name("no-net")
+                .help("Make network operations for resolving channels fail immediately")
+                .long("no-net")))
         /*.subcommand(SubCommand::with_name("doc")
             .alias("docs")
             .about("Open the documentation for the current toolchain")
@@ -550,4 +554,10 @@ fn self_uninstall(m: &ArgMatches) -> Result<()> {
     let no_prompt = m.is_present("no-prompt");
 
     self_update::uninstall(no_prompt)
+}
+
+fn dump_state(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+    let no_net = m.is_present("no-net");
+
+    Ok(json_dump::StateDump::new(cfg, no_net)?.print()?)
 }
