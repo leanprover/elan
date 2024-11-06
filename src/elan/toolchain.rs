@@ -37,7 +37,7 @@ pub struct ComponentStatus {
 }
 
 pub fn lookup_toolchain_desc_ext(cfg: &Cfg, name: &str, no_net: bool) -> Result<ToolchainDesc> {
-    let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?([a-zA-Z0-9-.]+)$";
+    let pattern = r"^(?:([a-zA-Z0-9-_]+[/][a-zA-Z0-9-_]+)[:])?([a-zA-Z0-9-.]+)$";
 
     let re = Regex::new(pattern).unwrap();
     if let Some(c) = re.captures(name) {
