@@ -5,8 +5,6 @@ use serde_derive::Serialize;
 
 use elan::OverrideReason;
 
-use crate::common::version;
-
 type Result<T> = std::result::Result<T, String>;
 
 #[derive(Serialize)]
@@ -57,8 +55,8 @@ impl StateDump {
         let default = cfg.get_default()?;
         Ok(StateDump {
             elan_version: Version {
-                current: version().to_string(),
-                newest: newest.map_err(|e| e.to_string()),
+                current: env!("CARGO_PKG_VERSION").to_string(),
+                newest: newest.map(|s| s.trim_start_matches('v').to_string()).map_err(|e| e.to_string()),
             },
             toolchains: Toolchains {
                 installed: cfg.list_toolchains()?
