@@ -472,6 +472,8 @@ dependencies = [
  "ole32-sys",
  "regex",
  "remove_dir_all",
+ "serde",
+ "serde_derive",
  "sha2 0.9.9",
  "tar",
  "time",

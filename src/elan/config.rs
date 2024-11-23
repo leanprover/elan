@@ -17,7 +17,7 @@ use toolchain::Toolchain;
 
 use toml;
 
-use crate::{gc, lookup_toolchain_desc, read_toolchain_desc_from_file};
+use crate::{gc, lookup_toolchain_desc, lookup_unresolved_toolchain_desc, read_toolchain_desc_from_file, UnresolvedToolchainDesc};
 
 #[derive(Debug, Serialize, Clone)]
 pub enum OverrideReason {
@@ -148,87 +148,31 @@ impl Cfg {
         }
     }
 
-    pub fn find_override(&self, path: &Path) -> Result<Option<(Toolchain, OverrideReason)>> {
-        let mut override_ = None;
-
+    pub fn find_override(&self, path: &Path) -> Result<Option<(UnresolvedToolchainDesc, OverrideReason)>> {
         // First check ELAN_TOOLCHAIN
         if let Some(ref name) = self.env_override {
-            override_ = Some((
-                lookup_toolchain_desc(self, name)?,
+            return Ok(Some((
+                lookup_unresolved_toolchain_desc(self, name)?,
                 OverrideReason::Environment,
-            ));
+            )));
         }
 
         // Then walk up the directory tree from 'path' looking for either the
         // directory in override database, a `lean-toolchain` file, or a
         // `leanpkg.toml` file.
-        if override_.is_none() {
-            self.settings_file.with(|s| {
-                override_ = self.find_override_from_dir_walk(path, s)?;
-
-                Ok(())
-            })?;
+        if let Some(res) = self.settings_file.with(|s| {
+            self.find_override_from_dir_walk(path, s)
+        })? {
+            return Ok(Some(res));
         }
-
-        if let Some((name, reason)) = override_ {
-            // This is hackishly using the error chain to provide a bit of
-            // extra context about what went wrong. The CLI will display it
-            // on a line after the proximate error.
-
-            let reason_err = match reason {
-                OverrideReason::Environment => {
-                    "the ELAN_TOOLCHAIN environment variable specifies an uninstalled toolchain"
-                        .to_string()
-                }
-                OverrideReason::OverrideDB(ref path) => {
-                    format!(
-                        "the directory override for '{}' specifies an uninstalled toolchain",
-                        path.display()
-                    )
-                }
-                OverrideReason::ToolchainFile(ref path) => {
-                    format!(
-                        "the toolchain file at '{}' specifies an uninstalled toolchain",
-                        path.display()
-                    )
-                }
-                OverrideReason::LeanpkgFile(ref path) => {
-                    format!(
-                        "the leanpkg.toml file at '{}' specifies an uninstalled toolchain",
-                        path.display()
-                    )
-                }
-                OverrideReason::InToolchainDirectory(ref path) => {
-                    format!(
-                        "could not parse toolchain directory at '{}'",
-                        path.display()
-                    )
-                }
-            };
-
-            match self.get_toolchain(&name, false) {
-                Ok(toolchain) => {
-                    if toolchain.exists() {
-                        Ok(Some((toolchain, reason)))
-                    } else {
-                        toolchain.install_from_dist()?;
-                        Ok(Some((toolchain, reason)))
-                    }
-                }
-                Err(e) => Err(e)
-                    .chain_err(|| Error::from(reason_err))
-                    .chain_err(|| ErrorKind::OverrideToolchainNotInstalled(name)),
-            }
-        } else {
-            Ok(None)
-        }
+        Ok(None)
     }
 
     fn find_override_from_dir_walk(
         &self,
         dir: &Path,
         settings: &Settings,
-    ) -> Result<Option<(ToolchainDesc, OverrideReason)>> {
+    ) -> Result<Option<(UnresolvedToolchainDesc, OverrideReason)>> {
         let notify = self.notify_handler.as_ref();
         let dir = utils::canonicalize_path(dir, &|n| notify(n.into()));
         let mut dir = Some(&*dir);
@@ -237,7 +181,7 @@ impl Cfg {
             // First check the override database
             if let Some(name) = settings.dir_override(d, notify) {
                 let reason = OverrideReason::OverrideDB(d.to_owned());
-                return Ok(Some((name, reason)));
+                return Ok(Some((UnresolvedToolchainDesc(name), reason)));
             }
 
             // Then look for 'lean-toolchain'
@@ -245,7 +189,7 @@ impl Cfg {
             if let Ok(desc) = read_toolchain_desc_from_file(self, &toolchain_file) {
                 let reason = OverrideReason::ToolchainFile(toolchain_file);
                 gc::add_root(self, d)?;
-                return Ok(Some((desc, reason)));
+                return Ok(Some((UnresolvedToolchainDesc(desc), reason)));
             }
 
             // Then look for 'leanpkg.toml'
@@ -260,7 +204,7 @@ impl Cfg {
                 {
                     None => {}
                     Some(toml::Value::String(s)) => {
-                        let desc = lookup_toolchain_desc(self, s)?;
+                        let desc = lookup_unresolved_toolchain_desc(self, s)?;
                         return Ok(Some((desc, OverrideReason::LeanpkgFile(leanpkg_file))));
                     }
                     Some(a) => {
@@ -275,7 +219,7 @@ impl Cfg {
                 if let Some(last) = d.file_name() {
                     if let Some(last) = last.to_str() {
                         return Ok(Some((
-                            ToolchainDesc::from_toolchain_dir(last)?,
+                            UnresolvedToolchainDesc(ToolchainDesc::from_toolchain_dir(last)?),
                             OverrideReason::InToolchainDirectory(d.into()),
                         )));
                     }
@@ -290,15 +234,61 @@ impl Cfg {
         &self,
         path: &Path,
     ) -> Result<Option<(Toolchain, Option<OverrideReason>)>> {
-        Ok(
-            if let Some((toolchain, reason)) = self.find_override(path)? {
-                Some((toolchain, Some(reason)))
-            } else if let Some(tc) = self.resolve_default()? {
-                Some((self.get_toolchain(&tc, false)?, None))
-            } else {
-                None
-            },
-        )
+        if let Some((toolchain, reason)) = self.find_override(path)? {
+            match self.get_toolchain(&toolchain.0, false) {
+                Ok(toolchain) => {
+                    if toolchain.exists() {
+                        Ok(Some((toolchain, Some(reason))))
+                    } else {
+                        toolchain.install_from_dist()?;
+                        Ok(Some((toolchain, Some(reason))))
+                    }
+                }
+                Err(e) => {
+                    // This is hackishly using the error chain to provide a bit of
+                    // extra context about what went wrong. The CLI will display it
+                    // on a line after the proximate error.
+
+                    let reason_err = match reason {
+                        OverrideReason::Environment => {
+                            "the ELAN_TOOLCHAIN environment variable specifies an uninstalled toolchain"
+                                .to_string()
+                        }
+                        OverrideReason::OverrideDB(ref path) => {
+                            format!(
+                                "the directory override for '{}' specifies an uninstalled toolchain",
+                                path.display()
+                            )
+                        }
+                        OverrideReason::ToolchainFile(ref path) => {
+                            format!(
+                                "the toolchain file at '{}' specifies an uninstalled toolchain",
+                                path.display()
+                            )
+                        }
+                        OverrideReason::LeanpkgFile(ref path) => {
+                            format!(
+                                "the leanpkg.toml file at '{}' specifies an uninstalled toolchain",
+                                path.display()
+                            )
+                        }
+                        OverrideReason::InToolchainDirectory(ref path) => {
+                            format!(
+                                "could not parse toolchain directory at '{}'",
+                                path.display()
+                            )
+                        }
+                    };
+                    Err(e)
+                    .chain_err(|| Error::from(reason_err))
+                    .chain_err(|| ErrorKind::OverrideToolchainNotInstalled(toolchain.0))
+                }
+            }
+        } else if let Some(tc) = self.resolve_default()? {
+            Ok(Some((self.get_toolchain(&tc, false)?, None)))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn get_overrides(&self) -> Result<Vec<(String, ToolchainDesc)>> {
