@@ -1,9 +1,12 @@
 //! Manifest a particular Lean version by installing it from a distribution server.
 
+use std::{thread::sleep, time::Duration};
+
 use component::{TarGzPackage, TarZstdPackage, ZipPackage};
 use download::DownloadCfg;
-use elan_utils::utils;
+use elan_utils::{raw::read_file, utils};
 use errors::*;
+use fslock::LockFile;
 use notifications::*;
 use prefix::InstallPrefix;
 use temp;
@@ -25,10 +28,27 @@ impl Manifestation {
         temp_cfg: &temp::Cfg,
         notify_handler: &dyn Fn(Notification),
     ) -> Result<()> {
+        let prefix = self.prefix.path();
+        utils::ensure_dir_exists("toolchains", prefix.parent().unwrap(), &|n| {
+            (notify_handler)(n.into())
+        })?;
+
+        let lockfile_path = prefix.with_extension("lock");
+        let mut lockfile = LockFile::open(&lockfile_path)?;
+        if !lockfile.try_lock_with_pid()? {
+            notify_handler(Notification::WaitingForFileLock(&lockfile_path, read_file(&lockfile_path)?.trim()));
+            while !lockfile.try_lock_with_pid()? {
+                sleep(Duration::from_secs(1));
+            }
+        }
         let dlcfg = DownloadCfg {
             temp_cfg: temp_cfg,
             notify_handler: notify_handler,
         };
+
+        if utils::is_directory(prefix) {
+            return Ok(())
+        }
 
         // find correct download on HTML page (AAAAH)
         use regex::Regex;
@@ -70,16 +90,10 @@ impl Manifestation {
 
         let installer_file = dlcfg.download_and_check(&url)?;
 
-        let prefix = self.prefix.path();
-
         notify_handler(Notification::InstallingComponent(&prefix.to_string_lossy()));
 
         // unpack into temporary place, then move atomically to guard against aborts during unpacking
         let unpack_dir = prefix.with_extension("tmp");
-
-        if utils::is_directory(prefix) {
-            return Err(format!("'{}' is already installed", prefix.display()).into());
-        }
 
         if utils::is_directory(&unpack_dir) {
             utils::remove_dir("temp toolchain directory", &unpack_dir, &|n| {
@@ -103,6 +117,7 @@ impl Manifestation {
         }
 
         utils::rename_dir("temp toolchain directory", &unpack_dir, prefix)?;
+        let _ = std::fs::remove_file(&lockfile_path);
 
         Ok(())
     }

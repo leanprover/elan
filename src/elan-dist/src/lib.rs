@@ -1,5 +1,6 @@
 #![recursion_limit = "1024"]
 
+extern crate fslock;
 extern crate elan_utils;
 extern crate flate2;
 extern crate itertools;
