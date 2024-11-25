@@ -15,6 +15,8 @@ extern crate json;
 extern crate sha2;
 extern crate time;
 extern crate zip;
+extern crate serde;
+extern crate serde_derive;
 
 #[cfg(not(windows))]
 extern crate libc;

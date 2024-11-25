@@ -1,4 +1,4 @@
-use elan::{lookup_toolchain_desc_ext, utils::{self, fetch_latest_release_tag}, Cfg, Toolchain};
+use elan::{lookup_unresolved_toolchain_desc, resolve_toolchain_desc, utils::{self, fetch_latest_release_tag}, Cfg, Toolchain, UnresolvedToolchainDesc};
 use std::{io, path::PathBuf};
 
 use serde_derive::Serialize;
@@ -25,9 +25,15 @@ struct InstalledToolchain {
 #[derive(Serialize)]
 struct DefaultToolchain {
     /// Not necessarily resolved name as given to `elan default`, e.g. `stable`
-    unresolved: String,
+    unresolved: UnresolvedToolchainDesc,
     /// Fully resolved name; `Err` if `unresolved` needed to be resolved but there was a network error
     resolved: Result<String>,
+}
+
+#[derive(Serialize)]
+struct Override {
+    unresolved: UnresolvedToolchainDesc,
+    reason: OverrideReason,
 }
 
 #[derive(Serialize)]
@@ -36,7 +42,7 @@ struct Toolchains {
     /// `None` if no default toolchain configured
     default: Option<DefaultToolchain>,
     /// `None` if no override for current directory configured, in which case `default` if any is used
-    active_override: Option<OverrideReason>,
+    active_override: Option<Override>,
     /// Toolchain, if any, ultimately chosen based on `default` and `active_override`
     resolved_active: Option<Result<String>>,
 }
@@ -52,7 +58,10 @@ impl StateDump {
         let newest = fetch_latest_release_tag("leanprover/elan", None, no_net);
         let ref cwd = utils::current_dir()?;
         let active_override = cfg.find_override(cwd)?;
-        let default = cfg.get_default()?;
+        let default = match cfg.get_default()? {
+            None => None,
+            Some(d) => Some(lookup_unresolved_toolchain_desc(cfg, &d)?)
+        };
         Ok(StateDump {
             elan_version: Version {
                 current: env!("CARGO_PKG_VERSION").to_string(),
@@ -67,15 +76,18 @@ impl StateDump {
                     }).collect(),
                 default: default.as_ref().map(|default| DefaultToolchain {
                     unresolved: default.clone(),
-                    resolved: lookup_toolchain_desc_ext(cfg, &default, no_net)
+                    resolved: resolve_toolchain_desc(cfg, &default, no_net)
                       .map(|t| t.to_string())
                       .map_err(|e| e.to_string()),
                 }),
-                active_override: active_override.as_ref().map(|p| p.1.clone()),
+                active_override: active_override.as_ref().map(|(desc, reason)| Override {
+                    unresolved: desc.clone(),
+                    reason: reason.clone(),
+                }),
                 resolved_active: active_override
-                    .map(|p| p.0.desc.to_string())
+                    .map(|p| p.0)
                     .or(default)
-                    .map(|t| lookup_toolchain_desc_ext(cfg, &t, no_net)
+                    .map(|t| resolve_toolchain_desc(cfg, &t, no_net)
                         .map(|tc| tc.to_string())
                         .map_err(|e| e.to_string()))
             },

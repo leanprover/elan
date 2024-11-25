@@ -11,6 +11,7 @@ use install::{self, InstallMethod};
 use notifications::*;
 
 use regex::Regex;
+use serde_derive::Serialize;
 use std::env;
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsStr;
@@ -36,7 +37,10 @@ pub struct ComponentStatus {
     pub available: bool,
 }
 
-pub fn lookup_toolchain_desc_ext(cfg: &Cfg, name: &str, no_net: bool) -> Result<ToolchainDesc> {
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct UnresolvedToolchainDesc(pub ToolchainDesc);
+
+pub fn lookup_unresolved_toolchain_desc(cfg: &Cfg, name: &str) -> Result<UnresolvedToolchainDesc> {
     let pattern = r"^(?:([a-zA-Z0-9-_]+[/][a-zA-Z0-9-_]+)[:])?([a-zA-Z0-9-.]+)$";
 
     let re = Regex::new(pattern).unwrap();
@@ -49,7 +53,7 @@ pub fn lookup_toolchain_desc_ext(cfg: &Cfg, name: &str, no_net: bool) -> Result<
             },
         );
         if local_tc.exists() && local_tc.is_custom() {
-            return Ok(ToolchainDesc::Local { name: release });
+            return Ok(UnresolvedToolchainDesc(ToolchainDesc::Local { name: release }));
         }
         let mut origin = c
             .get(1)
@@ -59,33 +63,44 @@ pub fn lookup_toolchain_desc_ext(cfg: &Cfg, name: &str, no_net: bool) -> Result<
         if release.starts_with("nightly") && !origin.ends_with("-nightly") {
             origin = format!("{}-nightly", origin);
         }
-        if release == "lean-toolchain" {
-            let toolchain_url = format!(
-                "https://raw.githubusercontent.com/{}/HEAD/lean-toolchain",
-                origin
-            );
-            return lookup_toolchain_desc_ext(cfg, fetch_url(&toolchain_url)?.trim(), no_net);
-        }
         let mut from_channel = None;
-        if release == "stable" || release == "beta" || release == "nightly" {
-            from_channel = Some(release);
-            release = utils::fetch_latest_release_tag(
-                &origin,
-                Some(&move |n| (cfg.notify_handler)(n.into())),
-                no_net
-            )?;
+        if release == "lean-toolchain" || release == "stable" || release == "beta" || release == "nightly" {
+            from_channel = Some(release.to_string());
         }
         if release.starts_with(char::is_numeric) {
             release = format!("v{}", release)
         }
-        Ok(ToolchainDesc::Remote { origin, release, from_channel })
+        Ok(UnresolvedToolchainDesc(ToolchainDesc::Remote { origin, release, from_channel }))
     } else {
         Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
     }
 }
 
+pub fn resolve_toolchain_desc(cfg: &Cfg, unresolved_tc: &UnresolvedToolchainDesc, no_net: bool) -> Result<ToolchainDesc> {
+    if let ToolchainDesc::Remote { ref origin, ref release, from_channel: Some(ref channel) } = unresolved_tc.0 {
+        if release == "lean-toolchain" {
+            let toolchain_url = format!(
+                "https://raw.githubusercontent.com/{}/HEAD/lean-toolchain",
+                origin
+            );
+            return resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())?, no_net);
+        } else if release == "stable" || release == "beta" || release == "nightly" {
+            let release = utils::fetch_latest_release_tag(
+                origin,
+                Some(&move |n| (cfg.notify_handler)(n.into())),
+                no_net
+            )?;
+            Ok(ToolchainDesc::Remote { origin: origin.clone(), release, from_channel: Some(channel.clone()) })
+        } else {
+            Ok(unresolved_tc.0.clone())
+        }
+    } else {
+        Ok(unresolved_tc.0.clone())
+    }
+}
+
 pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
-    lookup_toolchain_desc_ext(cfg, name, false)
+    resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, name)?, false)
 }
 
 pub fn read_toolchain_desc_from_file(cfg: &Cfg, toolchain_file: &Path) -> Result<ToolchainDesc> {

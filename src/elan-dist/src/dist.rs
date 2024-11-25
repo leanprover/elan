@@ -4,13 +4,14 @@ use errors::*;
 use manifestation::Manifestation;
 use prefix::InstallPrefix;
 use regex::Regex;
+use serde_derive::Serialize;
 
 use std::{fmt, fs};
 
 // Fully-resolved toolchain descriptors. These always have full target
 // triples attached to them and are used for canonical identification,
 // such as naming their installation directory.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 pub enum ToolchainDesc {
     // A linked toolchain
     Local {

@@ -26,6 +26,8 @@ json = "0.12.4"
 zip = "0.6"
 filetime = "0.2.14"
 time = "0.3"
+serde = "1.0.119"
+serde_derive = "1.0.119"
 fslock = "0.2.1"
 
 [target."cfg(windows)".dependencies]
