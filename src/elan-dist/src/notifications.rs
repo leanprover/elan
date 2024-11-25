@@ -31,6 +31,7 @@ pub enum Notification<'a> {
     DownloadingLegacyManifest,
     ManifestChecksumFailedHack,
     NewVersionAvailable(String),
+    WaitingForFileLock(&'a Path, &'a str),
 }
 
 impl<'a> From<elan_utils::Notification<'a>> for Notification<'a> {
@@ -65,6 +66,7 @@ impl<'a> Notification<'a> {
             | RollingBack
             | DownloadingManifest(_)
             | NewVersionAvailable(_)
+            | WaitingForFileLock(_, _)
             | DownloadedManifest(_, _) => NotificationLevel::Info,
             CantReadUpdateHash(_)
             | ExtensionNotInstalled(_)
@@ -124,6 +126,9 @@ impl<'a> Display for Notification<'a> {
                     f,
                     "Version {version} of elan is available! Use `elan self update` to update."
                 )
+            }
+            WaitingForFileLock(path, pid) => {
+                write!(f, "waiting for previous installation request to finish ({}, held by PID {})", path.display(), pid)
             }
         }
     }
