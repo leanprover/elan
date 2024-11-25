@@ -103,14 +103,18 @@ pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
     resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, name)?, false)
 }
 
-pub fn read_toolchain_desc_from_file(cfg: &Cfg, toolchain_file: &Path) -> Result<ToolchainDesc> {
+pub fn read_unresolved_toolchain_desc_from_file(cfg: &Cfg, toolchain_file: &Path) -> Result<UnresolvedToolchainDesc> {
     let s = utils::read_file("toolchain file", &toolchain_file)?;
     if let Some(s) = s.lines().next() {
         let toolchain_name = s.trim();
-        lookup_toolchain_desc(cfg, toolchain_name)
+        lookup_unresolved_toolchain_desc(cfg, toolchain_name)
     } else {
         Err(Error::from(format!("empty toolchain file '{}'", toolchain_file.display())))
     }
+}
+
+pub fn read_toolchain_desc_from_file(cfg: &Cfg, toolchain_file: &Path) -> Result<ToolchainDesc> {
+    resolve_toolchain_desc(cfg, &read_unresolved_toolchain_desc_from_file(cfg, toolchain_file)?, false)
 }
 
 impl<'a> Toolchain<'a> {
