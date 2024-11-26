@@ -17,7 +17,7 @@ use toolchain::Toolchain;
 
 use toml;
 
-use crate::{gc, lookup_toolchain_desc, lookup_unresolved_toolchain_desc, read_unresolved_toolchain_desc_from_file, UnresolvedToolchainDesc};
+use crate::{gc, lookup_toolchain_desc, lookup_unresolved_toolchain_desc, read_unresolved_toolchain_desc_from_file, resolve_toolchain_desc, UnresolvedToolchainDesc};
 
 #[derive(Debug, Serialize, Clone)]
 pub enum OverrideReason {
@@ -235,7 +235,8 @@ impl Cfg {
         path: &Path,
     ) -> Result<Option<(Toolchain, Option<OverrideReason>)>> {
         if let Some((toolchain, reason)) = self.find_override(path)? {
-            match self.get_toolchain(&toolchain.0, false) {
+            let toolchain = resolve_toolchain_desc(&self, &toolchain, false)?;
+            match self.get_toolchain(&toolchain, false) {
                 Ok(toolchain) => {
                     if toolchain.exists() {
                         Ok(Some((toolchain, Some(reason))))
@@ -281,7 +282,7 @@ impl Cfg {
                     };
                     Err(e)
                     .chain_err(|| Error::from(reason_err))
-                    .chain_err(|| ErrorKind::OverrideToolchainNotInstalled(toolchain.0))
+                    .chain_err(|| ErrorKind::OverrideToolchainNotInstalled(toolchain))
                 }
             }
         } else if let Some(tc) = self.resolve_default()? {
