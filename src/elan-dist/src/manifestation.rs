@@ -41,6 +41,19 @@ impl Manifestation {
                 sleep(Duration::from_secs(1));
             }
         }
+        let res = self.do_install(origin, url, temp_cfg, notify_handler);
+        let _ = std::fs::remove_file(&lockfile_path);
+        res
+    }
+
+    fn do_install(
+        &self,
+        origin: &String,
+        url: &String,
+        temp_cfg: &temp::Cfg,
+        notify_handler: &dyn Fn(Notification),
+    ) -> Result<()> {
+        let prefix = self.prefix.path();
         let dlcfg = DownloadCfg {
             temp_cfg: temp_cfg,
             notify_handler: notify_handler,
@@ -117,7 +130,6 @@ impl Manifestation {
         }
 
         utils::rename_dir("temp toolchain directory", &unpack_dir, prefix)?;
-        let _ = std::fs::remove_file(&lockfile_path);
 
         Ok(())
     }
