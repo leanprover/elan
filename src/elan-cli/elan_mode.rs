@@ -298,8 +298,9 @@ pub fn mk_toolchain_label(
     default_tc: &Option<String>,
     resolved_default_tc: &Option<ToolchainDesc>,
 ) -> String {
-    if resolved_default_tc.as_ref() == Some(tc) {
-        if default_tc == &resolved_default_tc.as_ref().map(|tc| tc.to_string()) {
+    let resolved_default_str = resolved_default_tc.as_ref().map(|tc| tc.to_string());
+    if resolved_default_str.as_ref() == Some(&tc.to_string()) {
+        if &resolved_default_str == default_tc {
             format!("{} (default)", tc)
         } else {
             format!(
@@ -315,20 +316,12 @@ pub fn mk_toolchain_label(
 
 pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
     let toolchains = cfg.list_toolchains()?;
-    let default_tc = cfg.get_default()?;
-    let resolved_default_tc = default_tc
-        .as_ref()
-        .map(|tc| lookup_toolchain_desc(cfg, tc))
-        .transpose()?;
 
     if toolchains.is_empty() {
         println!("no installed toolchains");
     } else {
         for tc in toolchains {
-            println!(
-                "{}",
-                mk_toolchain_label(&tc, &default_tc, &resolved_default_tc)
-            );
+            println!("{}", tc);
         }
     }
     Ok(())
