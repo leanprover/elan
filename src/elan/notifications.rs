@@ -23,6 +23,7 @@ pub enum Notification<'a> {
     InstalledToolchain(&'a ToolchainDesc),
     UsingExistingToolchain(&'a ToolchainDesc),
     UninstallingToolchain(&'a ToolchainDesc),
+    UninstallingObsoleteToolchain(&'a Path),
     UninstalledToolchain(&'a ToolchainDesc),
     ToolchainNotInstalled(&'a ToolchainDesc),
     UpdateHashMatches,
@@ -74,6 +75,7 @@ impl<'a> Notification<'a> {
             | SetOverrideToolchain(_, _)
             | UsingExistingToolchain(_)
             | UninstallingToolchain(_)
+            | UninstallingObsoleteToolchain(_)
             | UninstalledToolchain(_)
             | ToolchainNotInstalled(_)
             | UpgradingMetadata(_, _)
@@ -108,6 +110,7 @@ impl<'a> Display for Notification<'a> {
             InstalledToolchain(name) => write!(f, "toolchain '{}' installed", name),
             UsingExistingToolchain(name) => write!(f, "using existing install for '{}'", name),
             UninstallingToolchain(name) => write!(f, "uninstalling toolchain '{}'", name),
+            UninstallingObsoleteToolchain(name) => write!(f, "uninstalling toolchain '{}' using obsolete format", name.display()),
             UninstalledToolchain(name) => write!(f, "toolchain '{}' uninstalled", name),
             ToolchainNotInstalled(name) => write!(f, "no toolchain installed for '{}'", name),
             UpdateHashMatches => {
