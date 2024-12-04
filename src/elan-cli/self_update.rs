@@ -31,8 +31,13 @@
 //! and racy on Windows.
 
 use common::{self, Confirm};
+use elan::install;
 use elan::lookup_toolchain_desc;
+use elan::lookup_unresolved_toolchain_desc;
+use elan::Notification;
+use elan::Toolchain;
 use elan_dist::dist;
+use elan_dist::dist::ToolchainDesc;
 use elan_utils::utils;
 use errors::*;
 use flate2;
@@ -198,6 +203,20 @@ fn canonical_elan_home() -> Result<String> {
     Ok(path_str)
 }
 
+fn clean_up_old_state() -> Result<()> {
+    let cfg = &(common::set_globals(false)?);
+    for tc in cfg.list_toolchains()? {
+        let res = lookup_unresolved_toolchain_desc(cfg, &tc.to_string());
+        if let Ok(desc) = res {
+            if desc.0 == tc && !matches!(desc.0, ToolchainDesc::Remote { from_channel: Some(_), .. }) { continue; }
+        }
+        let t = Toolchain::from(cfg, &tc);
+        (cfg.notify_handler)(Notification::UninstallingObsoleteToolchain(&t.path()));
+        install::uninstall(&t.path(), &|n| (cfg.notify_handler)(n.into()))?;
+    }
+    Ok(())
+}
+
 /// Installing is a simple matter of coping the running binary to
 /// `ELAN_HOME`/bin, hardlinking the various Lean tools to it,
 /// and adding `ELAN_HOME`/bin to PATH.
@@ -245,7 +264,7 @@ pub fn install(no_prompt: bool, verbose: bool, mut opts: InstallOpts) -> Result<
             utils::write_file("env", env_file, env_str)?;
         }
 
-        Ok(())
+        clean_up_old_state()
     })();
 
     if let Err(ref e) = install_res {
@@ -1308,6 +1327,7 @@ pub fn run_update(setup_path: &Path) -> Result<()> {
 #[cfg(unix)]
 pub fn self_replace() -> Result<()> {
     install_bins()?;
+    clean_up_old_state()?;
 
     Ok(())
 }
@@ -1316,6 +1336,7 @@ pub fn self_replace() -> Result<()> {
 pub fn self_replace() -> Result<()> {
     wait_for_parent()?;
     install_bins()?;
+    clean_up_old_state()?;
 
     Ok(())
 }
