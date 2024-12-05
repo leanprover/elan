@@ -12,6 +12,8 @@ use std::path::Path;
 use std::process::Command;
 use term2;
 
+use serde_derive::Serialize;
+
 use crate::json_dump;
 
 pub fn main() -> Result<()> {
@@ -135,7 +137,10 @@ pub fn cli() -> App<'static, 'static> {
                 .after_help(TOOLCHAIN_GC_HELP)
                 .arg(Arg::with_name("delete")
                     .long("delete")
-                    .help("Delete collected toolchains instead of only reporting them"))))
+                    .help("Delete collected toolchains instead of only reporting them"))
+                .arg(Arg::with_name("json")
+                    .long("json")
+                    .help("Format output as JSON"))))
         .subcommand(SubCommand::with_name("override")
             .about("Modify directory toolchain overrides")
             .after_help(OVERRIDE_HELP)
@@ -444,9 +449,38 @@ fn toolchain_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
+#[derive(Serialize)]
+struct UsedToolchain {
+    // project root or "default toolchain"
+    user: String,
+    toolchain: String,
+}
+
+#[derive(Serialize)]
+struct GCResult {
+    unused_toolchains: Vec<String>,
+    used_toolchains: Vec<UsedToolchain>,
+}
+
 fn toolchain_gc(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let (unused_toolchains, used_toolchains) = gc::analyze_toolchains(cfg)?;
     let delete = m.is_present("delete");
+    let json = m.is_present("json");
+    if json {
+        let result = GCResult {
+            unused_toolchains: unused_toolchains.iter().map(|t| t.desc.to_string()).collect(),
+            used_toolchains: used_toolchains
+                .iter()
+                .map(|(root, tc)| UsedToolchain {
+                    user: root.clone(),
+                    toolchain: tc.to_string(),
+                })
+                .collect(),
+        };
+        println!("{}", serde_json::to_string_pretty(&result).chain_err(|| "failed to print JSON")?);
+        return Ok(());
+    }
+
     if unused_toolchains.is_empty() {
         println!("No unused toolchains found");
     } else {
