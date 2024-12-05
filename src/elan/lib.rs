@@ -8,6 +8,7 @@ extern crate itertools;
 #[cfg(unix)]
 extern crate libc;
 extern crate regex;
+extern crate semver;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate tempfile;

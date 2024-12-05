@@ -55,7 +55,7 @@ pub struct StateDump {
 
 impl StateDump {
     pub fn new(cfg: &Cfg, no_net: bool) -> crate::Result<StateDump> {
-        let newest = fetch_latest_release_tag("leanprover/elan", None, no_net);
+        let newest = fetch_latest_release_tag("leanprover/elan", no_net);
         let ref cwd = utils::current_dir()?;
         let active_override = cfg.find_override(cwd)?;
         let default = match cfg.get_default()? {

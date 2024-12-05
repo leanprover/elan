@@ -8,6 +8,7 @@ use elan_utils::utils::fetch_url;
 use env_var;
 use errors::*;
 use install::{self, InstallMethod};
+use itertools::Itertools;
 use notifications::*;
 
 use regex::Regex;
@@ -76,6 +77,21 @@ pub fn lookup_unresolved_toolchain_desc(cfg: &Cfg, name: &str) -> Result<Unresol
     }
 }
 
+fn find_latest_local_toolchain(cfg: &Cfg, channel: &str) -> Option<ToolchainDesc> {
+    let toolchains = cfg.list_toolchains().ok()?;
+    let toolchains = toolchains.into_iter().filter_map(|tc| match tc {
+        ToolchainDesc::Remote { release: ref r, .. } => Some((tc.to_owned(), r.to_string())),
+        _ => None,
+    });
+    let toolchains: Vec<_> = match channel {
+        "nightly" => toolchains.filter(|t| t.1.starts_with("nightly-")).sorted_by_key(|t| t.1.to_string()).map(|t| t.0).collect(),
+        _ => toolchains.filter_map(|t|
+            semver::Version::parse(t.1.trim_start_matches("v")).ok().filter(|v|
+                (channel == "stable") == v.pre.is_empty()).map (|v| (t.0, v))).sorted_by_key(|t| t.1.to_string()).map(|t| t.0).collect()
+    };
+    toolchains.into_iter().last()
+}
+
 pub fn resolve_toolchain_desc(cfg: &Cfg, unresolved_tc: &UnresolvedToolchainDesc, no_net: bool) -> Result<ToolchainDesc> {
     if let ToolchainDesc::Remote { ref origin, ref release, from_channel: Some(ref channel) } = unresolved_tc.0 {
         if release == "lean-toolchain" {
@@ -85,12 +101,17 @@ pub fn resolve_toolchain_desc(cfg: &Cfg, unresolved_tc: &UnresolvedToolchainDesc
             );
             return resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())?, no_net);
         } else if release == "stable" || release == "beta" || release == "nightly" {
-            let release = utils::fetch_latest_release_tag(
-                origin,
-                Some(&move |n| (cfg.notify_handler)(n.into())),
-                no_net
-            )?;
-            Ok(ToolchainDesc::Remote { origin: origin.clone(), release, from_channel: Some(channel.clone()) })
+            match utils::fetch_latest_release_tag(origin, no_net) {
+                Ok(release) => Ok(ToolchainDesc::Remote { origin: origin.clone(), release, from_channel: Some(channel.clone()) }),
+                Err(e) => {
+                    if let Some(tc) = find_latest_local_toolchain(cfg, &release) {
+                        (cfg.notify_handler)(Notification::UsingExistingRelease(&tc));
+                        Ok(tc)
+                    } else {
+                        Err(e)?
+                    }
+                }
+            }
         } else {
             Ok(unresolved_tc.0.clone())
         }

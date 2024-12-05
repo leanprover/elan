@@ -470,7 +470,6 @@ pub fn fetch_url(url: &str) -> Result<String> {
 // fetch from HTML page instead of Github API to avoid rate limit
 pub fn fetch_latest_release_tag(
     repo_slug: &str,
-    notify_handler: Option<&dyn Fn(Notification)>,
     no_net: bool
 ) -> Result<String> {
     use regex::Regex;
@@ -492,14 +491,6 @@ pub fn fetch_latest_release_tag(
             Ok(tag)
         }
         Err(e) => {
-            if let Some(handler) = notify_handler {
-                let cache_path = elan_home()?.join("cached-tags").join(repo_slug);
-                if cache_path.exists() {
-                    let tag = fs::read_to_string(cache_path)?;
-                    handler(Notification::UsingCachedRelease(&tag));
-                    return Ok(tag);
-                }
-            }
             Err(e)
         }
     }
