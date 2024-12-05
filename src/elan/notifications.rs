@@ -22,6 +22,7 @@ pub enum Notification<'a> {
     InstallingToolchain(&'a ToolchainDesc),
     InstalledToolchain(&'a ToolchainDesc),
     UsingExistingToolchain(&'a ToolchainDesc),
+    UsingExistingRelease(&'a ToolchainDesc),
     UninstallingToolchain(&'a ToolchainDesc),
     UninstallingObsoleteToolchain(&'a Path),
     UninstalledToolchain(&'a ToolchainDesc),
@@ -82,7 +83,7 @@ impl<'a> Notification<'a> {
             | MetadataUpgradeNotNeeded(_)
             | SetTelemetry(_) => NotificationLevel::Info,
             NonFatalError(_) => NotificationLevel::Error,
-            UpgradeRemovesToolchains | MissingFileDuringSelfUninstall(_) => NotificationLevel::Warn,
+            UpgradeRemovesToolchains | MissingFileDuringSelfUninstall(_) | UsingExistingRelease(_) => NotificationLevel::Warn,
         }
     }
 }
@@ -146,6 +147,12 @@ impl<'a> Display for Notification<'a> {
             }
             SetTelemetry(telemetry_status) => write!(f, "telemetry set to '{}'", telemetry_status),
             TelemetryCleanupError(e) => write!(f, "unable to remove old telemetry files: '{}'", e),
+            UsingExistingRelease(tc) => write!(
+                f,
+                "failed to query latest release, using existing version '{}'",
+                tc.to_string()
+            ),
+
         }
     }
 }

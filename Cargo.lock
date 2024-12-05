@@ -442,6 +442,7 @@ dependencies = [
  "remove_dir_all",
  "same-file",
  "scopeguard",
+ "semver 1.0.23",
  "serde",
  "serde_derive",
  "serde_json",
@@ -501,7 +502,7 @@ dependencies = [
  "regex",
  "remove_dir_all",
  "scopeguard",
- "semver",
+ "semver 0.11.0",
  "sha2 0.9.9",
  "toml",
  "url",
@@ -1623,6 +1624,12 @@ checksum = "f301af10236f6df4160f7c3f04eec6dbc70ace82d23326abad5edee88801c6b6"
 dependencies = [
  "semver-parser",
 ]
+
+[[package]]
+name = "semver"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "61697e0a1c7e512e84a621326239844a24d8207b4669b41bc18b32ea5cbf988b"
 
 [[package]]
 name = "semver-parser"

@@ -1,12 +1,12 @@
 use download::DownloadCfg;
-use elan_utils::{self, utils::{self, elan_home}};
+use elan_utils::{self, utils::{self}};
 use errors::*;
 use manifestation::Manifestation;
 use prefix::InstallPrefix;
 use regex::Regex;
 use serde_derive::Serialize;
 
-use std::{fmt, fs};
+use std::fmt;
 
 // Fully-resolved toolchain descriptors. These always have full target
 // triples attached to them and are used for canonical identification,
@@ -73,7 +73,7 @@ pub fn install_from_dist<'a>(
     let toolchain_str = toolchain.to_string();
     let manifestation = Manifestation::open(prefix.clone())?;
 
-    let ToolchainDesc::Remote { origin, release, from_channel } = toolchain else {
+    let ToolchainDesc::Remote { origin, release, .. } = toolchain else {
         return Ok(());
     };
     let url = format!(
@@ -103,13 +103,6 @@ pub fn install_from_dist<'a>(
         let _ = utils::remove_dir("toolchain", prefix.path(), &|n| {
             (download.notify_handler)(n.into())
         });
-    }
-
-    if let Some(_channel) = from_channel {
-        // TODO: this should save `channel` instead of `origin` when we want to use release.lean-lang.org
-        let cache_path = elan_home()?.join("cached-tags").join(origin);
-        fs::create_dir_all(cache_path.parent().unwrap())?;
-        fs::write(cache_path, &release)?;
     }
 
     res
