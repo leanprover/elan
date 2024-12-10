@@ -235,7 +235,7 @@ impl Cfg {
         path: &Path,
     ) -> Result<Option<(Toolchain, Option<OverrideReason>)>> {
         if let Some((toolchain, reason)) = self.find_override(path)? {
-            let toolchain = resolve_toolchain_desc(&self, &toolchain, false)?;
+            let toolchain = resolve_toolchain_desc(&self, &toolchain)?;
             match self.get_toolchain(&toolchain, false) {
                 Ok(toolchain) => {
                     if toolchain.exists() {

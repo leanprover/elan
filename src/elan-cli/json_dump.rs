@@ -1,4 +1,4 @@
-use elan::{lookup_unresolved_toolchain_desc, resolve_toolchain_desc, utils::{self, fetch_latest_release_tag}, Cfg, Toolchain, UnresolvedToolchainDesc};
+use elan::{lookup_unresolved_toolchain_desc, resolve_toolchain_desc_ext, utils::{self, fetch_latest_release_tag}, Cfg, Toolchain, UnresolvedToolchainDesc};
 use std::{io, path::PathBuf};
 
 use serde_derive::Serialize;
@@ -23,11 +23,19 @@ struct InstalledToolchain {
 }
 
 #[derive(Serialize)]
+struct ToolchainResolution {
+    /// On network error, will always be `Err` even if `elan` commands would fall back to the latest
+    /// local toolchain if any
+    live: Result<String>,
+    /// The latest local toolchain if any independently of network availability
+    cached: Option<String>,
+}
+
+#[derive(Serialize)]
 struct DefaultToolchain {
     /// Not necessarily resolved name as given to `elan default`, e.g. `stable`
     unresolved: UnresolvedToolchainDesc,
-    /// Fully resolved name; `Err` if `unresolved` needed to be resolved but there was a network error
-    resolved: Result<String>,
+    resolved: ToolchainResolution,
 }
 
 #[derive(Serialize)]
@@ -44,13 +52,19 @@ struct Toolchains {
     /// `None` if no override for current directory configured, in which case `default` if any is used
     active_override: Option<Override>,
     /// Toolchain, if any, ultimately chosen based on `default` and `active_override`
-    resolved_active: Option<Result<String>>,
+    resolved_active: Option<ToolchainResolution>,
 }
 
 #[derive(Serialize)]
 pub struct StateDump {
     elan_version: Version,
     toolchains: Toolchains,
+}
+
+fn mk_toolchain_resolution(cfg: &Cfg, unresolved: &UnresolvedToolchainDesc, no_net: bool) -> ToolchainResolution {
+    let live = resolve_toolchain_desc_ext(cfg, unresolved, no_net, false).map(|t| t.to_string()).map_err(|e| e.to_string());
+    let cached = resolve_toolchain_desc_ext(cfg, unresolved, true, true).map(|t| t.to_string()).map_err(|e| e.to_string()).ok();
+    ToolchainResolution { live, cached }
 }
 
 impl StateDump {
@@ -76,9 +90,7 @@ impl StateDump {
                     }).collect(),
                 default: default.as_ref().map(|default| DefaultToolchain {
                     unresolved: default.clone(),
-                    resolved: resolve_toolchain_desc(cfg, &default, no_net)
-                      .map(|t| t.to_string())
-                      .map_err(|e| e.to_string()),
+                    resolved: mk_toolchain_resolution(cfg, default, no_net),
                 }),
                 active_override: active_override.as_ref().map(|(desc, reason)| Override {
                     unresolved: desc.clone(),
@@ -87,9 +99,7 @@ impl StateDump {
                 resolved_active: active_override
                     .map(|p| p.0)
                     .or(default)
-                    .map(|t| resolve_toolchain_desc(cfg, &t, no_net)
-                        .map(|tc| tc.to_string())
-                        .map_err(|e| e.to_string()))
+                    .map(|t| mk_toolchain_resolution(cfg, &t, no_net))
             },
         })
     }
