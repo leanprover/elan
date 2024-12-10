@@ -1,6 +1,6 @@
 use clap::{App, AppSettings, Arg, ArgMatches, Shell, SubCommand};
 use common;
-use elan::{command, gc, lookup_toolchain_desc, Cfg, Toolchain};
+use elan::{command, gc, lookup_toolchain_desc, lookup_unresolved_toolchain_desc, Cfg, Toolchain};
 use elan_dist::dist::ToolchainDesc;
 use elan_utils::utils;
 use errors::*;
@@ -252,7 +252,7 @@ pub fn cli() -> App<'static, 'static> {
 fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     let name = m.value_of("toolchain").expect("");
     // sanity-check
-    let _ = lookup_toolchain_desc(cfg, name)?;
+    let _ = lookup_unresolved_toolchain_desc(cfg, name)?;
 
     cfg.set_default(name)?;
     Ok(())
