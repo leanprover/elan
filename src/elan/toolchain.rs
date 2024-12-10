@@ -92,19 +92,19 @@ fn find_latest_local_toolchain(cfg: &Cfg, channel: &str) -> Option<ToolchainDesc
     toolchains.into_iter().last()
 }
 
-pub fn resolve_toolchain_desc(cfg: &Cfg, unresolved_tc: &UnresolvedToolchainDesc, no_net: bool) -> Result<ToolchainDesc> {
+pub fn resolve_toolchain_desc_ext(cfg: &Cfg, unresolved_tc: &UnresolvedToolchainDesc, no_net: bool, use_cache: bool) -> Result<ToolchainDesc> {
     if let ToolchainDesc::Remote { ref origin, ref release, from_channel: Some(ref channel) } = unresolved_tc.0 {
         if release == "lean-toolchain" {
             let toolchain_url = format!(
                 "https://raw.githubusercontent.com/{}/HEAD/lean-toolchain",
                 origin
             );
-            return resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())?, no_net);
+            return resolve_toolchain_desc_ext(cfg, &lookup_unresolved_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())?, no_net, use_cache);
         } else if release == "stable" || release == "beta" || release == "nightly" {
             match utils::fetch_latest_release_tag(origin, no_net) {
                 Ok(release) => Ok(ToolchainDesc::Remote { origin: origin.clone(), release, from_channel: Some(channel.clone()) }),
                 Err(e) => {
-                    if let Some(tc) = find_latest_local_toolchain(cfg, &release) {
+                    if let (true, Some(tc)) = (use_cache, find_latest_local_toolchain(cfg, &release)) {
                         (cfg.notify_handler)(Notification::UsingExistingRelease(&tc));
                         Ok(tc)
                     } else {
@@ -120,8 +120,12 @@ pub fn resolve_toolchain_desc(cfg: &Cfg, unresolved_tc: &UnresolvedToolchainDesc
     }
 }
 
+pub fn resolve_toolchain_desc(cfg: &Cfg, unresolved_tc: &UnresolvedToolchainDesc) -> Result<ToolchainDesc> {
+    resolve_toolchain_desc_ext(cfg, unresolved_tc, false, true)
+}
+
 pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
-    resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, name)?, false)
+    resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, name)?)
 }
 
 pub fn read_unresolved_toolchain_desc_from_file(cfg: &Cfg, toolchain_file: &Path) -> Result<UnresolvedToolchainDesc> {
@@ -135,7 +139,7 @@ pub fn read_unresolved_toolchain_desc_from_file(cfg: &Cfg, toolchain_file: &Path
 }
 
 pub fn read_toolchain_desc_from_file(cfg: &Cfg, toolchain_file: &Path) -> Result<ToolchainDesc> {
-    resolve_toolchain_desc(cfg, &read_unresolved_toolchain_desc_from_file(cfg, toolchain_file)?, false)
+    resolve_toolchain_desc(cfg, &read_unresolved_toolchain_desc_from_file(cfg, toolchain_file)?)
 }
 
 impl<'a> Toolchain<'a> {
