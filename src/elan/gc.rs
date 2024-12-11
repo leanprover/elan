@@ -6,7 +6,7 @@ use std::{
 use elan_dist::dist::ToolchainDesc;
 use itertools::Itertools;
 
-use crate::{lookup_toolchain_desc, read_toolchain_desc_from_file, Cfg, Toolchain};
+use crate::{lookup_unresolved_toolchain_desc, read_toolchain_desc_from_file, resolve_toolchain_desc_ext, Cfg, Toolchain};
 
 fn get_root_file(cfg: &Cfg) -> PathBuf {
     cfg.elan_dir.join("known-projects")
@@ -48,11 +48,12 @@ pub fn analyze_toolchains(cfg: &Cfg) -> crate::Result<(Vec<Toolchain>, Vec<(Stri
         })
         .collect::<Vec<_>>();
     if let Some(default) = cfg.get_default()? {
-        let default = lookup_toolchain_desc(cfg, &default)?;
-        used_toolchains.push(("default toolchain".to_string(), default));
+        if let Ok(default) = resolve_toolchain_desc_ext(cfg, &lookup_unresolved_toolchain_desc(cfg, &default)?, true, true) {
+            used_toolchains.push(("default toolchain".to_string(), default));
+        }
     }
     if let Some(ref env_override) = cfg.env_override {
-        if let Ok(desc) = lookup_toolchain_desc(cfg, env_override) {
+        if let Ok(desc) = resolve_toolchain_desc_ext(cfg, &lookup_unresolved_toolchain_desc(cfg, &env_override)?, true, true) {
             used_toolchains.push(("ELAN_TOOLCHAIN".to_string(), desc));
         }
     }
