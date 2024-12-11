@@ -105,7 +105,9 @@ pub fn resolve_toolchain_desc_ext(cfg: &Cfg, unresolved_tc: &UnresolvedToolchain
                 Ok(release) => Ok(ToolchainDesc::Remote { origin: origin.clone(), release, from_channel: Some(channel.clone()) }),
                 Err(e) => {
                     if let (true, Some(tc)) = (use_cache, find_latest_local_toolchain(cfg, &release)) {
-                        (cfg.notify_handler)(Notification::UsingExistingRelease(&tc));
+                        if !no_net {
+                            (cfg.notify_handler)(Notification::UsingExistingRelease(&tc));
+                        }
                         Ok(tc)
                     } else {
                         Err(e)?
