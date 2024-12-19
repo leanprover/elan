@@ -2,12 +2,7 @@
 //! for installing from a directory or tarball to an installation
 //! prefix, represented by a `Components` instance.
 
-extern crate filetime;
-extern crate flate2;
-extern crate tar;
-extern crate zstd;
-
-use errors::*;
+use crate::errors::*;
 
 use std::fs::{self, File};
 use std::io::{self, Read, Seek};

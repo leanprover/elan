@@ -34,8 +34,6 @@ mod imp {
 
 #[cfg(windows)]
 mod imp {
-    extern crate winapi;
-
     use std::ffi::OsString;
     use std::io;
     use std::mem;

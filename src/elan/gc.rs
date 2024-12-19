@@ -6,7 +6,10 @@ use std::{
 use elan_dist::dist::ToolchainDesc;
 use itertools::Itertools;
 
-use crate::{lookup_unresolved_toolchain_desc, read_toolchain_desc_from_file, resolve_toolchain_desc_ext, Cfg, Toolchain};
+use crate::{
+    lookup_unresolved_toolchain_desc, read_toolchain_desc_from_file, resolve_toolchain_desc_ext,
+    Cfg, Toolchain,
+};
 
 fn get_root_file(cfg: &Cfg) -> PathBuf {
     cfg.elan_dir.join("known-projects")
@@ -34,7 +37,9 @@ pub fn add_root(cfg: &Cfg, root: &Path) -> elan_utils::Result<()> {
     Ok(())
 }
 
-pub fn analyze_toolchains(cfg: &Cfg) -> crate::Result<(Vec<Toolchain>, Vec<(String, ToolchainDesc)>)> {
+pub fn analyze_toolchains(
+    cfg: &Cfg,
+) -> crate::Result<(Vec<Toolchain<'_>>, Vec<(String, ToolchainDesc)>)> {
     let roots = get_roots(cfg)?;
     let mut used_toolchains = roots
         .into_iter()
@@ -48,19 +53,32 @@ pub fn analyze_toolchains(cfg: &Cfg) -> crate::Result<(Vec<Toolchain>, Vec<(Stri
         })
         .collect::<Vec<_>>();
     if let Some(default) = cfg.get_default()? {
-        if let Ok(default) = resolve_toolchain_desc_ext(cfg, &lookup_unresolved_toolchain_desc(cfg, &default)?, true, true) {
+        if let Ok(default) = resolve_toolchain_desc_ext(
+            cfg,
+            &lookup_unresolved_toolchain_desc(cfg, &default)?,
+            true,
+            true,
+        ) {
             used_toolchains.push(("default toolchain".to_string(), default));
         }
     }
     if let Some(ref env_override) = cfg.env_override {
-        if let Ok(desc) = resolve_toolchain_desc_ext(cfg, &lookup_unresolved_toolchain_desc(cfg, &env_override)?, true, true) {
+        if let Ok(desc) = resolve_toolchain_desc_ext(
+            cfg,
+            &lookup_unresolved_toolchain_desc(cfg, env_override)?,
+            true,
+            true,
+        ) {
             used_toolchains.push(("ELAN_TOOLCHAIN".to_string(), desc));
         }
     }
     for (path, tc) in cfg.get_overrides()? {
         used_toolchains.push((format!("{} (override)", path), tc));
     }
-    let used_toolchains_set = used_toolchains.iter().map(|p| p.1.to_string()).collect::<HashSet<_>>();
+    let used_toolchains_set = used_toolchains
+        .iter()
+        .map(|p| p.1.to_string())
+        .collect::<HashSet<_>>();
     let unused_toolchains = cfg
         .list_toolchains()?
         .into_iter()

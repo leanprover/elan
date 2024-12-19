@@ -5,6 +5,7 @@ version = "1.11.0"
 authors = [ "Sebastian Ullrich <sebasti@nullri.ch>" ]
 description = "Installation from a Lean distribution server"
 build = "build.rs"
+edition = "2021"
 
 license = "MIT OR Apache-2.0"
 

@@ -1,14 +1,11 @@
 //! Easy file downloading
-
-#[macro_use]
-extern crate error_chain;
-extern crate url;
+#![deny(rust_2018_idioms)]
 
 use std::path::Path;
 use url::Url;
 
 mod errors;
-pub use errors::*;
+pub use crate::errors::*;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Backend {
@@ -26,7 +23,7 @@ pub enum Event<'a> {
 fn download_with_backend(
     backend: Backend,
     url: &Url,
-    callback: &dyn Fn(Event) -> Result<()>,
+    callback: &dyn Fn(Event<'_>) -> Result<()>,
 ) -> Result<()> {
     match backend {
         Backend::Curl => curl::download(url, callback),
@@ -37,7 +34,7 @@ pub fn download_to_path_with_backend(
     backend: Backend,
     url: &Url,
     path: &Path,
-    callback: Option<&dyn Fn(Event) -> Result<()>>,
+    callback: Option<&dyn Fn(Event<'_>) -> Result<()>>,
 ) -> Result<()> {
     use std::cell::RefCell;
     use std::fs::OpenOptions;
@@ -47,7 +44,7 @@ pub fn download_to_path_with_backend(
         let file = OpenOptions::new()
             .write(true)
             .create(true)
-            .open(&path)
+            .open(path)
             .chain_err(|| "error creating file for download")?;
 
         let file = RefCell::new(file);
@@ -70,10 +67,6 @@ pub fn download_to_path_with_backend(
 
         Ok(())
     }()
-    .map_err(|e| {
-        // TODO is there any point clearing up here? What kind of errors will leave us with an unusable partial?
-        e
-    })
 }
 
 /// Download via libcurl; encrypt with the native (or OpenSSl) TLS
@@ -81,11 +74,9 @@ pub fn download_to_path_with_backend(
 #[cfg(feature = "curl-backend")]
 pub mod curl {
 
-    extern crate curl;
-
-    use self::curl::easy::Easy;
     use super::Event;
-    use errors::*;
+    use crate::errors::*;
+    use curl::easy::Easy;
     use std::cell::RefCell;
     use std::str;
     use std::time::Duration;
@@ -93,7 +84,7 @@ pub mod curl {
 
     thread_local!(pub static EASY: RefCell<Easy> = RefCell::new(Easy::new()));
 
-    pub fn download(url: &Url, callback: &dyn Fn(Event) -> Result<()>) -> Result<()> {
+    pub fn download(url: &Url, callback: &dyn Fn(Event<'_>) -> Result<()>) -> Result<()> {
         // Fetch either a cached libcurl handle (which will preserve open
         // connections) or create a new one if it isn't listed.
         //
@@ -102,9 +93,7 @@ pub mod curl {
         EASY.with(|handle| {
             let mut handle = handle.borrow_mut();
 
-            handle
-                .url(&url.to_string())
-                .chain_err(|| "failed to set url")?;
+            handle.url(url.as_ref()).chain_err(|| "failed to set url")?;
             handle
                 .follow_location(true)
                 .chain_err(|| "failed to set follow redirects")?;

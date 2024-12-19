@@ -1,15 +1,14 @@
-use config::Cfg;
-use elan_dist;
+use crate::config::Cfg;
+use crate::env_var;
+use crate::errors::*;
+use crate::install::{self, InstallMethod};
+use crate::notifications::*;
 use elan_dist::dist::ToolchainDesc;
 use elan_dist::download::DownloadCfg;
 use elan_dist::manifest::Component;
 use elan_utils::utils;
 use elan_utils::utils::fetch_url;
-use env_var;
-use errors::*;
-use install::{self, InstallMethod};
 use itertools::Itertools;
-use notifications::*;
 
 use regex::Regex;
 use serde_derive::Serialize;
@@ -27,7 +26,7 @@ pub struct Toolchain<'a> {
     cfg: &'a Cfg,
     pub desc: ToolchainDesc,
     path: PathBuf,
-    dist_handler: Box<dyn Fn(elan_dist::Notification) + 'a>,
+    dist_handler: Box<dyn Fn(elan_dist::Notification<'_>) + 'a>,
 }
 
 /// Used by the `list_component` function
@@ -54,7 +53,9 @@ pub fn lookup_unresolved_toolchain_desc(cfg: &Cfg, name: &str) -> Result<Unresol
             },
         );
         if local_tc.exists() && local_tc.is_custom() {
-            return Ok(UnresolvedToolchainDesc(ToolchainDesc::Local { name: release }));
+            return Ok(UnresolvedToolchainDesc(ToolchainDesc::Local {
+                name: release,
+            }));
         }
         let mut origin = c
             .get(1)
@@ -65,13 +66,21 @@ pub fn lookup_unresolved_toolchain_desc(cfg: &Cfg, name: &str) -> Result<Unresol
             origin = format!("{}-nightly", origin);
         }
         let mut from_channel = None;
-        if release == "lean-toolchain" || release == "stable" || release == "beta" || release == "nightly" {
+        if release == "lean-toolchain"
+            || release == "stable"
+            || release == "beta"
+            || release == "nightly"
+        {
             from_channel = Some(release.to_string());
         }
         if release.starts_with(char::is_numeric) {
             release = format!("v{}", release)
         }
-        Ok(UnresolvedToolchainDesc(ToolchainDesc::Remote { origin, release, from_channel }))
+        Ok(UnresolvedToolchainDesc(ToolchainDesc::Remote {
+            origin,
+            release,
+            from_channel,
+        }))
     } else {
         Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
     }
@@ -84,27 +93,58 @@ fn find_latest_local_toolchain(cfg: &Cfg, channel: &str) -> Option<ToolchainDesc
         _ => None,
     });
     let toolchains: Vec<_> = match channel {
-        "nightly" => toolchains.filter(|t| t.1.starts_with("nightly-")).sorted_by_key(|t| t.1.to_string()).map(|t| t.0).collect(),
-        _ => toolchains.filter_map(|t|
-            semver::Version::parse(t.1.trim_start_matches("v")).ok().filter(|v|
-                (channel == "stable") == v.pre.is_empty()).map (|v| (t.0, v))).sorted_by_key(|t| t.1.to_string()).map(|t| t.0).collect()
+        "nightly" => toolchains
+            .filter(|t| t.1.starts_with("nightly-"))
+            .sorted_by_key(|t| t.1.to_string())
+            .map(|t| t.0)
+            .collect(),
+        _ => toolchains
+            .filter_map(|t| {
+                semver::Version::parse(t.1.trim_start_matches("v"))
+                    .ok()
+                    .filter(|v| (channel == "stable") == v.pre.is_empty())
+                    .map(|v| (t.0, v))
+            })
+            .sorted_by_key(|t| t.1.to_string())
+            .map(|t| t.0)
+            .collect(),
     };
     toolchains.into_iter().last()
 }
 
-pub fn resolve_toolchain_desc_ext(cfg: &Cfg, unresolved_tc: &UnresolvedToolchainDesc, no_net: bool, use_cache: bool) -> Result<ToolchainDesc> {
-    if let ToolchainDesc::Remote { ref origin, ref release, from_channel: Some(ref channel) } = unresolved_tc.0 {
+pub fn resolve_toolchain_desc_ext(
+    cfg: &Cfg,
+    unresolved_tc: &UnresolvedToolchainDesc,
+    no_net: bool,
+    use_cache: bool,
+) -> Result<ToolchainDesc> {
+    if let ToolchainDesc::Remote {
+        ref origin,
+        ref release,
+        from_channel: Some(ref channel),
+    } = unresolved_tc.0
+    {
         if release == "lean-toolchain" {
             let toolchain_url = format!(
                 "https://raw.githubusercontent.com/{}/HEAD/lean-toolchain",
                 origin
             );
-            return resolve_toolchain_desc_ext(cfg, &lookup_unresolved_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())?, no_net, use_cache);
+            resolve_toolchain_desc_ext(
+                cfg,
+                &lookup_unresolved_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())?,
+                no_net,
+                use_cache,
+            )
         } else if release == "stable" || release == "beta" || release == "nightly" {
             match utils::fetch_latest_release_tag(origin, no_net) {
-                Ok(release) => Ok(ToolchainDesc::Remote { origin: origin.clone(), release, from_channel: Some(channel.clone()) }),
+                Ok(release) => Ok(ToolchainDesc::Remote {
+                    origin: origin.clone(),
+                    release,
+                    from_channel: Some(channel.clone()),
+                }),
                 Err(e) => {
-                    if let (true, Some(tc)) = (use_cache, find_latest_local_toolchain(cfg, &release)) {
+                    if let (true, Some(tc)) = (use_cache, find_latest_local_toolchain(cfg, release))
+                    {
                         if !no_net {
                             (cfg.notify_handler)(Notification::UsingExistingRelease(&tc));
                         }
@@ -122,7 +162,10 @@ pub fn resolve_toolchain_desc_ext(cfg: &Cfg, unresolved_tc: &UnresolvedToolchain
     }
 }
 
-pub fn resolve_toolchain_desc(cfg: &Cfg, unresolved_tc: &UnresolvedToolchainDesc) -> Result<ToolchainDesc> {
+pub fn resolve_toolchain_desc(
+    cfg: &Cfg,
+    unresolved_tc: &UnresolvedToolchainDesc,
+) -> Result<ToolchainDesc> {
     resolve_toolchain_desc_ext(cfg, unresolved_tc, false, true)
 }
 
@@ -130,18 +173,27 @@ pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
     resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, name)?)
 }
 
-pub fn read_unresolved_toolchain_desc_from_file(cfg: &Cfg, toolchain_file: &Path) -> Result<UnresolvedToolchainDesc> {
-    let s = utils::read_file("toolchain file", &toolchain_file)?;
+pub fn read_unresolved_toolchain_desc_from_file(
+    cfg: &Cfg,
+    toolchain_file: &Path,
+) -> Result<UnresolvedToolchainDesc> {
+    let s = utils::read_file("toolchain file", toolchain_file)?;
     if let Some(s) = s.lines().next() {
         let toolchain_name = s.trim();
         lookup_unresolved_toolchain_desc(cfg, toolchain_name)
     } else {
-        Err(Error::from(format!("empty toolchain file '{}'", toolchain_file.display())))
+        Err(Error::from(format!(
+            "empty toolchain file '{}'",
+            toolchain_file.display()
+        )))
     }
 }
 
 pub fn read_toolchain_desc_from_file(cfg: &Cfg, toolchain_file: &Path) -> Result<ToolchainDesc> {
-    resolve_toolchain_desc(cfg, &read_unresolved_toolchain_desc_from_file(cfg, toolchain_file)?)
+    resolve_toolchain_desc(
+        cfg,
+        &read_unresolved_toolchain_desc_from_file(cfg, toolchain_file)?,
+    )
 }
 
 impl<'a> Toolchain<'a> {
@@ -197,7 +249,7 @@ impl<'a> Toolchain<'a> {
         }
         result
     }
-    fn install(&self, install_method: InstallMethod) -> Result<()> {
+    fn install(&self, install_method: InstallMethod<'_>) -> Result<()> {
         let exists = self.exists();
         if exists {
             return Err(format!("'{}' is already installed", self.desc).into());
@@ -211,7 +263,7 @@ impl<'a> Toolchain<'a> {
 
         Ok(())
     }
-    fn install_if_not_installed(&self, install_method: InstallMethod) -> Result<()> {
+    fn install_if_not_installed(&self, install_method: InstallMethod<'_>) -> Result<()> {
         (self.cfg.notify_handler)(Notification::LookingForToolchain(&self.desc));
         if !self.exists() {
             self.install(install_method)
@@ -220,7 +272,7 @@ impl<'a> Toolchain<'a> {
         }
     }
 
-    fn download_cfg(&self) -> DownloadCfg {
+    fn download_cfg(&self) -> DownloadCfg<'_> {
         DownloadCfg {
             temp_cfg: &self.cfg.temp_cfg,
             notify_handler: &*self.dist_handler,

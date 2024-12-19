@@ -1,29 +1,5 @@
 #![recursion_limit = "1024"]
-
-extern crate fslock;
-extern crate elan_utils;
-extern crate flate2;
-extern crate itertools;
-extern crate regex;
-extern crate tar;
-extern crate toml;
-extern crate url;
-extern crate walkdir;
-#[macro_use]
-extern crate error_chain;
-extern crate json;
-extern crate sha2;
-extern crate time;
-extern crate zip;
-extern crate serde;
-extern crate serde_derive;
-
-#[cfg(not(windows))]
-extern crate libc;
-#[cfg(windows)]
-extern crate winapi;
-#[cfg(windows)]
-extern crate winreg;
+#![deny(rust_2018_idioms)]
 
 pub use errors::*;
 pub use notifications::Notification;

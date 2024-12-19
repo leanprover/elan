@@ -2,14 +2,14 @@
 
 use std::{thread::sleep, time::Duration};
 
-use component::{TarGzPackage, TarZstdPackage, ZipPackage};
-use download::DownloadCfg;
+use crate::component::{TarGzPackage, TarZstdPackage, ZipPackage};
+use crate::download::DownloadCfg;
+use crate::errors::*;
+use crate::notifications::*;
+use crate::prefix::InstallPrefix;
+use crate::temp;
 use elan_utils::{raw::read_file, utils};
-use errors::*;
 use fslock::LockFile;
-use notifications::*;
-use prefix::InstallPrefix;
-use temp;
 
 #[derive(Debug)]
 pub struct Manifestation {
@@ -26,7 +26,7 @@ impl Manifestation {
         origin: &String,
         url: &String,
         temp_cfg: &temp::Cfg,
-        notify_handler: &dyn Fn(Notification),
+        notify_handler: &dyn Fn(Notification<'_>),
     ) -> Result<()> {
         let prefix = self.prefix.path();
         utils::ensure_dir_exists("toolchains", prefix.parent().unwrap(), &|n| {
@@ -36,7 +36,10 @@ impl Manifestation {
         let lockfile_path = prefix.with_extension("lock");
         let mut lockfile = LockFile::open(&lockfile_path)?;
         if !lockfile.try_lock_with_pid()? {
-            notify_handler(Notification::WaitingForFileLock(&lockfile_path, read_file(&lockfile_path)?.trim()));
+            notify_handler(Notification::WaitingForFileLock(
+                &lockfile_path,
+                read_file(&lockfile_path)?.trim(),
+            ));
             while !lockfile.try_lock_with_pid()? {
                 sleep(Duration::from_secs(1));
             }
@@ -51,7 +54,7 @@ impl Manifestation {
         origin: &String,
         url: &String,
         temp_cfg: &temp::Cfg,
-        notify_handler: &dyn Fn(Notification),
+        notify_handler: &dyn Fn(Notification<'_>),
     ) -> Result<()> {
         let prefix = self.prefix.path();
         let dlcfg = DownloadCfg {
@@ -60,7 +63,7 @@ impl Manifestation {
         };
 
         if utils::is_directory(prefix) {
-            return Ok(())
+            return Ok(());
         }
 
         // find correct download on HTML page (AAAAH)

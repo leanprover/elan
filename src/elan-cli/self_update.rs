@@ -30,7 +30,9 @@
 //! Deleting the running binary during uninstall is tricky
 //! and racy on Windows.
 
-use common::{self, Confirm};
+use crate::common::{self, Confirm};
+use crate::errors::*;
+use crate::term2;
 use elan::install;
 use elan::lookup_toolchain_desc;
 use elan::lookup_unresolved_toolchain_desc;
@@ -39,8 +41,6 @@ use elan::Toolchain;
 use elan_dist::dist;
 use elan_dist::dist::ToolchainDesc;
 use elan_utils::utils;
-use errors::*;
-use flate2;
 use regex::Regex;
 use same_file::Handle;
 use std::env;
@@ -49,10 +49,7 @@ use std::fs;
 use std::io;
 use std::path::{Component, Path, PathBuf};
 use std::process::{self, Command};
-use tar;
 use tempfile::tempdir;
-use term2;
-use zip;
 
 pub struct InstallOpts {
     pub default_toolchain: String,
@@ -208,11 +205,21 @@ fn clean_up_old_state() -> Result<()> {
     for tc in cfg.list_toolchains()? {
         let res = lookup_unresolved_toolchain_desc(cfg, &tc.to_string());
         if let Ok(desc) = res {
-            if desc.0 == tc && !matches!(desc.0, ToolchainDesc::Remote { from_channel: Some(_), .. }) { continue; }
+            if desc.0 == tc
+                && !matches!(
+                    desc.0,
+                    ToolchainDesc::Remote {
+                        from_channel: Some(_),
+                        ..
+                    }
+                )
+            {
+                continue;
+            }
         }
         let t = Toolchain::from(cfg, &tc);
-        (cfg.notify_handler)(Notification::UninstallingObsoleteToolchain(&t.path()));
-        install::uninstall(&t.path(), &|n| (cfg.notify_handler)(n.into()))?;
+        (cfg.notify_handler)(Notification::UninstallingObsoleteToolchain(t.path()));
+        install::uninstall(t.path(), &|n| (cfg.notify_handler)(n.into()))?;
     }
     Ok(())
 }
@@ -348,7 +355,7 @@ fn check_existence_of_lean_in_path(no_prompt: bool) -> Result<()> {
 fn do_anti_sudo_check(no_prompt: bool) -> Result<()> {
     #[cfg(unix)]
     pub fn home_mismatch() -> bool {
-        extern crate libc as c;
+        use libc as c;
 
         use std::ffi::CStr;
         use std::mem::MaybeUninit;
@@ -493,7 +500,7 @@ fn customize_install(mut opts: InstallOpts) -> Result<InstallOpts> {
 fn install_bins() -> Result<()> {
     let bin_path = &utils::elan_home()?.join("bin");
     let this_exe_path = &(utils::current_exe()?);
-    let elan_path = &bin_path.join(&format!("elan{}", EXE_SUFFIX));
+    let elan_path = &bin_path.join(format!("elan{}", EXE_SUFFIX));
 
     utils::ensure_dir_exists("bin", bin_path, &|_| {})?;
     // NB: Even on Linux we can't just copy the new binary over the (running)
@@ -508,7 +515,7 @@ fn install_bins() -> Result<()> {
 
 pub fn install_proxies() -> Result<()> {
     let bin_path = &utils::elan_home()?.join("bin");
-    let elan_path = &bin_path.join(&format!("elan{}", EXE_SUFFIX));
+    let elan_path = &bin_path.join(format!("elan{}", EXE_SUFFIX));
 
     let elan = Handle::from_path(elan_path)?;
 
@@ -537,7 +544,7 @@ pub fn install_proxies() -> Result<()> {
     // `tool_handles` later on. This'll allow us, afterwards, to actually
     // overwrite all the previous hard links with new ones.
     for tool in TOOLS {
-        let tool_path = bin_path.join(&format!("{}{}", tool, EXE_SUFFIX));
+        let tool_path = bin_path.join(format!("{}{}", tool, EXE_SUFFIX));
         if let Ok(handle) = Handle::from_path(&tool_path) {
             tool_handles.push(handle);
             if elan == *tool_handles.last().unwrap() {
@@ -576,7 +583,7 @@ pub fn uninstall(no_prompt: bool) -> Result<()> {
 
     let elan_home = &(utils::elan_home()?);
 
-    if !elan_home.join(&format!("bin/elan{}", EXE_SUFFIX)).exists() {
+    if !elan_home.join(format!("bin/elan{}", EXE_SUFFIX)).exists() {
         return Err(ErrorKind::NotSelfInstalled(elan_home.clone()).into());
     }
 
@@ -1231,8 +1238,8 @@ fn parse_new_elan_version(version: String) -> String {
 
 pub fn prepare_update() -> Result<Option<PathBuf>> {
     let elan_home = &(utils::elan_home()?);
-    let elan_path = &elan_home.join(&format!("bin/elan{}", EXE_SUFFIX));
-    let setup_path = &elan_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
+    let elan_path = &elan_home.join(format!("bin/elan{}", EXE_SUFFIX));
+    let setup_path = &elan_home.join(format!("bin/elan-init{}", EXE_SUFFIX));
 
     if !elan_path.exists() {
         return Err(ErrorKind::NotSelfInstalled(elan_home.clone()).into());
@@ -1343,14 +1350,14 @@ pub fn self_replace() -> Result<()> {
 
 pub fn cleanup_self_updater() -> Result<()> {
     let elan_home = utils::elan_home()?;
-    let setup = &elan_home.join(&format!("bin/elan-init{}", EXE_SUFFIX));
+    let setup = &elan_home.join(format!("bin/elan-init{}", EXE_SUFFIX));
 
     if setup.exists() {
         utils::remove_file("setup", setup)?;
     }
 
     // Transitional
-    let old_setup = &elan_home.join(&format!("bin/multilean-setup{}", EXE_SUFFIX));
+    let old_setup = &elan_home.join(format!("bin/multilean-setup{}", EXE_SUFFIX));
 
     if old_setup.exists() {
         utils::remove_file("setup", old_setup)?;

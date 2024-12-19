@@ -4,6 +4,7 @@ name = "elan-utils"
 version = "1.11.0"
 authors = [ "Sebastian Ullrich <sebasti@nullri.ch>" ]
 description = "Utility functions for elan"
+edition = "2021"
 
 license = "MIT OR Apache-2.0"
 

@@ -1,15 +1,15 @@
-use common::set_globals;
+use crate::common::set_globals;
+use crate::errors::*;
+use crate::job;
 use elan::command::run_command_for_dir;
 use elan::{lookup_toolchain_desc, Cfg};
 use elan_utils::utils;
-use errors::*;
-use job;
 use std::env;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
 pub fn main() -> Result<()> {
-    ::self_update::cleanup_self_updater()?;
+    crate::self_update::cleanup_self_updater()?;
 
     let _setup = job::setup();
 

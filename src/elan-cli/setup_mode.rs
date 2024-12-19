@@ -1,7 +1,7 @@
+use crate::common;
+use crate::errors::*;
+use crate::self_update::{self, InstallOpts};
 use clap::{App, AppSettings, Arg};
-use common;
-use errors::*;
-use self_update::{self, InstallOpts};
 use std::env;
 
 pub fn main() -> Result<()> {

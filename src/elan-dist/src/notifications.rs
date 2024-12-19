@@ -1,10 +1,10 @@
+use crate::errors::*;
+use crate::manifest::Component;
+use crate::temp;
 use elan_utils;
 use elan_utils::notify::NotificationLevel;
-use errors::*;
-use manifest::Component;
 use std::fmt::{self, Display};
 use std::path::Path;
-use temp;
 
 #[derive(Debug)]
 pub enum Notification<'a> {
@@ -78,7 +78,7 @@ impl<'a> Notification<'a> {
 }
 
 impl<'a> Display for Notification<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> ::std::result::Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> ::std::result::Result<(), fmt::Error> {
         use self::Notification::*;
         match *self {
             Temp(ref n) => n.fmt(f),
@@ -128,7 +128,12 @@ impl<'a> Display for Notification<'a> {
                 )
             }
             WaitingForFileLock(path, pid) => {
-                write!(f, "waiting for previous installation request to finish ({}, held by PID {})", path.display(), pid)
+                write!(
+                    f,
+                    "waiting for previous installation request to finish ({}, held by PID {})",
+                    path.display(),
+                    pid
+                )
             }
         }
     }

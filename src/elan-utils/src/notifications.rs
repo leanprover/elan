@@ -3,7 +3,7 @@ use std::path::Path;
 
 use url::Url;
 
-use notify::NotificationLevel;
+use crate::notify::NotificationLevel;
 
 #[derive(Debug)]
 pub enum Notification<'a> {
@@ -39,15 +39,13 @@ impl<'a> Notification<'a> {
             | ResumingPartialDownload
             | UsingCurl
             | UsingReqwest => NotificationLevel::Verbose,
-            UsingHyperDeprecated | NoCanonicalPath(_) => {
-                NotificationLevel::Warn
-            }
+            UsingHyperDeprecated | NoCanonicalPath(_) => NotificationLevel::Warn,
         }
     }
 }
 
 impl<'a> Display for Notification<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> ::std::result::Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> ::std::result::Result<(), fmt::Error> {
         use self::Notification::*;
         match *self {
             CreatingDirectory(name, path) => {
