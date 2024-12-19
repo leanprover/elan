@@ -1,8 +1,11 @@
-use download::DownloadCfg;
-use elan_utils::{self, utils::{self}};
-use errors::*;
-use manifestation::Manifestation;
-use prefix::InstallPrefix;
+use crate::download::DownloadCfg;
+use crate::errors::*;
+use crate::manifestation::Manifestation;
+use crate::prefix::InstallPrefix;
+use elan_utils::{
+    self,
+    utils::{self},
+};
 use regex::Regex;
 use serde_derive::Serialize;
 
@@ -37,7 +40,11 @@ impl ToolchainDesc {
                 Some(origin) => {
                     let origin = origin.as_str().to_owned();
                     let release = c.get(2).unwrap().as_str().to_owned();
-                    Ok(ToolchainDesc::Remote { origin, release, from_channel: None })
+                    Ok(ToolchainDesc::Remote {
+                        origin,
+                        release,
+                        from_channel: None,
+                    })
                 }
                 None => {
                     let name = c.get(2).unwrap().as_str().to_owned();
@@ -57,10 +64,12 @@ impl ToolchainDesc {
 }
 
 impl fmt::Display for ToolchainDesc {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ToolchainDesc::Local { name } => write!(f, "{}", name),
-            ToolchainDesc::Remote { origin, release, .. } => write!(f, "{}:{}", origin, release),
+            ToolchainDesc::Remote {
+                origin, release, ..
+            } => write!(f, "{}:{}", origin, release),
         }
     }
 }
@@ -73,29 +82,29 @@ pub fn install_from_dist<'a>(
     let toolchain_str = toolchain.to_string();
     let manifestation = Manifestation::open(prefix.clone())?;
 
-    let ToolchainDesc::Remote { origin, release, .. } = toolchain else {
+    let ToolchainDesc::Remote {
+        origin, release, ..
+    } = toolchain
+    else {
         return Ok(());
     };
     let url = format!(
         "https://github.com/{}/releases/expanded_assets/{}",
         origin, release
     );
-    let res = match manifestation.install(
-        &origin,
-        &url,
-        &download.temp_cfg,
-        download.notify_handler,
-    ) {
-        Ok(()) => Ok(()),
-        e @ Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => e
-            .chain_err(|| {
-                format!(
-                    "could not download nonexistent lean version `{}`",
-                    toolchain_str
-                )
-            }),
-        Err(e) => Err(e),
-    };
+    let res =
+        match manifestation.install(&origin, &url, &download.temp_cfg, download.notify_handler) {
+            Ok(()) => Ok(()),
+            e
+            @ Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => e
+                .chain_err(|| {
+                    format!(
+                        "could not download nonexistent lean version `{}`",
+                        toolchain_str
+                    )
+                }),
+            Err(e) => Err(e),
+        };
 
     // Don't leave behind an empty / broken installation directory
     if res.is_err() {

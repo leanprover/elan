@@ -4,7 +4,6 @@ use elan_utils::tty;
 use elan_utils::Notification as Un;
 use std::collections::VecDeque;
 use std::fmt;
-use term;
 use time::OffsetDateTime;
 
 /// Keep track of this many past download amounts
@@ -53,7 +52,7 @@ impl DownloadTracker {
         }
     }
 
-    pub fn handle_notification(&mut self, n: &Notification) -> bool {
+    pub fn handle_notification(&mut self, n: &Notification<'_>) -> bool {
         match *n {
             Notification::Install(In::Utils(Un::DownloadContentLengthReceived(content_len))) => {
                 self.content_length_received(content_len);
@@ -178,7 +177,7 @@ impl DownloadTracker {
 struct HumanReadable(f64);
 
 impl fmt::Display for HumanReadable {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             // repurposing the alternate mode for ETA
             let sec = self.0;

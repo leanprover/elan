@@ -1,11 +1,10 @@
 use std::fmt::{self, Display};
 use std::path::{Path, PathBuf};
 
+use crate::errors::*;
 use elan_dist::dist::ToolchainDesc;
-use errors::*;
 
 use elan_dist::{self, temp};
-use elan_utils;
 use elan_utils::notify::NotificationLevel;
 
 #[derive(Debug)]
@@ -56,7 +55,7 @@ impl<'a> From<temp::Notification<'a>> for Notification<'a> {
     }
 }
 
-impl<'a> Notification<'a> {
+impl Notification<'_> {
     pub fn level(&self) -> NotificationLevel {
         use self::Notification::*;
         match *self {
@@ -83,13 +82,15 @@ impl<'a> Notification<'a> {
             | MetadataUpgradeNotNeeded(_)
             | SetTelemetry(_) => NotificationLevel::Info,
             NonFatalError(_) => NotificationLevel::Error,
-            UpgradeRemovesToolchains | MissingFileDuringSelfUninstall(_) | UsingExistingRelease(_) => NotificationLevel::Warn,
+            UpgradeRemovesToolchains
+            | MissingFileDuringSelfUninstall(_)
+            | UsingExistingRelease(_) => NotificationLevel::Warn,
         }
     }
 }
 
-impl<'a> Display for Notification<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> ::std::result::Result<(), fmt::Error> {
+impl Display for Notification<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> ::std::result::Result<(), fmt::Error> {
         use self::Notification::*;
         match *self {
             Install(ref n) => n.fmt(f),
@@ -111,7 +112,11 @@ impl<'a> Display for Notification<'a> {
             InstalledToolchain(name) => write!(f, "toolchain '{}' installed", name),
             UsingExistingToolchain(name) => write!(f, "using existing install for '{}'", name),
             UninstallingToolchain(name) => write!(f, "uninstalling toolchain '{}'", name),
-            UninstallingObsoleteToolchain(name) => write!(f, "uninstalling toolchain '{}' using obsolete format", name.display()),
+            UninstallingObsoleteToolchain(name) => write!(
+                f,
+                "uninstalling toolchain '{}' using obsolete format",
+                name.display()
+            ),
             UninstalledToolchain(name) => write!(f, "toolchain '{}' uninstalled", name),
             ToolchainNotInstalled(name) => write!(f, "no toolchain installed for '{}'", name),
             UpdateHashMatches => {
@@ -150,9 +155,8 @@ impl<'a> Display for Notification<'a> {
             UsingExistingRelease(tc) => write!(
                 f,
                 "failed to query latest release, using existing version '{}'",
-                tc.to_string()
+                tc
             ),
-
         }
     }
 }

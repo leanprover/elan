@@ -13,39 +13,7 @@
 //! different name.
 
 #![recursion_limit = "1024"]
-
-extern crate elan_dist;
-extern crate elan_utils;
-#[macro_use]
-extern crate error_chain;
-
-extern crate clap;
-extern crate elan;
-extern crate flate2;
-extern crate itertools;
-extern crate json;
-extern crate markdown;
-extern crate rand;
-extern crate regex;
-extern crate same_file;
-extern crate scopeguard;
-extern crate sha2;
-extern crate tar;
-extern crate tempfile;
-extern crate term;
-extern crate time;
-extern crate toml;
-extern crate wait_timeout;
-extern crate zip;
-extern crate serde_derive;
-
-#[cfg(windows)]
-extern crate gcc;
-extern crate libc;
-#[cfg(windows)]
-extern crate winapi;
-#[cfg(windows)]
-extern crate winreg;
+#![deny(rust_2018_idioms)]
 
 #[macro_use]
 mod log;
@@ -55,11 +23,11 @@ mod elan_mode;
 mod errors;
 mod help;
 mod job;
+mod json_dump;
 mod proxy_mode;
 mod self_update;
 mod setup_mode;
 mod term2;
-mod json_dump;
 
 use elan::env_var::LEAN_RECURSION_COUNT_MAX;
 use errors::*;

@@ -1,12 +1,12 @@
 //! Installation and upgrade of both distribution-managed and local
 //! toolchains
 
+use crate::errors::Result;
 use elan_dist::dist;
 use elan_dist::download::DownloadCfg;
 use elan_dist::prefix::InstallPrefix;
 use elan_dist::Notification;
 use elan_utils::utils::{self, fetch_latest_release_tag};
-use errors::Result;
 use std::path::Path;
 
 #[cfg(feature = "no-self-update")]
@@ -43,8 +43,8 @@ pub enum InstallMethod<'a> {
     Dist(&'a dist::ToolchainDesc, DownloadCfg<'a>),
 }
 
-impl<'a> InstallMethod<'a> {
-    pub fn run(self, path: &Path, notify_handler: &dyn Fn(Notification)) -> Result<()> {
+impl InstallMethod<'_> {
+    pub fn run(self, path: &Path, notify_handler: &dyn Fn(Notification<'_>)) -> Result<()> {
         if path.exists() {
             // Don't uninstall first for Dist method
             match self {
@@ -78,7 +78,7 @@ impl<'a> InstallMethod<'a> {
     }
 }
 
-pub fn uninstall(path: &Path, notify_handler: &dyn Fn(Notification)) -> Result<()> {
+pub fn uninstall(path: &Path, notify_handler: &dyn Fn(Notification<'_>)) -> Result<()> {
     Ok(utils::remove_dir("install", path, &|n| {
         notify_handler(n.into())
     })?)
