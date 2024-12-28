@@ -58,6 +58,7 @@ try {
 }
 catch {
     Write-Host "Download failed for ${DownloadUrl}"
+    Write-Host $_
     return 1
 }
 
