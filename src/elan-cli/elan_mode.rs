@@ -1,23 +1,23 @@
+use crate::common;
+use crate::errors::*;
+use crate::help::*;
+use crate::self_update;
+use crate::term2;
 use clap::{App, AppSettings, Arg, ArgMatches, Shell, SubCommand};
-use common;
 use elan::{command, gc, lookup_toolchain_desc, lookup_unresolved_toolchain_desc, Cfg, Toolchain};
 use elan_dist::dist::ToolchainDesc;
 use elan_utils::utils;
-use errors::*;
-use help::*;
-use self_update;
 use std::error::Error;
 use std::io::{self, Write};
 use std::path::Path;
 use std::process::Command;
-use term2;
 
 use serde_derive::Serialize;
 
 use crate::json_dump;
 
 pub fn main() -> Result<()> {
-    ::self_update::cleanup_self_updater()?;
+    crate::self_update::cleanup_self_updater()?;
 
     let matches = &cli().get_matches();
     let verbose = matches.is_present("verbose");
@@ -59,7 +59,7 @@ pub fn main() -> Result<()> {
                     &mut io::stdout(),
                 );
             }
-        },
+        }
         ("dump-state", Some(m)) => dump_state(cfg, m)?,
         (_, _) => unreachable!(),
     }
@@ -249,7 +249,7 @@ pub fn cli() -> App<'static, 'static> {
     )
 }
 
-fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+fn default_(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let name = m.value_of("toolchain").expect("");
     // sanity-check
     let _ = lookup_unresolved_toolchain_desc(cfg, name)?;
@@ -258,7 +258,7 @@ fn default_(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn install(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+fn install(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let names = m.values_of("toolchain").expect("");
     for name in names {
         let desc = lookup_toolchain_desc(cfg, name)?;
@@ -274,7 +274,7 @@ fn install(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn run(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+fn run(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let toolchain = m.value_of("toolchain").expect("");
     let args = m.values_of("command").unwrap();
     let args: Vec<_> = args.collect();
@@ -284,7 +284,7 @@ fn run(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     Ok(command::run_command_for_dir(cmd, args[0], &args[1..])?)
 }
 
-fn which(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+fn which(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let binary = m.value_of("command").expect("");
 
     let binary_path = cfg
@@ -415,7 +415,7 @@ fn show(cfg: &Cfg) -> Result<()> {
     Ok(())
 }
 
-fn explicit_or_dir_toolchain<'a>(cfg: &'a Cfg, m: &ArgMatches) -> Result<Toolchain<'a>> {
+fn explicit_or_dir_toolchain<'a>(cfg: &'a Cfg, m: &ArgMatches<'_>) -> Result<Toolchain<'a>> {
     let toolchain = m.value_of("toolchain");
     if let Some(toolchain) = toolchain {
         let desc = lookup_toolchain_desc(cfg, toolchain)?;
@@ -429,7 +429,7 @@ fn explicit_or_dir_toolchain<'a>(cfg: &'a Cfg, m: &ArgMatches) -> Result<Toolcha
     Ok(toolchain)
 }
 
-fn toolchain_link(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+fn toolchain_link(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let toolchain = &m.value_of("toolchain").expect("");
     let path = &m.value_of("path").expect("");
     let desc = ToolchainDesc::Local {
@@ -440,7 +440,7 @@ fn toolchain_link(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     Ok(toolchain.install_from_dir(Path::new(path), true)?)
 }
 
-fn toolchain_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+fn toolchain_remove(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     for toolchain in m.values_of("toolchain").expect("") {
         let desc = lookup_toolchain_desc(cfg, toolchain)?;
         let toolchain = cfg.get_toolchain(&desc, false)?;
@@ -468,7 +468,10 @@ fn toolchain_gc(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let json = m.is_present("json");
     if json {
         let result = GCResult {
-            unused_toolchains: unused_toolchains.iter().map(|t| t.desc.to_string()).collect(),
+            unused_toolchains: unused_toolchains
+                .iter()
+                .map(|t| t.desc.to_string())
+                .collect(),
             used_toolchains: used_toolchains
                 .iter()
                 .map(|(root, tc)| UsedToolchain {
@@ -477,7 +480,10 @@ fn toolchain_gc(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
                 })
                 .collect(),
         };
-        println!("{}", serde_json::to_string_pretty(&result).chain_err(|| "failed to print JSON")?);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&result).chain_err(|| "failed to print JSON")?
+        );
         return Ok(());
     }
 
@@ -504,7 +510,7 @@ fn toolchain_gc(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     Ok(())
 }
 
-fn override_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+fn override_add(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let toolchain = m.value_of("toolchain").expect("");
     let desc = lookup_toolchain_desc(cfg, toolchain)?;
     let toolchain = cfg.get_toolchain(&desc, false)?;
@@ -512,7 +518,7 @@ fn override_add(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn override_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+fn override_remove(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let paths = if m.is_present("nonexistent") {
         let list: Vec<_> = cfg.settings_file.with(|s| {
             Ok(s.overrides
@@ -555,7 +561,7 @@ fn override_remove(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn doc(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+fn doc(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let doc_url = if m.is_present("book") {
         "book/index.html"
     } else if m.is_present("std") {
@@ -567,7 +573,7 @@ fn doc(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     Ok(cfg.open_docs_for_dir(&utils::current_dir()?, doc_url)?)
 }
 
-fn man(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+fn man(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let manpage = m.value_of("command").expect("");
     let toolchain = explicit_or_dir_toolchain(cfg, m)?;
     let mut man_path = toolchain.path().to_path_buf();
@@ -583,13 +589,13 @@ fn man(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
     Ok(())
 }
 
-fn self_uninstall(m: &ArgMatches) -> Result<()> {
+fn self_uninstall(m: &ArgMatches<'_>) -> Result<()> {
     let no_prompt = m.is_present("no-prompt");
 
     self_update::uninstall(no_prompt)
 }
 
-fn dump_state(cfg: &Cfg, m: &ArgMatches) -> Result<()> {
+fn dump_state(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let no_net = m.is_present("no-net");
 
     Ok(json_dump::StateDump::new(cfg, no_net)?.print()?)

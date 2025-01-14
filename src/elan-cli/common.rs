@@ -1,17 +1,16 @@
 //! Just a dumping ground for cli stuff
 
+use crate::errors::*;
+use crate::term2;
 use elan::{Cfg, Notification, Toolchain};
 use elan_dist::dist::ToolchainDesc;
 use elan_utils::notify::NotificationLevel;
 use elan_utils::utils;
-use errors::*;
-use std;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::Duration;
-use term2;
 use wait_timeout::ChildExt;
 
 pub fn confirm(question: &str, default: bool) -> Result<bool> {
@@ -101,12 +100,12 @@ pub fn read_line() -> Result<String> {
 }
 
 pub fn set_globals(verbose: bool) -> Result<Cfg> {
-    use download_tracker::DownloadTracker;
+    use crate::download_tracker::DownloadTracker;
     use std::cell::RefCell;
 
     let download_tracker = RefCell::new(DownloadTracker::new());
 
-    Ok(Cfg::from_env(Arc::new(move |n: Notification| {
+    Ok(Cfg::from_env(Arc::new(move |n: Notification<'_>| {
         if download_tracker.borrow_mut().handle_notification(&n) {
             return;
         }
@@ -153,7 +152,7 @@ pub fn show_channel_update(cfg: &Cfg, desc: &ToolchainDesc) -> Result<()> {
     Ok(())
 }
 
-pub fn lean_version(toolchain: &Toolchain) -> String {
+pub fn lean_version(toolchain: &Toolchain<'_>) -> String {
     if toolchain.exists() {
         let lean_path = toolchain.binary_file("lean");
         if utils::is_file(&lean_path) {

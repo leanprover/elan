@@ -1,8 +1,8 @@
 use toml;
 
 use super::manifest::Component;
+use crate::errors::*;
 use elan_utils::toml_utils::*;
-use errors::*;
 
 pub const SUPPORTED_CONFIG_VERSIONS: [&'static str; 1] = ["1"];
 pub const DEFAULT_CONFIG_VERSION: &'static str = "1";

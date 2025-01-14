@@ -3,9 +3,8 @@
 use std::io;
 use std::path::PathBuf;
 
-use elan;
 use elan_dist::{self, temp};
-use elan_utils;
+use error_chain::error_chain;
 
 error_chain! {
     links {

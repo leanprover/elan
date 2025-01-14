@@ -1,4 +1,5 @@
-use download;
+use error_chain::error_chain;
+
 use std::ffi::OsString;
 use std::io;
 use std::path::PathBuf;

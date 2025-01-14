@@ -10,8 +10,8 @@
 //!
 //! See tests/channel-lean-nightly-example.toml for an example.
 
+use crate::errors::*;
 use elan_utils::toml_utils::*;
-use errors::*;
 use toml;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]

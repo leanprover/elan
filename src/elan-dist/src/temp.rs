@@ -1,5 +1,3 @@
-extern crate remove_dir_all;
-
 use elan_utils::raw;
 use std::error;
 use std::fmt::{self, Display};
@@ -30,7 +28,7 @@ pub enum Notification<'a> {
 
 pub struct Cfg {
     root_directory: PathBuf,
-    notify_handler: Box<dyn Fn(Notification)>,
+    notify_handler: Box<dyn Fn(Notification<'_>)>,
 }
 
 #[derive(Debug)]
@@ -62,7 +60,7 @@ impl<'a> Notification<'a> {
 }
 
 impl<'a> Display for Notification<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> ::std::result::Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> ::std::result::Result<(), fmt::Error> {
         use self::Notification::*;
         match *self {
             CreatingRoot(path) => write!(f, "creating temp root: {}", path.display()),
@@ -107,7 +105,7 @@ impl error::Error for Error {
 }
 
 impl Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> ::std::result::Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> ::std::result::Result<(), fmt::Error> {
         use self::Error::*;
         match *self {
             CreatingRoot { ref path, error: _ } => {
@@ -124,7 +122,7 @@ impl Display for Error {
 }
 
 impl Cfg {
-    pub fn new(root_directory: PathBuf, notify_handler: Box<dyn Fn(Notification)>) -> Self {
+    pub fn new(root_directory: PathBuf, notify_handler: Box<dyn Fn(Notification<'_>)>) -> Self {
         Cfg {
             root_directory: root_directory,
             notify_handler: notify_handler,
@@ -141,7 +139,7 @@ impl Cfg {
         })
     }
 
-    pub fn new_directory(&self) -> Result<Dir> {
+    pub fn new_directory(&self) -> Result<Dir<'_>> {
         self.create_root()?;
 
         loop {
@@ -165,11 +163,11 @@ impl Cfg {
         }
     }
 
-    pub fn new_file(&self) -> Result<File> {
+    pub fn new_file(&self) -> Result<File<'_>> {
         self.new_file_with_ext("", "")
     }
 
-    pub fn new_file_with_ext(&self, prefix: &str, ext: &str) -> Result<File> {
+    pub fn new_file_with_ext(&self, prefix: &str, ext: &str) -> Result<File<'_>> {
         self.create_root()?;
 
         loop {
@@ -195,7 +193,7 @@ impl Cfg {
 }
 
 impl fmt::Debug for Cfg {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Cfg")
             .field("root_directory", &self.root_directory)
             .field("notify_handler", &"...")
