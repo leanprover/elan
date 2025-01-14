@@ -54,7 +54,7 @@ try {
     else {
         $DownloadUrl = "$ElanRoot/latest/download/elan-$_arch.zip"
     }
-    $null = Start-BitsTransfer -Source $DownloadUrl -Destination "$_dir/elan-init.zip" -ErrorAction Stop
+    $null = Invoke-WebRequest -Uri $DownloadUrl -OutFile "$_dir/elan-init.zip"
 }
 catch {
     Write-Host "Download failed for ${DownloadUrl}"
