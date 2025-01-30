@@ -1,4 +1,4 @@
-# 5.0.0 - 2025-01-30
+# 4.0.0 - 2025-01-30
 
 - Revamp toolchain resolution and storage
   * Toolchain references are now always resolved to a fixed `<owner>/<repo>:<version>` format before
