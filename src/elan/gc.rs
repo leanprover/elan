@@ -1,8 +1,15 @@
-use std::{collections::HashSet, path::{Path, PathBuf}};
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+};
 
+use elan_dist::dist::ToolchainDesc;
 use itertools::Itertools;
 
-use crate::{lookup_toolchain_desc, Cfg, Toolchain};
+use crate::{
+    lookup_unresolved_toolchain_desc, read_toolchain_desc_from_file, resolve_toolchain_desc_ext,
+    Cfg, Toolchain,
+};
 
 fn get_root_file(cfg: &Cfg) -> PathBuf {
     cfg.elan_dir.join("known-projects")
@@ -30,28 +37,53 @@ pub fn add_root(cfg: &Cfg, root: &Path) -> elan_utils::Result<()> {
     Ok(())
 }
 
-pub fn get_unreachable_toolchains(cfg: &Cfg) -> crate::Result<Vec<Toolchain>> {
+pub fn analyze_toolchains(
+    cfg: &Cfg,
+) -> crate::Result<(Vec<Toolchain<'_>>, Vec<(String, ToolchainDesc)>)> {
     let roots = get_roots(cfg)?;
-    let mut used_toolchains = roots.into_iter().filter_map(|r| {
-        let path = PathBuf::from(r).join("lean-toolchain");
-        if path.exists() {
-            Some(std::fs::read_to_string(path).unwrap().trim().to_string())
-        } else {
-            None
-        }
-    }).collect::<HashSet<_>>();
+    let mut used_toolchains = roots
+        .into_iter()
+        .filter_map(|r| {
+            let path = PathBuf::from(r.clone()).join("lean-toolchain");
+            if let Ok(desc) = read_toolchain_desc_from_file(cfg, &path) {
+                Some((r, desc))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
     if let Some(default) = cfg.get_default()? {
-        let default = lookup_toolchain_desc(cfg, &default)?;
-        used_toolchains.insert(default.to_string());
+        if let Ok(default) = resolve_toolchain_desc_ext(
+            cfg,
+            &lookup_unresolved_toolchain_desc(cfg, &default)?,
+            true,
+            true,
+        ) {
+            used_toolchains.push(("default toolchain".to_string(), default));
+        }
     }
     if let Some(ref env_override) = cfg.env_override {
-        used_toolchains.insert(env_override.clone());
+        if let Ok(desc) = resolve_toolchain_desc_ext(
+            cfg,
+            &lookup_unresolved_toolchain_desc(cfg, env_override)?,
+            true,
+            true,
+        ) {
+            used_toolchains.push(("ELAN_TOOLCHAIN".to_string(), desc));
+        }
     }
-    for o in cfg.get_overrides()? {
-        used_toolchains.insert(o.1.to_string());
+    for (path, tc) in cfg.get_overrides()? {
+        used_toolchains.push((format!("{} (override)", path), tc));
     }
-    Ok(cfg.list_toolchains()?.into_iter()
+    let used_toolchains_set = used_toolchains
+        .iter()
+        .map(|p| p.1.to_string())
+        .collect::<HashSet<_>>();
+    let unused_toolchains = cfg
+        .list_toolchains()?
+        .into_iter()
         .map(|t| Toolchain::from(cfg, &t))
-        .filter(|t| !t.is_custom() && !used_toolchains.contains(&t.desc.to_string()))
-        .collect_vec())
+        .filter(|t| !t.is_custom() && !used_toolchains_set.contains(&t.desc.to_string()))
+        .collect_vec();
+    Ok((unused_toolchains, used_toolchains))
 }

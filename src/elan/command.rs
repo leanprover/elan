@@ -2,8 +2,8 @@ use std::ffi::OsStr;
 use std::io;
 use std::process::{self, Command};
 
+use crate::errors::*;
 use elan_utils;
-use errors::*;
 
 pub fn run_command_for_dir<S: AsRef<OsStr>>(
     mut cmd: Command,

@@ -1,6 +1,6 @@
+use crate::term2;
 use std::fmt;
 use std::io::Write;
-use term2;
 
 macro_rules! warn {
     ( $ ( $ arg : tt ) * ) => ( $crate::log::warn_fmt ( format_args ! ( $ ( $ arg ) * ) ) )
@@ -16,41 +16,41 @@ macro_rules! verbose {
     ( $ ( $ arg : tt ) * ) => ( $crate::log::verbose_fmt ( format_args ! ( $ ( $ arg ) * ) ) )
 }
 
-pub fn warn_fmt(args: fmt::Arguments) {
+pub fn warn_fmt(args: fmt::Arguments<'_>) {
     let mut t = term2::stderr();
     let _ = t.fg(term2::color::BRIGHT_YELLOW);
     let _ = t.attr(term2::Attr::Bold);
     let _ = write!(t, "warning: ");
     let _ = t.reset();
     let _ = t.write_fmt(args);
-    let _ = write!(t, "\n");
+    let _ = writeln!(t);
 }
 
-pub fn err_fmt(args: fmt::Arguments) {
+pub fn err_fmt(args: fmt::Arguments<'_>) {
     let mut t = term2::stderr();
     let _ = t.fg(term2::color::BRIGHT_RED);
     let _ = t.attr(term2::Attr::Bold);
     let _ = write!(t, "error: ");
     let _ = t.reset();
     let _ = t.write_fmt(args);
-    let _ = write!(t, "\n");
+    let _ = writeln!(t);
 }
 
-pub fn info_fmt(args: fmt::Arguments) {
+pub fn info_fmt(args: fmt::Arguments<'_>) {
     let mut t = term2::stderr();
     let _ = t.attr(term2::Attr::Bold);
     let _ = write!(t, "info: ");
     let _ = t.reset();
     let _ = t.write_fmt(args);
-    let _ = write!(t, "\n");
+    let _ = writeln!(t);
 }
 
-pub fn verbose_fmt(args: fmt::Arguments) {
+pub fn verbose_fmt(args: fmt::Arguments<'_>) {
     let mut t = term2::stderr();
     let _ = t.fg(term2::color::BRIGHT_MAGENTA);
     let _ = t.attr(term2::Attr::Bold);
     let _ = write!(t, "verbose: ");
     let _ = t.reset();
     let _ = t.write_fmt(args);
-    let _ = write!(t, "\n");
+    let _ = writeln!(t);
 }

@@ -1,10 +1,11 @@
+use crate::manifest::Component;
+use crate::temp;
 use elan_utils;
-use manifest::Component;
+use error_chain::error_chain;
 use std::io::{self, Write};
 use std::path::PathBuf;
-use temp;
-use toml;
 use time::error::ComponentRange;
+use toml;
 
 error_chain! {
     links {

@@ -1,10 +1,10 @@
+use crate::errors::*;
+use crate::manifest::Component;
+use crate::temp;
 use elan_utils;
 use elan_utils::notify::NotificationLevel;
-use errors::*;
-use manifest::Component;
 use std::fmt::{self, Display};
 use std::path::Path;
-use temp;
 
 #[derive(Debug)]
 pub enum Notification<'a> {
@@ -31,6 +31,7 @@ pub enum Notification<'a> {
     DownloadingLegacyManifest,
     ManifestChecksumFailedHack,
     NewVersionAvailable(String),
+    WaitingForFileLock(&'a Path, &'a str),
 }
 
 impl<'a> From<elan_utils::Notification<'a>> for Notification<'a> {
@@ -65,6 +66,7 @@ impl<'a> Notification<'a> {
             | RollingBack
             | DownloadingManifest(_)
             | NewVersionAvailable(_)
+            | WaitingForFileLock(_, _)
             | DownloadedManifest(_, _) => NotificationLevel::Info,
             CantReadUpdateHash(_)
             | ExtensionNotInstalled(_)
@@ -76,7 +78,7 @@ impl<'a> Notification<'a> {
 }
 
 impl<'a> Display for Notification<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> ::std::result::Result<(), fmt::Error> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> ::std::result::Result<(), fmt::Error> {
         use self::Notification::*;
         match *self {
             Temp(ref n) => n.fmt(f),
@@ -120,7 +122,18 @@ impl<'a> Display for Notification<'a> {
                 write!(f, "update not yet available, sorry! try again later")
             }
             NewVersionAvailable(ref version) => {
-                write!(f, "Version {version} of elan is available! Use `elan self update` to update.")
+                write!(
+                    f,
+                    "Version {version} of elan is available! Use `elan self update` to update."
+                )
+            }
+            WaitingForFileLock(path, pid) => {
+                write!(
+                    f,
+                    "waiting for previous installation request to finish ({}, held by PID {})",
+                    path.display(),
+                    pid
+                )
             }
         }
     }

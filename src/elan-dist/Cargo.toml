@@ -5,6 +5,7 @@ version = "1.11.0"
 authors = [ "Sebastian Ullrich <sebasti@nullri.ch>" ]
 description = "Installation from a Lean distribution server"
 build = "build.rs"
+edition = "2021"
 
 license = "MIT OR Apache-2.0"
 
@@ -26,6 +27,9 @@ json = "0.12.4"
 zip = "0.6"
 filetime = "0.2.14"
 time = "0.3"
+serde = "1.0.119"
+serde_derive = "1.0.119"
+fslock = "0.2.1"
 
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3.9", features = ["handleapi", "sysinfoapi", "tlhelp32", "winnt"] }
@@ -36,4 +40,3 @@ libc = "0.2.88"
 
 [lib]
 name = "elan_dist"
-

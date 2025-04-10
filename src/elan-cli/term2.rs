@@ -4,8 +4,6 @@
 
 use elan_utils::tty;
 use std::io;
-use term;
-use pulldown_cmark::{Event, Tag, TagEnd};
 
 pub use term::color;
 pub use term::Attr;
@@ -57,7 +55,7 @@ pub fn stderr() -> StderrTerminal {
 }
 
 // Handles the wrapping of text written to the console
-struct LineWrapper<'a, T: io::Write + 'a> {
+struct LineWrapper<'a, T: io::Write> {
     indent: u32,
     margin: u32,
     pos: u32,
@@ -67,7 +65,7 @@ struct LineWrapper<'a, T: io::Write + 'a> {
 impl<'a, T: io::Write + 'a> LineWrapper<'a, T> {
     // Just write a newline
     fn write_line(&mut self) {
-        let _ = writeln!(self.w, "");
+        let _ = writeln!(self.w);
         // Reset column position to start of line
         self.pos = 0;
     }
@@ -126,17 +124,16 @@ impl<'a, T: io::Write + 'a> LineWrapper<'a, T> {
     // Constructor
     fn new(w: &'a mut T, indent: u32, margin: u32) -> Self {
         LineWrapper {
-            indent: indent,
-            margin: margin,
+            indent,
+            margin,
             pos: indent,
-            w: w,
+            w,
         }
     }
 }
 
 // Handles the formatting of text
-struct LineFormatter<'a, T: Instantiable + Isatty + io::Write + 'a> {
-    is_code_block: bool,
+struct LineFormatter<'a, T: Instantiable + Isatty + io::Write> {
     wrapper: LineWrapper<'a, Terminal<T>>,
     attrs: Vec<Attr>,
 }

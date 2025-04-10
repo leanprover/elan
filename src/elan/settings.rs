@@ -1,15 +1,15 @@
+use crate::errors::*;
+use crate::notifications::*;
+use crate::toml_utils::*;
+use crate::utils;
 use elan_dist::dist::ToolchainDesc;
-use errors::*;
-use notifications::*;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use toml;
-use toml_utils::*;
-use utils;
 
-pub const SUPPORTED_METADATA_VERSIONS: [&'static str; 2] = ["2", "12"];
-pub const DEFAULT_METADATA_VERSION: &'static str = "12";
+pub const SUPPORTED_METADATA_VERSIONS: [&str; 2] = ["2", "12"];
+pub const DEFAULT_METADATA_VERSION: &str = "12";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SettingsFile {
@@ -20,7 +20,7 @@ pub struct SettingsFile {
 impl SettingsFile {
     pub fn new(path: PathBuf) -> Self {
         SettingsFile {
-            path: path,
+            path,
             cache: RefCell::new(None),
         }
     }
@@ -90,7 +90,7 @@ impl Default for Settings {
 }
 
 impl Settings {
-    fn path_to_key(path: &Path, notify_handler: &dyn Fn(Notification)) -> String {
+    fn path_to_key(path: &Path, notify_handler: &dyn Fn(Notification<'_>)) -> String {
         if path.exists() {
             utils::canonicalize_path(path, &|n| notify_handler(n.into()))
                 .display()
@@ -100,7 +100,11 @@ impl Settings {
         }
     }
 
-    pub fn remove_override(&mut self, path: &Path, notify_handler: &dyn Fn(Notification)) -> bool {
+    pub fn remove_override(
+        &mut self,
+        path: &Path,
+        notify_handler: &dyn Fn(Notification<'_>),
+    ) -> bool {
         let key = Self::path_to_key(path, notify_handler);
         self.overrides.remove(&key).is_some()
     }
@@ -109,7 +113,7 @@ impl Settings {
         &mut self,
         path: &Path,
         toolchain: ToolchainDesc,
-        notify_handler: &dyn Fn(Notification),
+        notify_handler: &dyn Fn(Notification<'_>),
     ) {
         let key = Self::path_to_key(path, notify_handler);
         notify_handler(Notification::SetOverrideToolchain(path, &toolchain));
@@ -119,10 +123,10 @@ impl Settings {
     pub fn dir_override(
         &self,
         dir: &Path,
-        notify_handler: &dyn Fn(Notification),
+        notify_handler: &dyn Fn(Notification<'_>),
     ) -> Option<ToolchainDesc> {
         let key = Self::path_to_key(dir, notify_handler);
-        self.overrides.get(&key).map(|s| s.clone())
+        self.overrides.get(&key).cloned()
     }
 
     pub fn parse(data: &str) -> Result<Self> {
@@ -139,7 +143,7 @@ impl Settings {
             return Err(ErrorKind::UnknownMetadataVersion(version).into());
         }
         Ok(Settings {
-            version: version,
+            version,
             default_toolchain: get_opt_string(&mut table, "default_toolchain", path)?,
             overrides: Self::table_to_overrides(&mut table, path)?,
             telemetry: if get_opt_bool(&mut table, "telemetry", path)?.unwrap_or(false) {

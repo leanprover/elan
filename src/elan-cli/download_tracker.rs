@@ -4,7 +4,6 @@ use elan_utils::tty;
 use elan_utils::Notification as Un;
 use std::collections::VecDeque;
 use std::fmt;
-use term;
 use time::OffsetDateTime;
 
 /// Keep track of this many past download amounts
@@ -53,7 +52,7 @@ impl DownloadTracker {
         }
     }
 
-    pub fn handle_notification(&mut self, n: &Notification) -> bool {
+    pub fn handle_notification(&mut self, n: &Notification<'_>) -> bool {
         match *n {
             Notification::Install(In::Utils(Un::DownloadContentLengthReceived(content_len))) => {
                 self.content_length_received(content_len);
@@ -110,7 +109,7 @@ impl DownloadTracker {
         if self.displayed_charcount.is_some() {
             // Display the finished state
             self.display();
-            let _ = writeln!(self.term.as_mut().unwrap(), "");
+            let _ = writeln!(self.term.as_mut().unwrap());
         }
         self.prepare_for_new_download();
     }
@@ -159,19 +158,11 @@ impl DownloadTracker {
                 let eta_h = HumanReadable(remaining / speed);
                 format!(
                     "{} / {} ({:3.0} %) {}/s ETA: {:#}",
-                    total_h,
-                    content_len_h,
-                    percent,
-                    speed_h,
-                    eta_h
+                    total_h, content_len_h, percent, speed_h, eta_h
                 )
             }
             None => {
-                format!(
-                    "Total: {} Speed: {}/s",
-                    total_h,
-                    speed_h
-                )
+                format!("Total: {} Speed: {}/s", total_h, speed_h)
             }
         };
 
@@ -186,7 +177,7 @@ impl DownloadTracker {
 struct HumanReadable(f64);
 
 impl fmt::Display for HumanReadable {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if f.alternate() {
             // repurposing the alternate mode for ETA
             let sec = self.0;

@@ -1,22 +1,23 @@
-use config::Cfg;
-use elan_dist;
+use crate::config::Cfg;
+use crate::env_var;
+use crate::errors::*;
+use crate::install::{self, InstallMethod};
+use crate::notifications::*;
 use elan_dist::dist::ToolchainDesc;
 use elan_dist::download::DownloadCfg;
 use elan_dist::manifest::Component;
 use elan_utils::utils;
 use elan_utils::utils::fetch_url;
-use env_var;
-use errors::*;
-use install::{self, InstallMethod};
-use notifications::*;
+use itertools::Itertools;
 
+use regex::Regex;
+use serde_derive::Serialize;
 use std::env;
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use regex::Regex;
 
 const DEFAULT_ORIGIN: &str = "leanprover/lean4";
 
@@ -25,7 +26,7 @@ pub struct Toolchain<'a> {
     cfg: &'a Cfg,
     pub desc: ToolchainDesc,
     path: PathBuf,
-    dist_handler: Box<dyn Fn(elan_dist::Notification) + 'a>,
+    dist_handler: Box<dyn Fn(elan_dist::Notification<'_>) + 'a>,
 }
 
 /// Used by the `list_component` function
@@ -36,35 +37,163 @@ pub struct ComponentStatus {
     pub available: bool,
 }
 
-pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
-    let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?([a-zA-Z0-9-.]+)$";
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct UnresolvedToolchainDesc(pub ToolchainDesc);
 
-    let re = Regex::new(&pattern).unwrap();
+pub fn lookup_unresolved_toolchain_desc(cfg: &Cfg, name: &str) -> Result<UnresolvedToolchainDesc> {
+    let pattern = r"^(?:([a-zA-Z0-9-_]+[/][a-zA-Z0-9-_]+)[:])?([a-zA-Z0-9-.]+)$";
+
+    let re = Regex::new(pattern).unwrap();
     if let Some(c) = re.captures(name) {
         let mut release = c.get(2).unwrap().as_str().to_owned();
-        let local_tc = Toolchain::from(cfg, &ToolchainDesc::Local { name: release.clone() });
+        let local_tc = Toolchain::from(
+            cfg,
+            &ToolchainDesc::Local {
+                name: release.clone(),
+            },
+        );
         if local_tc.exists() && local_tc.is_custom() {
-            return Ok(ToolchainDesc::Local { name: release })
+            return Ok(UnresolvedToolchainDesc(ToolchainDesc::Local {
+                name: release,
+            }));
         }
-        let mut origin = c.get(1).map(|s| s.as_str()).unwrap_or(DEFAULT_ORIGIN).to_owned();
+        let mut origin = c
+            .get(1)
+            .map(|s| s.as_str())
+            .unwrap_or(DEFAULT_ORIGIN)
+            .to_owned();
         if release.starts_with("nightly") && !origin.ends_with("-nightly") {
             origin = format!("{}-nightly", origin);
         }
-        if release == "lean-toolchain" {
-            let toolchain_url = format!("https://raw.githubusercontent.com/{}/HEAD/lean-toolchain", origin);
-            return lookup_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())
-        }
-        if release == "stable" || release == "nightly" {
-            release = utils::fetch_latest_release_tag(&origin,
-Some(&move |n| (cfg.notify_handler)(n.into())))?;
+        let mut from_channel = None;
+        if release == "lean-toolchain"
+            || release == "stable"
+            || release == "beta"
+            || release == "nightly"
+        {
+            from_channel = Some(release.to_string());
         }
         if release.starts_with(char::is_numeric) {
             release = format!("v{}", release)
         }
-        Ok(ToolchainDesc::Remote { origin, release })
+        Ok(UnresolvedToolchainDesc(ToolchainDesc::Remote {
+            origin,
+            release,
+            from_channel,
+        }))
     } else {
         Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
     }
+}
+
+fn find_latest_local_toolchain(cfg: &Cfg, channel: &str) -> Option<ToolchainDesc> {
+    let toolchains = cfg.list_toolchains().ok()?;
+    let toolchains = toolchains.into_iter().filter_map(|tc| match tc {
+        ToolchainDesc::Remote { release: ref r, .. } => Some((tc.to_owned(), r.to_string())),
+        _ => None,
+    });
+    let toolchains: Vec<_> = match channel {
+        "nightly" => toolchains
+            .filter(|t| t.1.starts_with("nightly-"))
+            .sorted_by_key(|t| t.1.to_string())
+            .map(|t| t.0)
+            .collect(),
+        _ => toolchains
+            .filter_map(|t| {
+                semver::Version::parse(t.1.trim_start_matches("v"))
+                    .ok()
+                    .filter(|v| (channel == "stable") == v.pre.is_empty())
+                    .map(|v| (t.0, v))
+            })
+            .sorted_by_key(|t| t.1.to_string())
+            .map(|t| t.0)
+            .collect(),
+    };
+    toolchains.into_iter().last()
+}
+
+pub fn resolve_toolchain_desc_ext(
+    cfg: &Cfg,
+    unresolved_tc: &UnresolvedToolchainDesc,
+    no_net: bool,
+    use_cache: bool,
+) -> Result<ToolchainDesc> {
+    if let ToolchainDesc::Remote {
+        ref origin,
+        ref release,
+        from_channel: Some(ref channel),
+    } = unresolved_tc.0
+    {
+        if release == "lean-toolchain" {
+            let toolchain_url = format!(
+                "https://raw.githubusercontent.com/{}/HEAD/lean-toolchain",
+                origin
+            );
+            resolve_toolchain_desc_ext(
+                cfg,
+                &lookup_unresolved_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())?,
+                no_net,
+                use_cache,
+            )
+        } else if release == "stable" || release == "beta" || release == "nightly" {
+            match utils::fetch_latest_release_tag(origin, no_net) {
+                Ok(release) => Ok(ToolchainDesc::Remote {
+                    origin: origin.clone(),
+                    release,
+                    from_channel: Some(channel.clone()),
+                }),
+                Err(e) => {
+                    if let (true, Some(tc)) = (use_cache, find_latest_local_toolchain(cfg, release))
+                    {
+                        if !no_net {
+                            (cfg.notify_handler)(Notification::UsingExistingRelease(&tc));
+                        }
+                        Ok(tc)
+                    } else {
+                        Err(e)?
+                    }
+                }
+            }
+        } else {
+            Ok(unresolved_tc.0.clone())
+        }
+    } else {
+        Ok(unresolved_tc.0.clone())
+    }
+}
+
+pub fn resolve_toolchain_desc(
+    cfg: &Cfg,
+    unresolved_tc: &UnresolvedToolchainDesc,
+) -> Result<ToolchainDesc> {
+    resolve_toolchain_desc_ext(cfg, unresolved_tc, false, true)
+}
+
+pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
+    resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, name)?)
+}
+
+pub fn read_unresolved_toolchain_desc_from_file(
+    cfg: &Cfg,
+    toolchain_file: &Path,
+) -> Result<UnresolvedToolchainDesc> {
+    let s = utils::read_file("toolchain file", toolchain_file)?;
+    if let Some(s) = s.lines().next() {
+        let toolchain_name = s.trim();
+        lookup_unresolved_toolchain_desc(cfg, toolchain_name)
+    } else {
+        Err(Error::from(format!(
+            "empty toolchain file '{}'",
+            toolchain_file.display()
+        )))
+    }
+}
+
+pub fn read_toolchain_desc_from_file(cfg: &Cfg, toolchain_file: &Path) -> Result<ToolchainDesc> {
+    resolve_toolchain_desc(
+        cfg,
+        &read_unresolved_toolchain_desc_from_file(cfg, toolchain_file)?,
+    )
 }
 
 impl<'a> Toolchain<'a> {
@@ -76,7 +205,7 @@ impl<'a> Toolchain<'a> {
         let path = cfg.toolchains_dir.join(&dir_name[..]);
 
         Toolchain {
-            cfg: cfg,
+            cfg,
             desc: desc.clone(),
             path: path.clone(),
             dist_handler: Box::new(move |n| (cfg.notify_handler)(n.into())),
@@ -118,12 +247,12 @@ impl<'a> Toolchain<'a> {
         if !self.exists() {
             (self.cfg.notify_handler)(Notification::UninstalledToolchain(&self.desc));
         }
-        Ok(result?)
+        result
     }
-    fn install(&self, install_method: InstallMethod) -> Result<()> {
+    fn install(&self, install_method: InstallMethod<'_>) -> Result<()> {
         let exists = self.exists();
         if exists {
-            return Err(format!("'{}' is already installed", self.desc).into())
+            return Err(format!("'{}' is already installed", self.desc).into());
         } else {
             (self.cfg.notify_handler)(Notification::InstallingToolchain(&self.desc));
         }
@@ -134,7 +263,7 @@ impl<'a> Toolchain<'a> {
 
         Ok(())
     }
-    fn install_if_not_installed(&self, install_method: InstallMethod) -> Result<()> {
+    fn install_if_not_installed(&self, install_method: InstallMethod<'_>) -> Result<()> {
         (self.cfg.notify_handler)(Notification::LookingForToolchain(&self.desc));
         if !self.exists() {
             self.install(install_method)
@@ -143,7 +272,7 @@ impl<'a> Toolchain<'a> {
         }
     }
 
-    fn download_cfg(&self) -> DownloadCfg {
+    fn download_cfg(&self) -> DownloadCfg<'_> {
         DownloadCfg {
             temp_cfg: &self.cfg.temp_cfg,
             notify_handler: &*self.dist_handler,
@@ -151,17 +280,11 @@ impl<'a> Toolchain<'a> {
     }
 
     pub fn install_from_dist(&self) -> Result<()> {
-        self.install(InstallMethod::Dist(
-            &self.desc,
-            self.download_cfg(),
-        ))
+        self.install(InstallMethod::Dist(&self.desc, self.download_cfg()))
     }
 
     pub fn install_from_dist_if_not_installed(&self) -> Result<()> {
-        self.install_if_not_installed(InstallMethod::Dist(
-            &self.desc,
-            self.download_cfg(),
-        ))
+        self.install_if_not_installed(InstallMethod::Dist(&self.desc, self.download_cfg()))
     }
 
     pub fn install_from_dir(&self, src: &Path, link: bool) -> Result<()> {
@@ -202,11 +325,11 @@ impl<'a> Toolchain<'a> {
             Path::new(&binary)
         };
         let mut cmd: Command;
-        if cfg!(windows) && path.extension() == None {
+        if cfg!(windows) && path.extension().is_none() {
             cmd = Command::new("sh");
             cmd.arg(format!("'{}'", path.to_str().unwrap()));
         } else {
-            cmd = Command::new(&path);
+            cmd = Command::new(path);
         };
         self.set_env(&mut cmd);
         Ok(cmd)
@@ -217,7 +340,7 @@ impl<'a> Toolchain<'a> {
 
         env_var::inc("LEAN_RECURSION_COUNT", cmd);
 
-        cmd.env("ELAN_TOOLCHAIN", &self.name());
+        cmd.env("ELAN_TOOLCHAIN", self.name());
         cmd.env("ELAN_HOME", &self.cfg.elan_dir);
     }
 
@@ -257,10 +380,10 @@ impl<'a> Toolchain<'a> {
     }
 
     pub fn make_override(&self, path: &Path) -> Result<()> {
-        Ok(self.cfg.settings_file.with_mut(|s| {
+        self.cfg.settings_file.with_mut(|s| {
             s.add_override(path, self.desc.clone(), self.cfg.notify_handler.as_ref());
             Ok(())
-        })?)
+        })
     }
 
     pub fn binary_file<T: AsRef<OsStr>>(&self, binary: T) -> PathBuf {

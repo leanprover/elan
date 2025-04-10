@@ -1,10 +1,11 @@
-# Unreleased
+# 4.0.0 - 2025-01-30
 
 - Revamp toolchain resolution and storage
   * Toolchain references are now always resolved to a fixed `<owner>/<repo>:<version>` format before
     downloading, resolving the issue of having the same toolchain installed as e.g. `stable`,
     `v4.9.0`, and `leanprover/lean4:v4.9.0` and ensuring that e.g. `stable` has the same meaning for
-    everyone at a given point in time.
+    everyone at a given point in time. Elan will automatically uninstall toolchains under
+    now-unreachable names.
   * Accordingly, `elan update` has been removed as updates of non-fixed toolchains are now implicit.
   * This also fixes `lake +stable new ...` putting an unadvisable `leanprover/lean4:stable`
     reference in `lean-toolchain`.

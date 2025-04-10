@@ -1,7 +1,6 @@
+use crate::errors::*;
+use crate::notifications::Notification;
 use dirs;
-use errors::*;
-use notifications::Notification;
-use raw;
 use std::cmp::Ord;
 use std::env;
 use std::ffi::OsString;
@@ -13,14 +12,16 @@ use url::Url;
 #[cfg(windows)]
 use winreg;
 
-pub use raw::{
+use crate::raw;
+
+pub use crate::raw::{
     find_cmd, has_cmd, if_not_empty, is_directory, is_file, path_exists, prefix_arg, random_string,
 };
 
 pub fn ensure_dir_exists(
     name: &'static str,
     path: &Path,
-    notify_handler: &dyn Fn(Notification),
+    notify_handler: &dyn Fn(Notification<'_>),
 ) -> Result<bool> {
     raw::ensure_dir_exists(path, |p| {
         notify_handler(Notification::CreatingDirectory(name, p))
@@ -106,7 +107,7 @@ pub fn match_file<T, F: FnMut(&str) -> Option<T>>(
     })
 }
 
-pub fn canonicalize_path(path: &Path, notify_handler: &dyn Fn(Notification)) -> PathBuf {
+pub fn canonicalize_path(path: &Path, notify_handler: &dyn Fn(Notification<'_>)) -> PathBuf {
     fs::canonicalize(path).unwrap_or_else(|_| {
         notify_handler(Notification::NoCanonicalPath(path));
         PathBuf::from(path)
@@ -123,7 +124,7 @@ pub fn tee_file<W: io::Write>(name: &'static str, path: &Path, w: &mut W) -> Res
 pub fn download_file(
     url: &Url,
     path: &Path,
-    notify_handler: &dyn Fn(Notification),
+    notify_handler: &dyn Fn(Notification<'_>),
 ) -> Result<()> {
     use download::ErrorKind as DEK;
     match download_file_(url, path, notify_handler) {
@@ -152,11 +153,7 @@ pub fn download_file(
     }
 }
 
-fn download_file_(
-    url: &Url,
-    path: &Path,
-    notify_handler: &dyn Fn(Notification),
-) -> Result<()> {
+fn download_file_(url: &Url, path: &Path, notify_handler: &dyn Fn(Notification<'_>)) -> Result<()> {
     use download::download_to_path_with_backend;
     use download::{Backend, Event};
 
@@ -164,7 +161,7 @@ fn download_file_(
 
     // This callback will write the download to disk and optionally
     // hash the contents, then forward the notification up the stack
-    let callback: &dyn Fn(Event) -> download::Result<()> = &|msg| {
+    let callback: &dyn Fn(Event<'_>) -> download::Result<()> = &|msg| {
         match msg {
             Event::DownloadContentLengthReceived(len) => {
                 notify_handler(Notification::DownloadContentLengthReceived(len));
@@ -220,7 +217,11 @@ pub fn assert_is_directory(path: &Path) -> Result<()> {
     }
 }
 
-pub fn symlink_dir(src: &Path, dest: &Path, notify_handler: &dyn Fn(Notification)) -> Result<()> {
+pub fn symlink_dir(
+    src: &Path,
+    dest: &Path,
+    notify_handler: &dyn Fn(Notification<'_>),
+) -> Result<()> {
     notify_handler(Notification::LinkingDirectory(src, dest));
     raw::symlink_dir(src, dest).chain_err(|| ErrorKind::LinkingDirectory {
         src: PathBuf::from(src),
@@ -260,7 +261,7 @@ pub fn symlink_file(src: &Path, dest: &Path) -> Result<()> {
     .into())
 }
 
-pub fn copy_dir(src: &Path, dest: &Path, notify_handler: &dyn Fn(Notification)) -> Result<()> {
+pub fn copy_dir(src: &Path, dest: &Path, notify_handler: &dyn Fn(Notification<'_>)) -> Result<()> {
     notify_handler(Notification::CopyingDirectory(src, dest));
     raw::copy_dir(src, dest).chain_err(|| ErrorKind::CopyingDirectory {
         src: PathBuf::from(src),
@@ -280,7 +281,7 @@ pub fn copy_file(src: &Path, dest: &Path) -> Result<()> {
 pub fn remove_dir(
     name: &'static str,
     path: &Path,
-    notify_handler: &dyn Fn(Notification),
+    notify_handler: &dyn Fn(Notification<'_>),
 ) -> Result<()> {
     notify_handler(Notification::RemovingDirectory(name, path));
     raw::remove_dir(path).chain_err(|| ErrorKind::RemovingDirectory {
@@ -470,16 +471,24 @@ pub fn fetch_url(url: &str) -> Result<String> {
             .unwrap();
         transfer.perform().chain_err(|| "error during download")
     })?;
-    ::std::str::from_utf8(&data).chain_err(|| "failed to decode response").map(|s| s.to_owned())
+    ::std::str::from_utf8(&data)
+        .chain_err(|| "failed to decode response")
+        .map(|s| s.to_owned())
 }
 
 // fetch from HTML page instead of Github API to avoid rate limit
-pub fn fetch_latest_release_tag(repo_slug: &str, notify_handler: Option<&dyn Fn(Notification)>) -> Result<String> {
+pub fn fetch_latest_release_tag(repo_slug: &str, no_net: bool) -> Result<String> {
     use regex::Regex;
 
     let latest_url = format!("https://github.com/{}/releases/latest", repo_slug);
-    let cache_path = elan_home()?.join("cached-tags").join(repo_slug);
-    match fetch_url(&latest_url) {
+    let res = if no_net {
+        Err(Error::from(
+            "Cannot fetch latest release tag under `--no-net`",
+        ))
+    } else {
+        fetch_url(&latest_url)
+    };
+    match res {
         Ok(redirect) => {
             let re = Regex::new(r#"/tag/([-a-z0-9.]+)"#).unwrap();
             let capture = re.captures(&redirect);
@@ -487,20 +496,9 @@ pub fn fetch_latest_release_tag(repo_slug: &str, notify_handler: Option<&dyn Fn(
                 Some(cap) => cap.get(1).unwrap().as_str().to_string(),
                 None => return Err("failed to parse latest release tag".into()),
             };
-            fs::create_dir_all(cache_path.parent().unwrap())?;
-            fs::write(cache_path, &tag)?;
             Ok(tag)
         }
-        Err(e) => {
-            if let Some(handler) = notify_handler {
-                if cache_path.exists() {
-                    let tag = fs::read_to_string(cache_path)?;
-                    handler(Notification::UsingCachedRelease(&tag));
-                    return Ok(tag)
-                }
-            }
-            Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 

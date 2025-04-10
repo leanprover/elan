@@ -1,11 +1,10 @@
 use std::fmt::{self, Display};
 use std::path::{Path, PathBuf};
 
+use crate::errors::*;
 use elan_dist::dist::ToolchainDesc;
-use errors::*;
 
 use elan_dist::{self, temp};
-use elan_utils;
 use elan_utils::notify::NotificationLevel;
 
 #[derive(Debug)]
@@ -22,7 +21,9 @@ pub enum Notification<'a> {
     InstallingToolchain(&'a ToolchainDesc),
     InstalledToolchain(&'a ToolchainDesc),
     UsingExistingToolchain(&'a ToolchainDesc),
+    UsingExistingRelease(&'a ToolchainDesc),
     UninstallingToolchain(&'a ToolchainDesc),
+    UninstallingObsoleteToolchain(&'a Path),
     UninstalledToolchain(&'a ToolchainDesc),
     ToolchainNotInstalled(&'a ToolchainDesc),
     UpdateHashMatches,
@@ -54,7 +55,7 @@ impl<'a> From<temp::Notification<'a>> for Notification<'a> {
     }
 }
 
-impl<'a> Notification<'a> {
+impl Notification<'_> {
     pub fn level(&self) -> NotificationLevel {
         use self::Notification::*;
         match *self {
@@ -74,19 +75,22 @@ impl<'a> Notification<'a> {
             | SetOverrideToolchain(_, _)
             | UsingExistingToolchain(_)
             | UninstallingToolchain(_)
+            | UninstallingObsoleteToolchain(_)
             | UninstalledToolchain(_)
             | ToolchainNotInstalled(_)
             | UpgradingMetadata(_, _)
             | MetadataUpgradeNotNeeded(_)
             | SetTelemetry(_) => NotificationLevel::Info,
             NonFatalError(_) => NotificationLevel::Error,
-            UpgradeRemovesToolchains | MissingFileDuringSelfUninstall(_) => NotificationLevel::Warn,
+            UpgradeRemovesToolchains
+            | MissingFileDuringSelfUninstall(_)
+            | UsingExistingRelease(_) => NotificationLevel::Warn,
         }
     }
 }
 
-impl<'a> Display for Notification<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> ::std::result::Result<(), fmt::Error> {
+impl Display for Notification<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> ::std::result::Result<(), fmt::Error> {
         use self::Notification::*;
         match *self {
             Install(ref n) => n.fmt(f),
@@ -108,6 +112,11 @@ impl<'a> Display for Notification<'a> {
             InstalledToolchain(name) => write!(f, "toolchain '{}' installed", name),
             UsingExistingToolchain(name) => write!(f, "using existing install for '{}'", name),
             UninstallingToolchain(name) => write!(f, "uninstalling toolchain '{}'", name),
+            UninstallingObsoleteToolchain(name) => write!(
+                f,
+                "uninstalling toolchain '{}' using obsolete format",
+                name.display()
+            ),
             UninstalledToolchain(name) => write!(f, "toolchain '{}' uninstalled", name),
             ToolchainNotInstalled(name) => write!(f, "no toolchain installed for '{}'", name),
             UpdateHashMatches => {
@@ -143,6 +152,11 @@ impl<'a> Display for Notification<'a> {
             }
             SetTelemetry(telemetry_status) => write!(f, "telemetry set to '{}'", telemetry_status),
             TelemetryCleanupError(e) => write!(f, "unable to remove old telemetry files: '{}'", e),
+            UsingExistingRelease(tc) => write!(
+                f,
+                "failed to query latest release, using existing version '{}'",
+                tc
+            ),
         }
     }
 }

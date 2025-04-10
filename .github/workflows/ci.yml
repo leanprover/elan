@@ -48,11 +48,11 @@ jobs:
       RELEASE_TARGET_NAME: ${{ matrix.release-target-name || matrix.target }}
       RUSTFLAGS: ${{ matrix.RUSTFLAGS }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -83,7 +83,7 @@ jobs:
           cd target/${{ matrix.target  }}/release
           Compress-Archive elan-init.exe ../../../elan-${{ matrix.release-target-name || matrix.target }}.zip
         if: matrix.os == 'windows-latest'
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.name }}
           path: elan-${{ matrix.release-target-name || matrix.target }}*
@@ -102,7 +102,7 @@ jobs:
           lake new foo
           cd foo
           lake build
-      - uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: elan-${{ matrix.release-target-name || matrix.target }}*

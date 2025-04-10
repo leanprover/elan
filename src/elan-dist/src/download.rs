@@ -1,7 +1,7 @@
+use crate::errors::*;
+use crate::notifications::*;
+use crate::temp;
 use elan_utils::utils;
-use errors::*;
-use notifications::*;
-use temp;
 
 use std::ops;
 use std::path::{Path, PathBuf};
@@ -11,7 +11,7 @@ const _UPDATE_HASH_LEN: usize = 20;
 #[derive(Copy, Clone)]
 pub struct DownloadCfg<'a> {
     pub temp_cfg: &'a temp::Cfg,
-    pub notify_handler: &'a dyn Fn(Notification),
+    pub notify_handler: &'a dyn Fn(Notification<'_>),
 }
 
 pub struct File {

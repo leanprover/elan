@@ -1,12 +1,15 @@
 //! Manifest a particular Lean version by installing it from a distribution server.
 
-use component::{TarGzPackage, TarZstdPackage, ZipPackage};
-use download::DownloadCfg;
-use elan_utils::utils;
-use errors::*;
-use notifications::*;
-use prefix::InstallPrefix;
-use temp;
+use std::{thread::sleep, time::Duration};
+
+use crate::component::{TarGzPackage, TarZstdPackage, ZipPackage};
+use crate::download::DownloadCfg;
+use crate::errors::*;
+use crate::notifications::*;
+use crate::prefix::InstallPrefix;
+use crate::temp;
+use elan_utils::{raw::read_file, utils};
+use fslock::LockFile;
 
 #[derive(Debug)]
 pub struct Manifestation {
@@ -23,12 +26,45 @@ impl Manifestation {
         origin: &String,
         url: &String,
         temp_cfg: &temp::Cfg,
-        notify_handler: &dyn Fn(Notification),
+        notify_handler: &dyn Fn(Notification<'_>),
     ) -> Result<()> {
+        let prefix = self.prefix.path();
+        utils::ensure_dir_exists("toolchains", prefix.parent().unwrap(), &|n| {
+            (notify_handler)(n.into())
+        })?;
+
+        let lockfile_path = prefix.with_extension("lock");
+        let mut lockfile = LockFile::open(&lockfile_path)?;
+        if !lockfile.try_lock_with_pid()? {
+            notify_handler(Notification::WaitingForFileLock(
+                &lockfile_path,
+                read_file(&lockfile_path)?.trim(),
+            ));
+            while !lockfile.try_lock_with_pid()? {
+                sleep(Duration::from_secs(1));
+            }
+        }
+        let res = self.do_install(origin, url, temp_cfg, notify_handler);
+        let _ = std::fs::remove_file(&lockfile_path);
+        res
+    }
+
+    fn do_install(
+        &self,
+        origin: &String,
+        url: &String,
+        temp_cfg: &temp::Cfg,
+        notify_handler: &dyn Fn(Notification<'_>),
+    ) -> Result<()> {
+        let prefix = self.prefix.path();
         let dlcfg = DownloadCfg {
             temp_cfg: temp_cfg,
             notify_handler: notify_handler,
         };
+
+        if utils::is_directory(prefix) {
+            return Ok(());
+        }
 
         // find correct download on HTML page (AAAAH)
         use regex::Regex;
@@ -70,16 +106,10 @@ impl Manifestation {
 
         let installer_file = dlcfg.download_and_check(&url)?;
 
-        let prefix = self.prefix.path();
-
         notify_handler(Notification::InstallingComponent(&prefix.to_string_lossy()));
 
         // unpack into temporary place, then move atomically to guard against aborts during unpacking
         let unpack_dir = prefix.with_extension("tmp");
-
-        if utils::is_directory(prefix) {
-            return Err(format!("'{}' is already installed", prefix.display()).into())
-        }
 
         if utils::is_directory(&unpack_dir) {
             utils::remove_dir("temp toolchain directory", &unpack_dir, &|n| {
@@ -99,7 +129,7 @@ impl Manifestation {
         } else if url.ends_with(".zip") {
             ZipPackage::unpack_file(&installer_file, &unpack_dir)?
         } else {
-            return Err(format!("unsupported archive format: {}", url).into())
+            return Err(format!("unsupported archive format: {}", url).into());
         }
 
         utils::rename_dir("temp toolchain directory", &unpack_dir, prefix)?;

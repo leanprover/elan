@@ -13,38 +13,7 @@
 //! different name.
 
 #![recursion_limit = "1024"]
-
-extern crate elan_dist;
-extern crate elan_utils;
-#[macro_use]
-extern crate error_chain;
-
-extern crate clap;
-extern crate elan;
-extern crate flate2;
-extern crate itertools;
-extern crate json;
-extern crate pulldown_cmark;
-extern crate rand;
-extern crate regex;
-extern crate same_file;
-extern crate scopeguard;
-extern crate sha2;
-extern crate tar;
-extern crate tempfile;
-extern crate term;
-extern crate time;
-extern crate toml;
-extern crate wait_timeout;
-extern crate zip;
-
-#[cfg(windows)]
-extern crate gcc;
-extern crate libc;
-#[cfg(windows)]
-extern crate winapi;
-#[cfg(windows)]
-extern crate winreg;
+#![deny(rust_2018_idioms)]
 
 #[macro_use]
 mod log;
@@ -54,6 +23,7 @@ mod elan_mode;
 mod errors;
 mod help;
 mod job;
+mod json_dump;
 mod proxy_mode;
 mod self_update;
 mod setup_mode;
