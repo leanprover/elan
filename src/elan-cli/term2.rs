@@ -5,6 +5,8 @@
 use elan_utils::tty;
 use std::io;
 
+use pulldown_cmark::{Event, Tag, TagEnd};
+
 pub use term::color;
 pub use term::Attr;
 
@@ -141,7 +143,6 @@ struct LineFormatter<'a, T: Instantiable + Isatty + io::Write> {
 impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
     fn new(w: &'a mut Terminal<T>, indent: u32, margin: u32) -> Self {
         LineFormatter {
-            is_code_block: false,
             wrapper: LineWrapper::new(w, indent, margin),
             attrs: Vec::new(),
         }
@@ -177,7 +178,6 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             Tag::CodeBlock(_) | Tag::HtmlBlock { .. } => {
                 self.wrapper.write_line();
                 self.wrapper.indent += 2;
-                self.is_code_block = true;
             }
             Tag::List(_) => {
                 self.wrapper.write_line();
@@ -212,7 +212,6 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             TagEnd::TableCell => {}
             TagEnd::BlockQuote => {}
             TagEnd::CodeBlock | TagEnd::HtmlBlock => {
-                self.is_code_block = false;
                 self.wrapper.indent -= 2;
             }
             TagEnd::List(_) => {
@@ -238,11 +237,7 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             Start(tag) => self.start_tag(tag),
             End(tag) => self.end_tag(tag),
             Text(text) => {
-                if self.is_code_block {
-                    self.wrapper.write_word(&text);
-                } else {
-                    self.wrapper.write_span(&text);
-                }
+                self.wrapper.write_span(&text);
             }
             Code(code) => {
                 self.push_attr(Attr::Bold);
