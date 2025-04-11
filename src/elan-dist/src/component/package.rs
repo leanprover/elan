@@ -116,7 +116,7 @@ impl ZipPackage {
                     }
                 }
             } // make sure to close `dst` before setting mtime
-            let mtime = entry.last_modified().to_time()?.unix_timestamp_nanos();
+            let mtime = entry.last_modified().unwrap_or_else(zip::DateTime::default_for_write).to_time()?.unix_timestamp_nanos();
             let mtime = filetime::FileTime::from_unix_time(
                 (mtime / 1000000000) as i64,
                 (mtime % 1000000000) as u32,
