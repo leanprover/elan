@@ -1,3 +1,7 @@
+# Unreleased
+
+- Fix selection of most recent stable toolchain when offline
+
 # 4.0.0 - 2025-01-30
 
 - Revamp toolchain resolution and storage

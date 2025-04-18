@@ -105,7 +105,7 @@ fn find_latest_local_toolchain(cfg: &Cfg, channel: &str) -> Option<ToolchainDesc
                     .filter(|v| (channel == "stable") == v.pre.is_empty())
                     .map(|v| (t.0, v))
             })
-            .sorted_by_key(|t| t.1.to_string())
+            .sorted_by_key(|t| t.1.clone())
             .map(|t| t.0)
             .collect(),
     };
