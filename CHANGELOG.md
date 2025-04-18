@@ -1,4 +1,4 @@
-# Unreleased
+# 4.0.1 - 2025-04-18
 
 - Fix selection of most recent stable toolchain when offline
 
