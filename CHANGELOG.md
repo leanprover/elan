@@ -1,4 +1,4 @@
-# Unreleased
+# 4.1.0 - 2025-04-30
 
 - Fetch releases and assets from release.lean-lang.org instead of parsing GitHub HTML. Makes
   toolchain URL resolution robust against future GitHub changes and enables use of the `beta`
