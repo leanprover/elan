@@ -8,8 +8,12 @@ use crate::errors::*;
 use crate::notifications::*;
 use crate::prefix::InstallPrefix;
 use crate::temp;
+use elan_utils::utils::fetch_url;
 use elan_utils::{raw::read_file, utils};
 use fslock::LockFile;
+
+pub const DEFAULT_ORIGIN: &str = "leanprover/lean4";
+pub const DEFAULT_ORIGIN_JSON_URL: &str = "https://release.lean-lang.org";
 
 #[derive(Debug)]
 pub struct Manifestation {
@@ -24,7 +28,7 @@ impl Manifestation {
     pub fn install(
         &self,
         origin: &String,
-        url: &String,
+        release: &String,
         temp_cfg: &temp::Cfg,
         notify_handler: &dyn Fn(Notification<'_>),
     ) -> Result<()> {
@@ -44,7 +48,7 @@ impl Manifestation {
                 sleep(Duration::from_secs(1));
             }
         }
-        let res = self.do_install(origin, url, temp_cfg, notify_handler);
+        let res = self.do_install(origin, release, temp_cfg, notify_handler);
         let _ = std::fs::remove_file(&lockfile_path);
         res
     }
@@ -52,7 +56,7 @@ impl Manifestation {
     fn do_install(
         &self,
         origin: &String,
-        url: &String,
+        release: &String,
         temp_cfg: &temp::Cfg,
         notify_handler: &dyn Fn(Notification<'_>),
     ) -> Result<()> {
@@ -68,8 +72,6 @@ impl Manifestation {
 
         // find correct download on HTML page (AAAAH)
         use regex::Regex;
-        use std::fs;
-        use std::io::Read;
         let informal_target = if cfg!(target_os = "windows") {
             "windows"
         } else if cfg!(target_os = "linux") {
@@ -87,21 +89,39 @@ impl Manifestation {
         } else {
             unreachable!();
         };
-        let url_substring = informal_target.clone() + ".";
-        let re = Regex::new(format!(r#"/{}/releases/download/[^"]+"#, origin).as_str()).unwrap();
-        let download_page_file = dlcfg.download_and_check(&url)?;
-        let mut html = String::new();
-        fs::File::open(&download_page_file as &::std::path::Path)?.read_to_string(&mut html)?;
-        let url = re
-            .find_iter(&html)
-            .map(|m| m.as_str().to_string())
-            .find(|m| m.contains(&url_substring));
-        if url.is_none() {
-            return Err(
-                format!("binary package was not provided for '{}'", informal_target).into(),
+        // For historical reasons, the informal target for Linux x64 is a substring of Linux
+        // aarch64; make sure we don't confuse them
+        let name_substring = informal_target.clone() + ".";
+        let url = if origin.starts_with(DEFAULT_ORIGIN) {
+            let url = DEFAULT_ORIGIN_JSON_URL;
+            let json = fetch_url(url)?;
+            let releases = json::parse(&json)
+                .chain_err(|| format!("failed to parse release data: {}", url))?;
+            let release = releases.entries().flat_map(|(_, channel)| channel.members())
+                .find(|release_obj| release_obj["name"].as_str() == Some(release))
+                .ok_or_else(|| format!("no such release: '{}'", release))?;
+            let asset = release["assets"].members()
+                .find(|asset| asset["name"].as_str().iter().any(|name| name.contains(&name_substring)))
+                .ok_or_else(|| format!("binary package was not provided for '{}'", informal_target))?;
+            asset["browser_download_url"].as_str().unwrap().to_owned()
+        } else {
+            let url = format!(
+                "https://github.com/{}/releases/expanded_assets/{}",
+                origin, release
             );
-        }
-        let url = format!("https://github.com{}", url.unwrap());
+            let re = Regex::new(format!(r#"/{}/releases/download/[^"]+"#, origin).as_str()).unwrap();
+            let html = fetch_url(&url)?;
+            let url = re
+                .find_iter(&html)
+                .map(|m| m.as_str().to_string())
+                .find(|m| m.contains(&name_substring));
+            if url.is_none() {
+                return Err(
+                    format!("binary package was not provided for '{}'", informal_target).into(),
+                );
+            }
+            format!("https://github.com{}", url.unwrap())
+        };
         notify_handler(Notification::DownloadingComponent(&url));
 
         let installer_file = dlcfg.download_and_check(&url)?;

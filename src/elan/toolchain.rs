@@ -6,6 +6,8 @@ use crate::notifications::*;
 use elan_dist::dist::ToolchainDesc;
 use elan_dist::download::DownloadCfg;
 use elan_dist::manifest::Component;
+use elan_dist::manifestation::DEFAULT_ORIGIN;
+use elan_dist::manifestation::DEFAULT_ORIGIN_JSON_URL;
 use elan_utils::utils;
 use elan_utils::utils::fetch_url;
 use itertools::Itertools;
@@ -18,8 +20,6 @@ use std::ffi::OsStr;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-
-const DEFAULT_ORIGIN: &str = "leanprover/lean4";
 
 /// A fully resolved reference to a toolchain which may or may not exist
 pub struct Toolchain<'a> {
@@ -136,7 +136,17 @@ pub fn resolve_toolchain_desc_ext(
                 use_cache,
             )
         } else if release == "stable" || release == "beta" || release == "nightly" {
-            match utils::fetch_latest_release_tag(origin, no_net) {
+            let fetch = if origin.starts_with(DEFAULT_ORIGIN) {
+                utils::fetch_latest_release_json(DEFAULT_ORIGIN_JSON_URL, release, no_net)
+            } else {
+                if release == "beta" {
+                    return Err(Error::from(
+                        format!("channel 'beta' is not supported for custom origin '{}'", origin)
+                    ));
+                }
+                utils::fetch_latest_release_tag(origin, no_net)
+            };
+            match fetch {
                 Ok(release) => Ok(ToolchainDesc::Remote {
                     origin: origin.clone(),
                     release,

@@ -88,12 +88,8 @@ pub fn install_from_dist<'a>(
     else {
         return Ok(());
     };
-    let url = format!(
-        "https://github.com/{}/releases/expanded_assets/{}",
-        origin, release
-    );
     let res =
-        match manifestation.install(&origin, &url, &download.temp_cfg, download.notify_handler) {
+        match manifestation.install(&origin, &release, &download.temp_cfg, download.notify_handler) {
             Ok(()) => Ok(()),
             e
             @ Err(Error(ErrorKind::Utils(elan_utils::ErrorKind::DownloadNotExists { .. }), _)) => e
