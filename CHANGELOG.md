@@ -1,3 +1,7 @@
+# Unreleased
+
+- Fix installing from `leanprover/lean4-pr-releases`, which are not part of release.lean-lang.org.
+
 # 4.1.0 - 2025-04-30
 
 - Fetch releases and assets from release.lean-lang.org instead of parsing GitHub HTML. Makes

@@ -6,8 +6,8 @@ use crate::notifications::*;
 use elan_dist::dist::ToolchainDesc;
 use elan_dist::download::DownloadCfg;
 use elan_dist::manifest::Component;
+use elan_dist::manifestation::get_json_uri_for_releases;
 use elan_dist::manifestation::DEFAULT_ORIGIN;
-use elan_dist::manifestation::DEFAULT_ORIGIN_JSON_URL;
 use elan_utils::utils;
 use elan_utils::utils::fetch_url;
 use itertools::Itertools;
@@ -136,8 +136,8 @@ pub fn resolve_toolchain_desc_ext(
                 use_cache,
             )
         } else if release == "stable" || release == "beta" || release == "nightly" {
-            let fetch = if origin.starts_with(DEFAULT_ORIGIN) {
-                utils::fetch_latest_release_json(DEFAULT_ORIGIN_JSON_URL, release, no_net)
+            let fetch = if let Some(uri) = get_json_uri_for_releases(origin) {
+                utils::fetch_latest_release_json(uri, release, no_net)
             } else {
                 if release == "beta" {
                     return Err(Error::from(

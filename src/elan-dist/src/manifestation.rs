@@ -13,7 +13,15 @@ use elan_utils::{raw::read_file, utils};
 use fslock::LockFile;
 
 pub const DEFAULT_ORIGIN: &str = "leanprover/lean4";
-pub const DEFAULT_ORIGIN_JSON_URL: &str = "https://release.lean-lang.org";
+const DEFAULT_ORIGIN_JSON_URL: &str = "https://release.lean-lang.org";
+
+pub fn get_json_uri_for_releases(origin: &str) -> Option<&str> {
+    if origin == DEFAULT_ORIGIN || origin == DEFAULT_ORIGIN.to_owned() + "-nightly" {
+        Some(DEFAULT_ORIGIN_JSON_URL)
+    } else {
+        None
+    }
+}
 
 #[derive(Debug)]
 pub struct Manifestation {
@@ -92,8 +100,7 @@ impl Manifestation {
         // For historical reasons, the informal target for Linux x64 is a substring of Linux
         // aarch64; make sure we don't confuse them
         let name_substring = informal_target.clone() + ".";
-        let url = if origin.starts_with(DEFAULT_ORIGIN) {
-            let url = DEFAULT_ORIGIN_JSON_URL;
+        let url = if let Some(url) = get_json_uri_for_releases(origin) {
             let json = fetch_url(url)?;
             let releases = json::parse(&json)
                 .chain_err(|| format!("failed to parse release data: {}", url))?;
