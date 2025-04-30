@@ -12,6 +12,6 @@ pub mod dist;
 pub mod download;
 pub mod errors;
 pub mod manifest;
-mod manifestation;
+pub mod manifestation;
 pub mod notifications;
 pub mod prefix;

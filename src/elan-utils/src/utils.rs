@@ -11,6 +11,7 @@ use std::process::Command;
 use url::Url;
 #[cfg(windows)]
 use winreg;
+use json;
 
 use crate::raw;
 
@@ -500,6 +501,22 @@ pub fn fetch_latest_release_tag(repo_slug: &str, no_net: bool) -> Result<String>
         }
         Err(e) => Err(e),
     }
+}
+
+pub fn fetch_latest_release_json(url: &str, channel: &str, no_net: bool) -> Result<String> {
+    let json = if no_net {
+        Err(Error::from(
+            "Cannot fetch latest release tag under `--no-net`",
+        ))
+    } else {
+        fetch_url(&url)
+    }?;
+
+    let releases = json::parse(&json)
+        .chain_err(|| format!("failed to parse release data: {}", url))?;
+    releases[channel][0]["name"].as_str()
+        .ok_or_else(|| format!("failed to parse release data: {}", url).into())
+        .map(|s| s.to_string())
 }
 
 #[cfg(test)]

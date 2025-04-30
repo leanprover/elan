@@ -1,3 +1,10 @@
+# Unreleased
+
+- Fetch releases and assets from release.lean-lang.org instead of parsing GitHub HTML. Makes
+  toolchain URL resolution robust against future GitHub changes and enables use of the `beta`
+  channel to refer to the latest RC release. Also allows for distinguishing between non-existing
+  releases and non-existing assets for a release.
+
 # 4.0.1 - 2025-04-18
 
 - Fix selection of most recent stable toolchain when offline

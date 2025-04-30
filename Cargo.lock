@@ -529,6 +529,7 @@ dependencies = [
  "dirs",
  "download",
  "error-chain",
+ "json",
  "libc",
  "openssl",
  "rand",
