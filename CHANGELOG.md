@@ -1,4 +1,4 @@
-# Unreleased
+# 4.1.1 - 2025-04-30
 
 - Fix installing from `leanprover/lean4-pr-releases`, which are not part of release.lean-lang.org.
 
