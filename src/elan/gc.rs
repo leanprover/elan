@@ -32,7 +32,8 @@ pub fn add_root(cfg: &Cfg, root: &Path) -> elan_utils::Result<()> {
     if !roots.contains(&root) {
         roots.push(root);
         let roots = roots.join("\n");
-        std::fs::write(path, roots)?;
+        // Ignore write errors, this is not an essential operation
+        let _ = std::fs::write(path, roots);
     }
     Ok(())
 }
