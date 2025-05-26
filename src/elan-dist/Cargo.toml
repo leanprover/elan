@@ -24,7 +24,7 @@ remove_dir_all = "0.8.0"
 elan-utils = { path = "../elan-utils" }
 error-chain = "0.12.4"
 json = "0.12.4"
-zip = "2.5.0"
+zip = "4.0.0"
 filetime = "0.2.14"
 time = "0.3"
 serde = "1.0.119"
