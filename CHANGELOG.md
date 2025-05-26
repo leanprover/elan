@@ -1,4 +1,4 @@
-# Unreleased
+# 4.1.2 - 2025-05-26
 
 - Ignore errors when writing to `.elan/known-projects`, e.g. when it is read-only.
 
