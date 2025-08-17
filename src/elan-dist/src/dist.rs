@@ -66,8 +66,8 @@ impl ToolchainDesc {
 impl fmt::Display for ToolchainDesc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ToolchainDesc::Local { name } => write!(f, "{}", name),
-            ToolchainDesc::Remote {
+            Self::Local { name } => write!(f, "{}", name),
+            Self::Remote {
                 origin, release, ..
             } => write!(f, "{}:{}", origin, release),
         }
