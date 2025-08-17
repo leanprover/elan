@@ -35,14 +35,14 @@ pub enum Notification<'a> {
 }
 
 impl<'a> From<elan_utils::Notification<'a>> for Notification<'a> {
-    fn from(n: elan_utils::Notification<'a>) -> Notification<'a> {
-        Notification::Utils(n)
+    fn from(n: elan_utils::Notification<'a>) -> Self {
+        Self::Utils(n)
     }
 }
 
 impl<'a> From<temp::Notification<'a>> for Notification<'a> {
-    fn from(n: temp::Notification<'a>) -> Notification<'a> {
-        Notification::Temp(n)
+    fn from(n: temp::Notification<'a>) -> Self {
+        Self::Temp(n)
     }
 }
 

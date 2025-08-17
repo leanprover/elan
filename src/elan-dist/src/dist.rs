@@ -35,24 +35,23 @@ impl ToolchainDesc {
         let pattern = r"^(?:([a-zA-Z0-9-]+[/][a-zA-Z0-9-]+)[:])?([a-zA-Z0-9-.]+)$";
 
         let re = Regex::new(&pattern).unwrap();
-        if let Some(c) = re.captures(name) {
-            match c.get(1) {
-                Some(origin) => {
-                    let origin = origin.as_str().to_owned();
-                    let release = c.get(2).unwrap().as_str().to_owned();
-                    Ok(ToolchainDesc::Remote {
-                        origin,
-                        release,
-                        from_channel: None,
-                    })
-                }
-                None => {
-                    let name = c.get(2).unwrap().as_str().to_owned();
-                    Ok(ToolchainDesc::Local { name })
-                }
+        let Some(c) = re.captures(name) else {
+             return Err(ErrorKind::InvalidToolchainName(name.to_string()).into());
+        };
+        match c.get(1) {
+            Some(origin) => {
+                let origin = origin.as_str().to_owned();
+                let release = c.get(2).unwrap().as_str().to_owned();
+                Ok(Self::Remote {
+                    origin,
+                    release,
+                    from_channel: None,
+                })
             }
-        } else {
-            Err(ErrorKind::InvalidToolchainName(name.to_string()).into())
+            None => {
+                let name = c.get(2).unwrap().as_str().to_owned();
+                Ok(Self::Local { name })
+            }
         }
     }
 

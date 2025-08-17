@@ -30,7 +30,7 @@ pub struct Manifestation {
 
 impl Manifestation {
     pub fn open(prefix: InstallPrefix) -> Result<Self> {
-        Ok(Manifestation { prefix })
+        Ok(Self { prefix })
     }
 
     pub fn install(
