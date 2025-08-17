@@ -123,9 +123,9 @@ impl Display for Error {
 
 impl Cfg {
     pub fn new(root_directory: PathBuf, notify_handler: Box<dyn Fn(Notification<'_>)>) -> Self {
-        Cfg {
-            root_directory: root_directory,
-            notify_handler: notify_handler,
+        Self {
+            root_directory,
+            notify_handler,
         }
     }
 

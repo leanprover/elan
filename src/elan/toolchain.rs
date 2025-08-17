@@ -214,7 +214,7 @@ impl<'a> Toolchain<'a> {
 
         let path = cfg.toolchains_dir.join(&dir_name[..]);
 
-        Toolchain {
+        Self {
             cfg,
             desc: desc.clone(),
             path: path.clone(),
