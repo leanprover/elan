@@ -1219,10 +1219,7 @@ pub fn update() -> Result<()> {
 fn get_new_elan_version(path: &Path) -> Option<String> {
     match Command::new(path).arg("--version").output() {
         Err(_) => None,
-        Ok(output) => match String::from_utf8(output.stdout) {
-            Ok(version) => Some(version),
-            Err(_) => None,
-        },
+        Ok(output) => String::from_utf8(output.stdout).ok(),
     }
 }
 

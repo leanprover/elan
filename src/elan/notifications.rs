@@ -40,17 +40,17 @@ pub enum Notification<'a> {
 }
 
 impl<'a> From<elan_dist::Notification<'a>> for Notification<'a> {
-    fn from(n: elan_dist::Notification<'a>) -> Notification<'a> {
+    fn from(n: elan_dist::Notification<'a>) -> Self {
         Notification::Install(n)
     }
 }
 impl<'a> From<elan_utils::Notification<'a>> for Notification<'a> {
-    fn from(n: elan_utils::Notification<'a>) -> Notification<'a> {
+    fn from(n: elan_utils::Notification<'a>) -> Self {
         Notification::Utils(n)
     }
 }
 impl<'a> From<temp::Notification<'a>> for Notification<'a> {
-    fn from(n: temp::Notification<'a>) -> Notification<'a> {
+    fn from(n: temp::Notification<'a>) -> Self {
         Notification::Temp(n)
     }
 }
