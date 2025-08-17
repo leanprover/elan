@@ -36,22 +36,22 @@ pub enum OverrideReason {
 
 impl Display for OverrideReason {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> ::std::result::Result<(), fmt::Error> {
-        match *self {
+        match self {
             Self::Environment => write!(f, "environment override by ELAN_TOOLCHAIN"),
-            Self::OverrideDB(ref path) => {
+            Self::OverrideDB(path) => {
                 write!(f, "directory override for '{}'", path.display())
             }
-            Self::ToolchainFile(ref path) => {
+            Self::ToolchainFile(path) => {
                 write!(f, "overridden by '{}'", path.display())
             }
-            Self::InToolchainDirectory(ref path) => {
+            Self::InToolchainDirectory(path) => {
                 write!(
                     f,
                     "override because inside toolchain directory '{}'",
                     path.display()
                 )
             }
-            Self::LeanpkgFile(ref path) => {
+            Self::LeanpkgFile(path) => {
                 write!(f, "overridden by '{}'", path.display())
             }
         }

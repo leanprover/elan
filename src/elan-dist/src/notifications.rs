@@ -49,9 +49,9 @@ impl<'a> From<temp::Notification<'a>> for Notification<'a> {
 impl<'a> Notification<'a> {
     pub fn level(&self) -> NotificationLevel {
         use self::Notification::*;
-        match *self {
-            Temp(ref n) => n.level(),
-            Utils(ref n) => n.level(),
+        match self {
+            Temp(n) => n.level(),
+            Utils(n) => n.level(),
             ChecksumValid(_)
             | NoUpdateHash(_)
             | FileAlreadyDownloaded
@@ -80,9 +80,9 @@ impl<'a> Notification<'a> {
 impl<'a> Display for Notification<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> ::std::result::Result<(), fmt::Error> {
         use self::Notification::*;
-        match *self {
-            Temp(ref n) => n.fmt(f),
-            Utils(ref n) => n.fmt(f),
+        match self {
+            Temp(n) => n.fmt(f),
+            Utils(n) => n.fmt(f),
             Extracting(_, _) => write!(f, "extracting..."),
             ComponentAlreadyInstalled(ref c) => {
                 write!(f, "component {} is up to date", c.description())

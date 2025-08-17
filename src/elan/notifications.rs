@@ -58,10 +58,10 @@ impl<'a> From<temp::Notification<'a>> for Notification<'a> {
 impl Notification<'_> {
     pub fn level(&self) -> NotificationLevel {
         use self::Notification::*;
-        match *self {
-            Install(ref n) => n.level(),
-            Utils(ref n) => n.level(),
-            Temp(ref n) => n.level(),
+        match self {
+            Install(n) => n.level(),
+            Utils(n) => n.level(),
+            Temp(n) => n.level(),
             ToolchainDirectory(_, _)
             | LookingForToolchain(_)
             | WritingMetadataVersion(_)
@@ -92,10 +92,10 @@ impl Notification<'_> {
 impl Display for Notification<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> ::std::result::Result<(), fmt::Error> {
         use self::Notification::*;
-        match *self {
-            Install(ref n) => n.fmt(f),
-            Utils(ref n) => n.fmt(f),
-            Temp(ref n) => n.fmt(f),
+        match self {
+            Install(n) => n.fmt(f),
+            Utils(n) => n.fmt(f),
+            Temp(n) => n.fmt(f),
             SetDefaultToolchain(name) => write!(f, "default toolchain set to '{}'", name),
             SetOverrideToolchain(path, name) => {
                 write!(
