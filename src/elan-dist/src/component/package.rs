@@ -8,6 +8,7 @@ use std::fs::{self, File};
 use std::io::{self, Read, Seek};
 use std::path::{Path, PathBuf};
 
+use time::OffsetDateTime;
 use zip::ZipArchive;
 
 #[derive(Debug)]
@@ -116,7 +117,7 @@ impl ZipPackage {
                     }
                 }
             } // make sure to close `dst` before setting mtime
-            let mtime = entry.last_modified().to_time()?.unix_timestamp_nanos();
+            let mtime = OffsetDateTime::try_from(entry.last_modified().unwrap_or_else(zip::DateTime::default_for_write))?.unix_timestamp_nanos();
             let mtime = filetime::FileTime::from_unix_time(
                 (mtime / 1000000000) as i64,
                 (mtime % 1000000000) as u32,

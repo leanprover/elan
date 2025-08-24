@@ -1,3 +1,22 @@
+# 4.1.2 - 2025-05-26
+
+- Ignore errors when writing to `.elan/known-projects`, e.g. when it is read-only.
+
+# 4.1.1 - 2025-04-30
+
+- Fix installing from `leanprover/lean4-pr-releases`, which are not part of release.lean-lang.org.
+
+# 4.1.0 - 2025-04-30
+
+- Fetch releases and assets from release.lean-lang.org instead of parsing GitHub HTML. Makes
+  toolchain URL resolution robust against future GitHub changes and enables use of the `beta`
+  channel to refer to the latest RC release. Also allows for distinguishing between non-existing
+  releases and non-existing assets for a release.
+
+# 4.0.1 - 2025-04-18
+
+- Fix selection of most recent stable toolchain when offline
+
 # 4.0.0 - 2025-01-30
 
 - Revamp toolchain resolution and storage
