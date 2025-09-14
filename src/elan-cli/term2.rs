@@ -246,7 +246,7 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             }
             Html(_html) => {}
             SoftBreak => {
-                self.wrapper.write_line();
+                self.wrapper.write_space();
             }
             HardBreak => {
                 self.wrapper.write_line();
