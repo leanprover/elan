@@ -181,10 +181,12 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             }
             Tag::List(_) => {
                 self.wrapper.write_line();
-                self.wrapper.indent += 2;
+                self.wrapper.indent += 4;
             }
             Tag::Item => {
-                self.wrapper.write_line();
+                self.wrapper.write_word("*");
+                self.wrapper.write_space();
+                self.wrapper.indent += 2;
             }
             Tag::Emphasis => {
                 self.push_attr(Attr::ForegroundColor(color::BRIGHT_RED));
@@ -216,10 +218,13 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
                 self.wrapper.indent -= 2;
             }
             TagEnd::List(_) => {
+                self.wrapper.indent -= 4;
+                self.wrapper.write_line();
+            }
+            TagEnd::Item => {
                 self.wrapper.indent -= 2;
                 self.wrapper.write_line();
             }
-            TagEnd::Item => {}
             TagEnd::Emphasis => {
                 self.pop_attr();
             }
