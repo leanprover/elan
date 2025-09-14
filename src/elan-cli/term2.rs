@@ -212,6 +212,7 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             TagEnd::TableCell => {}
             TagEnd::BlockQuote => {}
             TagEnd::CodeBlock | TagEnd::HtmlBlock => {
+                self.wrapper.write_line();
                 self.wrapper.indent -= 2;
             }
             TagEnd::List(_) => {
