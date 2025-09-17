@@ -140,9 +140,10 @@ pub fn resolve_toolchain_desc_ext(
                 utils::fetch_latest_release_json(uri, release, no_net)
             } else {
                 if release == "beta" {
-                    return Err(Error::from(
-                        format!("channel 'beta' is not supported for custom origin '{}'", origin)
-                    ));
+                    return Err(Error::from(format!(
+                        "channel 'beta' is not supported for custom origin '{}'",
+                        origin
+                    )));
                 }
                 utils::fetch_latest_release_tag(origin, no_net)
             };
@@ -232,6 +233,9 @@ impl<'a> Toolchain<'a> {
         fs::symlink_metadata(&self.path)
             .map(|m| m.file_type().is_symlink())
             .unwrap_or(false)
+    }
+    pub fn symlink_target(&self) -> Result<Option<PathBuf>> {
+        Ok(utils::read_link(&self.path)?)
     }
     pub fn exists(&self) -> bool {
         // HACK: linked toolchains are symlinks, and, contrary to what std docs
