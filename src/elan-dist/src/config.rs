@@ -24,9 +24,9 @@ impl Config {
         let components =
             Self::toml_to_components(components, &format!("{}{}.", path, "components"))?;
 
-        Ok(Config {
+        Ok(Self {
             config_version: version,
-            components: components,
+            components,
         })
     }
     pub fn to_toml(self) -> toml::value::Table {
@@ -73,7 +73,7 @@ impl Config {
     }
 
     pub fn new() -> Self {
-        Config {
+        Self {
             config_version: DEFAULT_CONFIG_VERSION.to_owned(),
             components: Vec::new(),
         }

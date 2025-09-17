@@ -19,7 +19,7 @@ pub struct SettingsFile {
 
 impl SettingsFile {
     pub fn new(path: PathBuf) -> Self {
-        SettingsFile {
+        Self {
             path,
             cache: RefCell::new(None),
         }
@@ -80,7 +80,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings {
+        Self {
             version: DEFAULT_METADATA_VERSION.to_owned(),
             default_toolchain: None,
             overrides: BTreeMap::new(),
@@ -142,7 +142,7 @@ impl Settings {
         if !SUPPORTED_METADATA_VERSIONS.contains(&&*version) {
             return Err(ErrorKind::UnknownMetadataVersion(version).into());
         }
-        Ok(Settings {
+        Ok(Self {
             version,
             default_toolchain: get_opt_string(&mut table, "default_toolchain", path)?,
             overrides: Self::table_to_overrides(&mut table, path)?,

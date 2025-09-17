@@ -270,7 +270,7 @@ pub type CommandResult<T> = ::std::result::Result<T, CommandError>;
 impl error::Error for CommandError {
     fn description(&self) -> &str {
         use self::CommandError::*;
-        match *self {
+        match self {
             Io(_) => "could not execute command",
             Status(_) => "command exited with unsuccessful status",
         }
@@ -278,8 +278,8 @@ impl error::Error for CommandError {
 
     fn cause(&self) -> Option<&dyn error::Error> {
         use self::CommandError::*;
-        match *self {
-            Io(ref e) => Some(e),
+        match self {
+            Io(e) => Some(e),
             Status(_) => None,
         }
     }
@@ -287,9 +287,9 @@ impl error::Error for CommandError {
 
 impl fmt::Display for CommandError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            CommandError::Io(ref e) => write!(f, "Io: {}", e),
-            CommandError::Status(ref s) => write!(f, "Status: {}", s),
+        match self {
+            Self::Io(e) => write!(f, "Io: {}", e),
+            Self::Status(s) => write!(f, "Status: {}", s),
         }
     }
 }

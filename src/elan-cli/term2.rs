@@ -125,7 +125,7 @@ impl<'a, T: io::Write + 'a> LineWrapper<'a, T> {
     }
     // Constructor
     fn new(w: &'a mut T, indent: u32, margin: u32) -> Self {
-        LineWrapper {
+        Self {
             indent,
             margin,
             pos: indent,
@@ -142,7 +142,7 @@ struct LineFormatter<'a, T: Instantiable + Isatty + io::Write> {
 
 impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
     fn new(w: &'a mut Terminal<T>, indent: u32, margin: u32) -> Self {
-        LineFormatter {
+        Self {
             wrapper: LineWrapper::new(w, indent, margin),
             attrs: Vec::new(),
         }

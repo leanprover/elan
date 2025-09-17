@@ -11,8 +11,8 @@ impl<E> From<E> for Ignore
 where
     E: Error,
 {
-    fn from(_: E) -> Ignore {
-        Ignore
+    fn from(_: E) -> Self {
+        Self
     }
 }
 

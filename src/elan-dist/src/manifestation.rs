@@ -30,7 +30,7 @@ pub struct Manifestation {
 
 impl Manifestation {
     pub fn open(prefix: InstallPrefix) -> Result<Self> {
-        Ok(Manifestation { prefix })
+        Ok(Self { prefix })
     }
 
     pub fn install(
@@ -70,8 +70,8 @@ impl Manifestation {
     ) -> Result<()> {
         let prefix = self.prefix.path();
         let dlcfg = DownloadCfg {
-            temp_cfg: temp_cfg,
-            notify_handler: notify_handler,
+            temp_cfg,
+            notify_handler,
         };
 
         if utils::is_directory(prefix) {

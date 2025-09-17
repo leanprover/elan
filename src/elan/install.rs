@@ -48,7 +48,7 @@ impl InstallMethod<'_> {
         if path.exists() {
             // Don't uninstall first for Dist method
             match self {
-                InstallMethod::Dist(..) => {}
+                Self::Dist(..) => {}
                 _ => {
                     uninstall(path, notify_handler)?;
                 }
@@ -56,15 +56,15 @@ impl InstallMethod<'_> {
         }
 
         match self {
-            InstallMethod::Copy(src) => {
+            Self::Copy(src) => {
                 utils::copy_dir(src, path, &|n| notify_handler(n.into()))?;
                 Ok(())
             }
-            InstallMethod::Link(src) => {
+            Self::Link(src) => {
                 utils::symlink_dir(src, path, &|n| notify_handler(n.into()))?;
                 Ok(())
             }
-            InstallMethod::Dist(toolchain, dl_cfg) => {
+            Self::Dist(toolchain, dl_cfg) => {
                 if let Some(version) = check_self_update()? {
                     notify_handler(Notification::NewVersionAvailable(version));
                 }

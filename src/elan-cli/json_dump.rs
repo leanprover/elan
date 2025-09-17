@@ -81,7 +81,7 @@ fn mk_toolchain_resolution(
 }
 
 impl StateDump {
-    pub fn new(cfg: &Cfg, no_net: bool) -> crate::Result<StateDump> {
+    pub fn new(cfg: &Cfg, no_net: bool) -> crate::Result<Self> {
         let newest = fetch_latest_release_tag("leanprover/elan", no_net);
         let cwd = &(utils::current_dir()?);
         let active_override = cfg.find_override(cwd)?;
@@ -89,7 +89,7 @@ impl StateDump {
             None => None,
             Some(d) => Some(lookup_unresolved_toolchain_desc(cfg, &d)?),
         };
-        Ok(StateDump {
+        Ok(Self {
             elan_version: Version {
                 current: env!("CARGO_PKG_VERSION").to_string(),
                 newest: newest

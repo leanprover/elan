@@ -36,22 +36,22 @@ pub enum OverrideReason {
 
 impl Display for OverrideReason {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> ::std::result::Result<(), fmt::Error> {
-        match *self {
-            OverrideReason::Environment => write!(f, "environment override by ELAN_TOOLCHAIN"),
-            OverrideReason::OverrideDB(ref path) => {
+        match self {
+            Self::Environment => write!(f, "environment override by ELAN_TOOLCHAIN"),
+            Self::OverrideDB(path) => {
                 write!(f, "directory override for '{}'", path.display())
             }
-            OverrideReason::ToolchainFile(ref path) => {
+            Self::ToolchainFile(path) => {
                 write!(f, "overridden by '{}'", path.display())
             }
-            OverrideReason::InToolchainDirectory(ref path) => {
+            Self::InToolchainDirectory(path) => {
                 write!(
                     f,
                     "override because inside toolchain directory '{}'",
                     path.display()
                 )
             }
-            OverrideReason::LeanpkgFile(ref path) => {
+            Self::LeanpkgFile(path) => {
                 write!(f, "overridden by '{}'", path.display())
             }
         }
@@ -98,7 +98,7 @@ impl Cfg {
             Box::new(move |n| (notify_clone)(n.into())),
         );
 
-        Ok(Cfg {
+        Ok(Self {
             elan_dir,
             settings_file,
             toolchains_dir,

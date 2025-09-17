@@ -21,7 +21,7 @@ pub struct Component {
 
 impl Component {
     pub fn from_toml(mut table: toml::value::Table, path: &str) -> Result<Self> {
-        Ok(Component {
+        Ok(Self {
             pkg: get_string(&mut table, "pkg", path)?,
         })
     }
