@@ -332,6 +332,13 @@ pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
     Ok(())
 }
 
+fn get_toolchain_local_target(cfg: &Cfg, t: &ToolchainDesc) -> Result<Option<std::path::PathBuf>> {
+    let ToolchainDesc::Local { .. } = &t else {
+        return Ok(None);
+    };
+    Ok(cfg.get_toolchain(&t, false)?.symlink_target()?)
+}
+
 fn show(cfg: &Cfg) -> Result<()> {
     let cwd = &(utils::current_dir()?);
     let installed_toolchains = cfg.list_toolchains()?;
@@ -357,10 +364,20 @@ fn show(cfg: &Cfg) -> Result<()> {
             print_header("installed toolchains")
         }
         for t in installed_toolchains {
-            println!(
-                "{}",
-                mk_toolchain_label(&t, &default_tc, &resolved_default_tc)
-            );
+            // If t is a local toolchain, look up the symlink and print
+            // where it points.
+            if let Some(path) = get_toolchain_local_target(&cfg, &t)? {
+                println!(
+                    "{} (linked to local path {})",
+                    &t,
+                    path.display().to_string()
+                );
+            } else {
+                println!(
+                    "{}",
+                    mk_toolchain_label(&t, &default_tc, &resolved_default_tc)
+                );
+            }
         }
         if show_headers {
             println!()

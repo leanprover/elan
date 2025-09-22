@@ -126,6 +126,12 @@ error_chain! {
             description("could not symlink directory")
             display("could not create link from '{}' to '{}'", src.display(), dest.display())
         }
+        ReadingSymlink {
+            path: PathBuf,
+        } {
+            description("could not read symlink")
+            display("could not read symlink at '{}'", path.display())
+        }
         CopyingDirectory {
             src: PathBuf,
             dest: PathBuf,

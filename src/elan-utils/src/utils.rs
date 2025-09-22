@@ -1,6 +1,7 @@
 use crate::errors::*;
 use crate::notifications::Notification;
 use dirs;
+use json;
 use std::cmp::Ord;
 use std::env;
 use std::ffi::OsString;
@@ -11,7 +12,6 @@ use std::process::Command;
 use url::Url;
 #[cfg(windows)]
 use winreg;
-use json;
 
 use crate::raw;
 
@@ -260,6 +260,25 @@ pub fn symlink_file(src: &Path, dest: &Path) -> Result<()> {
         dest: PathBuf::from(dest),
     }
     .into())
+}
+
+// If we are on unix, we expect reading the symlink to work,
+// and so return Some.
+#[cfg(unix)]
+pub fn read_link(path: &Path) -> Result<Option<PathBuf>> {
+    Ok(Some(::std::fs::read_link(path).chain_err(|| {
+        ErrorKind::ReadingSymlink {
+            path: PathBuf::from(path),
+        }
+    })?))
+}
+
+// If we are on windows, we don't attempt to read the symlink at all,
+// and return None. This is not an error, but merely advice to the
+// caller to not even attempt to show the symlink target.
+#[cfg(windows)]
+pub fn read_link(path: &Path) -> Result<Option<PathBuf>> {
+    Ok(None)
 }
 
 pub fn copy_dir(src: &Path, dest: &Path, notify_handler: &dyn Fn(Notification<'_>)) -> Result<()> {
@@ -512,9 +531,10 @@ pub fn fetch_latest_release_json(url: &str, channel: &str, no_net: bool) -> Resu
         fetch_url(&url)
     }?;
 
-    let releases = json::parse(&json)
-        .chain_err(|| format!("failed to parse release data: {}", url))?;
-    releases[channel][0]["name"].as_str()
+    let releases =
+        json::parse(&json).chain_err(|| format!("failed to parse release data: {}", url))?;
+    releases[channel][0]["name"]
+        .as_str()
         .ok_or_else(|| format!("failed to parse release data: {}", url).into())
         .map(|s| s.to_string())
 }
