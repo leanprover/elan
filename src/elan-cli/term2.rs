@@ -201,6 +201,8 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             Tag::Link { .. } => {}
             Tag::Image { .. } => {}
             Tag::FootnoteDefinition(_name) => {}
+            Tag::Superscript => {}
+            Tag::Subscript => {}
         }
     }
 
@@ -244,6 +246,8 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             TagEnd::Image { .. } => {} // shouldn't happen, handled in start
             TagEnd::FootnoteDefinition => {}
             TagEnd::MetadataBlock(_) => {}
+            TagEnd::Superscript => {}
+            TagEnd::Subscript => {}
         }
     }
 
