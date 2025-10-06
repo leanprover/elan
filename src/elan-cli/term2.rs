@@ -175,6 +175,11 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             Tag::TableRow => {}
             Tag::TableCell => {}
             Tag::BlockQuote(_) => {}
+            Tag::DefinitionList => {
+                self.wrapper.write_line();
+                self.wrapper.indent += 2;
+            }
+            Tag::DefinitionListTitle | Tag::DefinitionListDefinition => {}
             Tag::CodeBlock(_) | Tag::HtmlBlock { .. } => {
                 self.wrapper.write_line();
                 self.wrapper.indent += 2;
@@ -196,6 +201,8 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             Tag::Link { .. } => {}
             Tag::Image { .. } => {}
             Tag::FootnoteDefinition(_name) => {}
+            Tag::Superscript => {}
+            Tag::Subscript => {}
         }
     }
 
@@ -212,7 +219,12 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             TagEnd::TableHead => {}
             TagEnd::TableRow => {}
             TagEnd::TableCell => {}
-            TagEnd::BlockQuote => {}
+            TagEnd::BlockQuote(_) => {}
+            TagEnd::DefinitionList => {
+                self.wrapper.indent -= 2;
+                self.wrapper.write_line();
+            }
+            TagEnd::DefinitionListTitle | TagEnd::DefinitionListDefinition => {}
             TagEnd::CodeBlock | TagEnd::HtmlBlock => {
                 self.wrapper.write_line();
                 self.wrapper.indent -= 2;
@@ -234,6 +246,8 @@ impl<'a, T: Instantiable + Isatty + io::Write + 'a> LineFormatter<'a, T> {
             TagEnd::Image { .. } => {} // shouldn't happen, handled in start
             TagEnd::FootnoteDefinition => {}
             TagEnd::MetadataBlock(_) => {}
+            TagEnd::Superscript => {}
+            TagEnd::Subscript => {}
         }
     }
 
