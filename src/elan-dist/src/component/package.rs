@@ -7,9 +7,26 @@ use crate::errors::*;
 use std::fs::{self, File};
 use std::io::{self, Read, Seek};
 use std::path::{Path, PathBuf};
+#[cfg(windows)]
+use std::sync::OnceLock;
 
 use time::OffsetDateTime;
 use zip::ZipArchive;
+
+// Thread pool for handling expensive file handle drops on Windows
+#[cfg(windows)]
+static DROP_POOL: OnceLock<threadpool::ThreadPool> = OnceLock::new();
+
+#[cfg(windows)]
+fn get_drop_pool() -> &'static threadpool::ThreadPool {
+    DROP_POOL.get_or_init(|| {
+        threadpool::Builder::new()
+            .thread_name("FileDrop".into())
+            .num_threads(8)
+            .thread_stack_size(1_048_576)
+            .build()
+    })
+}
 
 #[derive(Debug)]
 pub struct TarPackage();
@@ -48,9 +65,26 @@ fn unpack_without_first_dir<R: Read>(archive: &mut tar::Archive<R>, path: &Path)
             _ => (),
         };
 
-        entry
+        let unpacked = entry
             .unpack(&full_path)
             .chain_err(|| ErrorKind::ExtractingPackage)?;
+
+        #[cfg(windows)]
+        {
+            let pool = get_drop_pool();
+            pool.execute(move || {
+                drop(unpacked);
+            });
+        }
+        #[cfg(not(windows))]
+        {
+            drop(unpacked);
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        get_drop_pool().join();
     }
 
     Ok(())
