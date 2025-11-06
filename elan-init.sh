@@ -105,7 +105,7 @@ main() {
             ;;
         *)
             ensure curl -sSfL "$ELAN_UPDATE_ROOT/latest/download/elan-$_arch.tar.gz" > "$_dir/elan-init.tar.gz"
-            (cd "$_dir"; ensure tar xf elan-init.tar.gz; ignore rm elan-init.tar.gz)
+            (cd "$_dir"; ensure tar zxf elan-init.tar.gz; ignore rm elan-init.tar.gz)
             ;;
     esac
 
