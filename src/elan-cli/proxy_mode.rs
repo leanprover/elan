@@ -2,7 +2,7 @@ use crate::common::set_globals;
 use crate::errors::*;
 use crate::job;
 use elan::command::run_command_for_dir;
-use elan::{lookup_toolchain_desc, Cfg};
+use elan::{lookup_toolchain_desc, Cfg, OverrideReason};
 use elan_utils::utils;
 use std::env;
 use std::ffi::OsString;
@@ -47,7 +47,28 @@ pub fn main() -> Result<()> {
 
 fn direct_proxy(cfg: &Cfg, arg0: &str, toolchain: Option<&str>, args: &[OsString]) -> Result<()> {
     let cmd = match toolchain {
-        None => cfg.create_command_for_dir(&utils::current_dir()?, arg0)?,
+        None => {
+            let cwd = utils::current_dir()?;
+            let (toolchain, reason) = cfg.toolchain_for_dir(&cwd)?;
+
+            // Print a notice when using a directory override set via `elan override set`,
+            // unless suppressed via environment variable
+            if let Some(OverrideReason::OverrideDB(ref path)) = reason {
+                if env::var_os("ELAN_NO_OVERRIDE_NOTICE").is_none() {
+                    note!(
+                        "using toolchain '{}' from override set on '{}'",
+                        toolchain.name(),
+                        path.display()
+                    );
+                    note!(
+                        "to remove: elan override unset --path '{}' | to suppress: ELAN_NO_OVERRIDE_NOTICE=1",
+                        path.display()
+                    );
+                }
+            }
+
+            toolchain.create_command(arg0)?
+        }
         Some(tc) => {
             let desc = lookup_toolchain_desc(cfg, tc)?;
             cfg.create_command_for_toolchain(&desc, true, arg0)?
