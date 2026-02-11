@@ -48,18 +48,16 @@ pub fn download_to_path_with_backend(
         let (file, resume_from) = if resume_from_partial {
             let possible_partial = OpenOptions::new().read(true).open(path);
 
-            let downloaded_so_far = match possible_partial {
-                Ok(partial) => {
-                    if let Some(cb) = callback {
-                        cb(Event::ResumingPartialDownload)?;
-                    }
-                    let file_info = partial
-                        .metadata()
-                        .chain_err(|| "error reading partial download metadata")?;
-                    file_info.len()
+            let downloaded_so_far = if let Ok(partial) = possible_partial {
+                if let Some(cb) = callback {
+                    cb(Event::ResumingPartialDownload)?;
                 }
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => 0,
-                Err(e) => return Err(e).chain_err(|| "error opening partial download"),
+                let file_info = partial
+                    .metadata()
+                    .chain_err(|| "error reading partial download metadata")?;
+                file_info.len()
+            } else {
+                0
             };
 
             let mut file = OpenOptions::new()
