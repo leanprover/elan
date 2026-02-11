@@ -127,16 +127,39 @@ pub fn download_file(
     path: &Path,
     notify_handler: &dyn Fn(Notification<'_>),
 ) -> Result<()> {
+    download_file_with_resume(url, path, false, notify_handler)
+}
+
+pub fn download_file_with_resume(
+    url: &Url,
+    path: &Path,
+    resume_from_partial: bool,
+    notify_handler: &dyn Fn(Notification<'_>),
+) -> Result<()> {
     use download::ErrorKind as DEK;
-    match download_file_(url, path, notify_handler) {
+    match download_file_(url, path, resume_from_partial, notify_handler) {
         Ok(_) => Ok(()),
         Err(e) => {
-            println!("{:?}", e);
             let is_client_error = match e.kind() {
+                // Specifically treat the bad partial range error as not our
+                // fault in case it was something odd which happened.
+                &ErrorKind::Download(DEK::HttpStatus(416)) => false,
                 &ErrorKind::Download(DEK::HttpStatus(400..=499)) => true,
                 &ErrorKind::Download(DEK::FileNotFound) => true,
                 _ => false,
             };
+            if !is_client_error && !resume_from_partial {
+                // Retry once with resume from partial
+                match download_file_(url, path, true, notify_handler) {
+                    Ok(_) => return Ok(()),
+                    Err(retry_err) => {
+                        return Err(retry_err).chain_err(|| ErrorKind::DownloadingFile {
+                            url: url.clone(),
+                            path: path.to_path_buf(),
+                        });
+                    }
+                }
+            }
             Err(e).chain_err(|| {
                 if is_client_error {
                     ErrorKind::DownloadNotExists {
@@ -154,16 +177,23 @@ pub fn download_file(
     }
 }
 
-fn download_file_(url: &Url, path: &Path, notify_handler: &dyn Fn(Notification<'_>)) -> Result<()> {
+fn download_file_(
+    url: &Url,
+    path: &Path,
+    resume_from_partial: bool,
+    notify_handler: &dyn Fn(Notification<'_>),
+) -> Result<()> {
     use download::download_to_path_with_backend;
     use download::{Backend, Event};
 
     notify_handler(Notification::DownloadingFile(url, path));
 
-    // This callback will write the download to disk and optionally
-    // hash the contents, then forward the notification up the stack
+    // This callback will forward the notification up the stack
     let callback: &dyn Fn(Event<'_>) -> download::Result<()> = &|msg| {
         match msg {
+            Event::ResumingPartialDownload => {
+                notify_handler(Notification::ResumingPartialDownload);
+            }
             Event::DownloadContentLengthReceived(len) => {
                 notify_handler(Notification::DownloadContentLengthReceived(len));
             }
@@ -179,7 +209,7 @@ fn download_file_(url: &Url, path: &Path, notify_handler: &dyn Fn(Notification<'
 
     let (backend, notification) = (Backend::Curl, Notification::UsingCurl);
     notify_handler(notification);
-    download_to_path_with_backend(backend, url, path, Some(callback))?;
+    download_to_path_with_backend(backend, url, path, resume_from_partial, Some(callback))?;
 
     notify_handler(Notification::DownloadFinished);
 

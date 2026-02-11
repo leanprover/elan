@@ -14,6 +14,8 @@ pub enum Backend {
 
 #[derive(Debug, Copy, Clone)]
 pub enum Event<'a> {
+    /// Resuming a partial download.
+    ResumingPartialDownload,
     /// Received the Content-Length of the to-be downloaded data.
     DownloadContentLengthReceived(u64),
     /// Received some data.
@@ -23,10 +25,11 @@ pub enum Event<'a> {
 fn download_with_backend(
     backend: Backend,
     url: &Url,
+    resume_from: u64,
     callback: &dyn Fn(Event<'_>) -> Result<()>,
 ) -> Result<()> {
     match backend {
-        Backend::Curl => curl::download(url, callback),
+        Backend::Curl => curl::download(url, resume_from, callback),
     }
 }
 
@@ -34,22 +37,54 @@ pub fn download_to_path_with_backend(
     backend: Backend,
     url: &Url,
     path: &Path,
+    resume_from_partial: bool,
     callback: Option<&dyn Fn(Event<'_>) -> Result<()>>,
 ) -> Result<()> {
     use std::cell::RefCell;
     use std::fs::OpenOptions;
-    use std::io::Write;
+    use std::io::{Seek, SeekFrom, Write};
 
     || -> Result<()> {
-        let file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(path)
-            .chain_err(|| "error creating file for download")?;
+        let (file, resume_from) = if resume_from_partial {
+            let possible_partial = OpenOptions::new().read(true).open(path);
+
+            let downloaded_so_far = if let Ok(partial) = possible_partial {
+                if let Some(cb) = callback {
+                    cb(Event::ResumingPartialDownload)?;
+                }
+                let file_info = partial
+                    .metadata()
+                    .chain_err(|| "error reading partial download metadata")?;
+                file_info.len()
+            } else {
+                0
+            };
+
+            let mut file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(false)
+                .open(path)
+                .chain_err(|| "error opening file for download")?;
+
+            file.seek(SeekFrom::End(0))
+                .chain_err(|| "error seeking in partial download")?;
+
+            (file, downloaded_so_far)
+        } else {
+            let file = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .truncate(true)
+                .open(path)
+                .chain_err(|| "error creating file for download")?;
+
+            (file, 0)
+        };
 
         let file = RefCell::new(file);
 
-        download_with_backend(backend, url, &|event| {
+        download_with_backend(backend, url, resume_from, &|event| {
             if let Event::DownloadDataReceived(data) = event {
                 file.borrow_mut()
                     .write_all(data)
@@ -84,7 +119,11 @@ pub mod curl {
 
     thread_local!(pub static EASY: RefCell<Easy> = RefCell::new(Easy::new()));
 
-    pub fn download(url: &Url, callback: &dyn Fn(Event<'_>) -> Result<()>) -> Result<()> {
+    pub fn download(
+        url: &Url,
+        resume_from: u64,
+        callback: &dyn Fn(Event<'_>) -> Result<()>,
+    ) -> Result<()> {
         // Fetch either a cached libcurl handle (which will preserve open
         // connections) or create a new one if it isn't listed.
         //
@@ -98,10 +137,29 @@ pub mod curl {
                 .follow_location(true)
                 .chain_err(|| "failed to set follow redirects")?;
 
+            if resume_from > 0 {
+                handle
+                    .resume_from(resume_from)
+                    .chain_err(|| "failed to set resume from")?;
+            } else {
+                // An error here indicates that the range header isn't supported
+                // by underlying curl, so there's nothing to "clear" — safe to
+                // ignore this error.
+                let _ = handle.resume_from(0);
+            }
+
             // Take at most 30s to connect
             handle
                 .connect_timeout(Duration::new(30, 0))
                 .chain_err(|| "failed to set connect timeout")?;
+
+            // Abort if the speed is below 10 bytes/sec for 30 seconds
+            handle
+                .low_speed_limit(10)
+                .chain_err(|| "failed to set low speed limit")?;
+            handle
+                .low_speed_time(Duration::new(30, 0))
+                .chain_err(|| "failed to set low speed time")?;
 
             {
                 let cberr = RefCell::new(None);
@@ -120,20 +178,24 @@ pub mod curl {
                     })
                     .chain_err(|| "failed to set write")?;
 
-                // Listen for headers and parse out a `Content-Length` if it comes
-                // so we know how much we're downloading.
+                // Listen for headers and parse out a `Content-Length`
+                // (case-insensitive) if it comes so we know how much we're
+                // downloading.
                 transfer
                     .header_function(|header| {
                         if let Ok(data) = str::from_utf8(header) {
-                            let prefix = "Content-Length: ";
-                            if data.starts_with(prefix) {
-                                if let Ok(s) = data[prefix.len()..].trim().parse::<u64>() {
-                                    let msg = Event::DownloadContentLengthReceived(s);
-                                    match callback(msg) {
-                                        Ok(()) => (),
-                                        Err(e) => {
-                                            *cberr.borrow_mut() = Some(e);
-                                            return false;
+                            let prefix = "content-length: ";
+                            if let Some((dp, ds)) = data.split_at_checked(prefix.len()) {
+                                if dp.eq_ignore_ascii_case(prefix) {
+                                    if let Ok(s) = ds.trim().parse::<u64>() {
+                                        let msg =
+                                            Event::DownloadContentLengthReceived(s + resume_from);
+                                        match callback(msg) {
+                                            Ok(()) => (),
+                                            Err(e) => {
+                                                *cberr.borrow_mut() = Some(e);
+                                                return false;
+                                            }
                                         }
                                     }
                                 }

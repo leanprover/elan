@@ -69,6 +69,10 @@ impl DownloadTracker {
                 self.download_finished();
                 true
             }
+            Notification::Install(In::Utils(Un::ResumingPartialDownload)) => {
+                self.resuming_partial_download();
+                true
+            }
             _ => false,
         }
     }
@@ -103,6 +107,15 @@ impl DownloadTracker {
                 }
             }
         }
+    }
+    /// Notifies self that a partial download is being resumed.
+    /// Resets speed tracking but preserves total_downloaded since the
+    /// content-length from the server will reflect the full file size.
+    pub fn resuming_partial_download(&mut self) {
+        self.downloaded_this_sec = 0;
+        self.downloaded_last_few_secs.clear();
+        self.seconds_elapsed = 0;
+        self.last_sec = None;
     }
     /// Notifies self that the download has finished.
     pub fn download_finished(&mut self) {
