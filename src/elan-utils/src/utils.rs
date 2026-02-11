@@ -141,15 +141,32 @@ pub fn download_file_with_resume(
         Ok(_) => Ok(()),
         Err(e) => {
             let is_client_error = match e.kind() {
-                // Specifically treat the bad partial range error as not our
-                // fault in case it was something odd which happened.
-                &ErrorKind::Download(DEK::HttpStatus(416)) => false,
                 &ErrorKind::Download(DEK::HttpStatus(400..=499)) => true,
                 &ErrorKind::Download(DEK::FileNotFound) => true,
                 _ => false,
             };
+
+            // On 416 (Range Not Satisfiable) or ResumeNotSupported (server
+            // returned 200 instead of 206), fall back to a fresh download.
+            let should_restart_fresh = matches!(
+                e.kind(),
+                &ErrorKind::Download(DEK::HttpStatus(416))
+                    | &ErrorKind::Download(DEK::ResumeNotSupported)
+            );
+            if should_restart_fresh {
+                match download_file_(url, path, false, notify_handler) {
+                    Ok(_) => return Ok(()),
+                    Err(retry_err) => {
+                        return Err(retry_err).chain_err(|| ErrorKind::DownloadingFile {
+                            url: url.clone(),
+                            path: path.to_path_buf(),
+                        });
+                    }
+                }
+            }
+
+            // On network errors, retry once with resume from the partial file.
             if !is_client_error && !resume_from_partial {
-                // Retry once with resume from partial
                 match download_file_(url, path, true, notify_handler) {
                     Ok(_) => return Ok(()),
                     Err(retry_err) => {
@@ -160,6 +177,7 @@ pub fn download_file_with_resume(
                     }
                 }
             }
+
             Err(e).chain_err(|| {
                 if is_client_error {
                     ErrorKind::DownloadNotExists {

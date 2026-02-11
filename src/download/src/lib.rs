@@ -48,27 +48,31 @@ pub fn download_to_path_with_backend(
         let (file, resume_from) = if resume_from_partial {
             let possible_partial = OpenOptions::new().read(true).open(path);
 
-            let downloaded_so_far = if let Ok(partial) = possible_partial {
-                if let Some(cb) = callback {
-                    cb(Event::ResumingPartialDownload)?;
+            let downloaded_so_far = match possible_partial {
+                Ok(partial) => {
+                    if let Some(cb) = callback {
+                        cb(Event::ResumingPartialDownload)?;
+                    }
+                    let file_info = partial
+                        .metadata()
+                        .chain_err(|| "error reading partial download metadata")?;
+                    file_info.len()
                 }
-                let file_info = partial
-                    .metadata()
-                    .chain_err(|| "error reading partial download metadata")?;
-                file_info.len()
-            } else {
-                0
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => 0,
+                Err(e) => return Err(e).chain_err(|| "error opening partial download"),
             };
 
             let mut file = OpenOptions::new()
                 .write(true)
                 .create(true)
-                .truncate(false)
+                .truncate(downloaded_so_far == 0)
                 .open(path)
                 .chain_err(|| "error opening file for download")?;
 
-            file.seek(SeekFrom::End(0))
-                .chain_err(|| "error seeking in partial download")?;
+            if downloaded_so_far > 0 {
+                file.seek(SeekFrom::End(0))
+                    .chain_err(|| "error seeking in partial download")?;
+            }
 
             (file, downloaded_so_far)
         } else {
@@ -234,6 +238,13 @@ pub mod curl {
                     return Err(ErrorKind::HttpStatus(code).into());
                 }
             };
+
+            // If we asked for a range but got 200 instead of 206, the server
+            // ignored our Range header and sent the full file. Report this so
+            // the caller can truncate and use the full response.
+            if resume_from > 0 && code == 200 {
+                return Err(ErrorKind::ResumeNotSupported.into());
+            }
 
             Ok(())
         })
