@@ -184,6 +184,27 @@ pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
     resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, name)?)
 }
 
+/// Try to parse a string as a file path, validating it contains a Lean toolchain
+fn try_parse_path_toolchain(
+    path_str: &str,
+    toolchain_file_dir: &Path,
+) -> Result<Option<ToolchainDesc>> {
+    // Try to resolve the path relative to the lean-toolchain file's directory
+    let path = if Path::new(path_str).is_absolute() {
+        PathBuf::from(path_str)
+    } else {
+        toolchain_file_dir.join(path_str)
+    };
+
+    // Validate that bin/lean exists
+    let lean_binary = path.join("bin").join(format!("lean{}", EXE_SUFFIX));
+    if !lean_binary.is_file() {
+        return Ok(None); // Not a valid Lean toolchain directory
+    }
+
+    Ok(Some(ToolchainDesc::Path { path }))
+}
+
 pub fn read_unresolved_toolchain_desc_from_file(
     cfg: &Cfg,
     toolchain_file: &Path,
@@ -191,7 +212,17 @@ pub fn read_unresolved_toolchain_desc_from_file(
     let s = utils::read_file("toolchain file", toolchain_file)?;
     if let Some(s) = s.lines().next() {
         let toolchain_name = s.trim();
-        lookup_unresolved_toolchain_desc(cfg, toolchain_name)
+
+        let toolchain_file_dir = toolchain_file
+            .parent()
+            .unwrap(); // Every file should have a parent
+
+        // Prefer file path interpretation
+        if let Some(path_desc) = try_parse_path_toolchain(toolchain_name, toolchain_file_dir)? {
+            Ok(UnresolvedToolchainDesc(path_desc))
+        } else {
+            lookup_unresolved_toolchain_desc(cfg, toolchain_name)
+        }
     } else {
         Err(Error::from(format!(
             "empty toolchain file '{}'",
@@ -209,11 +240,15 @@ pub fn read_toolchain_desc_from_file(cfg: &Cfg, toolchain_file: &Path) -> Result
 
 impl<'a> Toolchain<'a> {
     pub fn from(cfg: &'a Cfg, desc: &ToolchainDesc) -> Self {
-        //We need to replace ":" and "/" with "-" in the toolchain name in order to make a name which is a valid
-        //name for a directory.
-        let dir_name = desc.to_string().replace("/", "--").replace(":", "---");
-
-        let path = cfg.toolchains_dir.join(&dir_name[..]);
+        let path = match desc {
+            ToolchainDesc::Path { path } => path.clone(),
+            _ => {
+                //We need to replace ":" and "/" with "-" in the toolchain name in order to make a name which is a valid
+                //name for a directory.
+                let dir_name = desc.to_string().replace("/", "--").replace(":", "---");
+                cfg.toolchains_dir.join(&dir_name[..])
+            }
+        };
 
         Self {
             cfg,
@@ -245,7 +280,11 @@ impl<'a> Toolchain<'a> {
     }
     pub fn is_custom(&self) -> bool {
         assert!(self.exists());
-        self.is_symlink()
+        match &self.desc {
+            ToolchainDesc::Path { .. } => true,
+            ToolchainDesc::Local { .. } => self.is_symlink(),
+            _ => false,
+        }
     }
     pub fn verify(&self) -> Result<()> {
         Ok(utils::assert_is_directory(&self.path)?)
