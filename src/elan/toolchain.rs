@@ -40,7 +40,18 @@ pub struct ComponentStatus {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct UnresolvedToolchainDesc(pub ToolchainDesc);
 
-pub fn lookup_unresolved_toolchain_desc(cfg: &Cfg, name: &str) -> Result<UnresolvedToolchainDesc> {
+pub fn lookup_unresolved_toolchain_desc(
+    cfg: &Cfg,
+    name: &str,
+    base_dir: Option<&Path>,
+) -> Result<UnresolvedToolchainDesc> {
+    // Try parsing as a file path first (more specific than regex pattern)
+    let base_dir = base_dir.unwrap_or_else(|| Path::new("."));
+    if let Some(path_desc) = try_parse_path_toolchain(name, base_dir)? {
+        return Ok(UnresolvedToolchainDesc(path_desc));
+    }
+
+    // Fall back to parsing as a toolchain name
     let pattern = r"^(?:([a-zA-Z0-9-_]+[/][a-zA-Z0-9-_]+)[:])?([a-zA-Z0-9-.]+)$";
 
     let re = Regex::new(pattern).unwrap();
@@ -131,7 +142,7 @@ pub fn resolve_toolchain_desc_ext(
             );
             resolve_toolchain_desc_ext(
                 cfg,
-                &lookup_unresolved_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())?,
+                &lookup_unresolved_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim(), None)?,
                 no_net,
                 use_cache,
             )
@@ -181,7 +192,7 @@ pub fn resolve_toolchain_desc(
 }
 
 pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
-    resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, name)?)
+    resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, name, None)?)
 }
 
 /// Try to parse a string as a file path, validating it contains a Lean toolchain
@@ -217,12 +228,7 @@ pub fn read_unresolved_toolchain_desc_from_file(
             .parent()
             .unwrap(); // Every file should have a parent
 
-        // Prefer file path interpretation
-        if let Some(path_desc) = try_parse_path_toolchain(toolchain_name, toolchain_file_dir)? {
-            Ok(UnresolvedToolchainDesc(path_desc))
-        } else {
-            lookup_unresolved_toolchain_desc(cfg, toolchain_name)
-        }
+        lookup_unresolved_toolchain_desc(cfg, toolchain_name, Some(toolchain_file_dir))
     } else {
         Err(Error::from(format!(
             "empty toolchain file '{}'",
@@ -290,6 +296,11 @@ impl<'a> Toolchain<'a> {
         Ok(utils::assert_is_directory(&self.path)?)
     }
     pub fn remove(&self) -> Result<()> {
+        if matches!(self.desc, ToolchainDesc::Path { .. }) {
+            return Err(Error::from(
+                "cannot remove a path toolchain, remove the directory manually instead",
+            ));
+        }
         if self.exists() || self.is_symlink() {
             (self.cfg.notify_handler)(Notification::UninstallingToolchain(&self.desc));
         } else {
