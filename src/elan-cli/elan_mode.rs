@@ -252,7 +252,7 @@ pub fn cli() -> App<'static, 'static> {
 fn default_(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let name = m.value_of("toolchain").expect("");
     // sanity-check
-    let _ = lookup_unresolved_toolchain_desc(cfg, name)?;
+    let _ = lookup_unresolved_toolchain_desc(cfg, name, None)?;
 
     cfg.set_default(name)?;
     Ok(())

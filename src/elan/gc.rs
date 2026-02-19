@@ -56,7 +56,7 @@ pub fn analyze_toolchains(
     if let Some(default) = cfg.get_default()? {
         if let Ok(default) = resolve_toolchain_desc_ext(
             cfg,
-            &lookup_unresolved_toolchain_desc(cfg, &default)?,
+            &lookup_unresolved_toolchain_desc(cfg, &default, None)?,
             true,
             true,
         ) {
@@ -66,7 +66,7 @@ pub fn analyze_toolchains(
     if let Some(ref env_override) = cfg.env_override {
         if let Ok(desc) = resolve_toolchain_desc_ext(
             cfg,
-            &lookup_unresolved_toolchain_desc(cfg, env_override)?,
+            &lookup_unresolved_toolchain_desc(cfg, env_override, None)?,
             true,
             true,
         ) {

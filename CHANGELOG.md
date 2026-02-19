@@ -3,6 +3,7 @@
 - Resume interrupted downloads via HTTP Range headers. When a download fails due to a network error,
   elan now automatically retries once, resuming from where it left off. Also adds a stall timeout
   (30s at <10 bytes/sec) so downloads no longer hang indefinitely on unreliable connections.
+- Support absolute and relative toolchain paths in `lean-toolchain` etc.
 
 # 4.1.2 - 2025-05-26
 
