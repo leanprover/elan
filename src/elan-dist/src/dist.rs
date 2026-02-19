@@ -10,6 +10,7 @@ use regex::Regex;
 use serde_derive::Serialize;
 
 use std::fmt;
+use std::path::PathBuf;
 
 // Fully-resolved toolchain descriptors. These always have full target
 // triples attached to them and are used for canonical identification,
@@ -27,6 +28,10 @@ pub enum ToolchainDesc {
         release: String,
         // The channel name the release was resolved from, if any
         from_channel: Option<String>,
+    },
+    // A toolchain specified by file path in lean-toolchain
+    Path {
+        path: PathBuf,
     },
 }
 
@@ -69,6 +74,7 @@ impl fmt::Display for ToolchainDesc {
             Self::Remote {
                 origin, release, ..
             } => write!(f, "{}:{}", origin, release),
+            Self::Path { path } => write!(f, "{}", path.display()),
         }
     }
 }
@@ -85,6 +91,7 @@ pub fn install_from_dist<'a>(
         origin, release, ..
     } = toolchain
     else {
+        // Local and Path toolchains are not installed from dist
         return Ok(());
     };
     let res =
@@ -114,4 +121,82 @@ pub fn install_from_dist<'a>(
 
 pub fn host_triple() -> &'static str {
     include_str!(concat!(env!("OUT_DIR"), "/target.txt"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_remote_with_explicit_origin() {
+        let tc = ToolchainDesc::from_resolved_str("leanprover/lean4:v4.3.0").unwrap();
+        assert_eq!(
+            tc,
+            ToolchainDesc::Remote {
+                origin: "leanprover/lean4".into(),
+                release: "v4.3.0".into(),
+                from_channel: None,
+            }
+        );
+    }
+
+    #[test]
+    fn parse_local_without_origin() {
+        // A bare name with no slash is treated as Local (linked toolchain name)
+        let tc = ToolchainDesc::from_resolved_str("my-toolchain").unwrap();
+        assert_eq!(tc, ToolchainDesc::Local { name: "my-toolchain".into() });
+    }
+
+    #[test]
+    fn parse_invalid_name_errors() {
+        assert!(ToolchainDesc::from_resolved_str("not valid!").is_err());
+    }
+
+    #[test]
+    fn from_toolchain_dir_desanitizes_separators() {
+        // Directory names encode "/" as "--" and ":" as "---"
+        let tc = ToolchainDesc::from_toolchain_dir("leanprover--lean4---v4.3.0").unwrap();
+        assert_eq!(
+            tc,
+            ToolchainDesc::Remote {
+                origin: "leanprover/lean4".into(),
+                release: "v4.3.0".into(),
+                from_channel: None,
+            }
+        );
+    }
+
+    #[test]
+    fn display_remote() {
+        let tc = ToolchainDesc::Remote {
+            origin: "leanprover/lean4".into(),
+            release: "v4.3.0".into(),
+            from_channel: None,
+        };
+        assert_eq!(tc.to_string(), "leanprover/lean4:v4.3.0");
+    }
+
+    #[test]
+    fn display_local() {
+        let tc = ToolchainDesc::Local { name: "my-tc".into() };
+        assert_eq!(tc.to_string(), "my-tc");
+    }
+
+    #[test]
+    fn display_path() {
+        let tc = ToolchainDesc::Path { path: "/opt/lean".into() };
+        assert_eq!(tc.to_string(), "/opt/lean");
+    }
+
+    #[test]
+    fn dir_name_roundtrip() {
+        let tc = ToolchainDesc::Remote {
+            origin: "leanprover/lean4".into(),
+            release: "v4.3.0".into(),
+            from_channel: None,
+        };
+        let dir_name = tc.to_string().replace("/", "--").replace(":", "---");
+        let roundtripped = ToolchainDesc::from_toolchain_dir(&dir_name).unwrap();
+        assert_eq!(tc, roundtripped);
+    }
 }

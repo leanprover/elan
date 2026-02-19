@@ -64,7 +64,6 @@ members = ["src/download", "src/elan-dist", "src/elan-utils"]
 [lib]
 name = "elan"
 path = "src/elan/lib.rs"
-test = false # no unit tests
 
 [[bin]]
 name = "elan-init"

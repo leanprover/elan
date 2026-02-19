@@ -252,7 +252,7 @@ pub fn cli() -> App<'static, 'static> {
 fn default_(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
     let name = m.value_of("toolchain").expect("");
     // sanity-check
-    let _ = lookup_unresolved_toolchain_desc(cfg, name)?;
+    let _ = lookup_unresolved_toolchain_desc(cfg, name, None)?;
 
     cfg.set_default(name)?;
     Ok(())
@@ -333,10 +333,11 @@ pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
 }
 
 fn get_toolchain_local_target(cfg: &Cfg, t: &ToolchainDesc) -> Result<Option<std::path::PathBuf>> {
-    let ToolchainDesc::Local { .. } = &t else {
-        return Ok(None);
-    };
-    Ok(cfg.get_toolchain(&t, false)?.symlink_target()?)
+    match t {
+        ToolchainDesc::Local { .. } => Ok(cfg.get_toolchain(&t, false)?.symlink_target()?),
+        ToolchainDesc::Path { path } => Ok(Some(path.clone())),
+        _ => Ok(None),
+    }
 }
 
 fn show(cfg: &Cfg) -> Result<()> {
