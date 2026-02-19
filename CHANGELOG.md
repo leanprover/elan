@@ -1,6 +1,9 @@
 # Unreleased
 
 - Support absolute and relative toolchain paths in `lean-toolchain` etc.
+- Print a notice when a directory override (set via `elan override set`) is active, helping catch
+  stale overrides that may cause confusing build failures. Can be suppressed with
+  `ELAN_NO_OVERRIDE_NOTICE=1`.
 
 # 4.1.2 - 2025-05-26
 
