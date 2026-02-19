@@ -40,7 +40,18 @@ pub struct ComponentStatus {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct UnresolvedToolchainDesc(pub ToolchainDesc);
 
-pub fn lookup_unresolved_toolchain_desc(cfg: &Cfg, name: &str) -> Result<UnresolvedToolchainDesc> {
+pub fn lookup_unresolved_toolchain_desc(
+    cfg: &Cfg,
+    name: &str,
+    base_dir: Option<&Path>,
+) -> Result<UnresolvedToolchainDesc> {
+    // Try parsing as a file path first (more specific than regex pattern)
+    let base_dir = base_dir.unwrap_or_else(|| Path::new("."));
+    if let Some(path_desc) = try_parse_path_toolchain(name, base_dir)? {
+        return Ok(UnresolvedToolchainDesc(path_desc));
+    }
+
+    // Fall back to parsing as a toolchain name
     let pattern = r"^(?:([a-zA-Z0-9-_]+[/][a-zA-Z0-9-_]+)[:])?([a-zA-Z0-9-.]+)$";
 
     let re = Regex::new(pattern).unwrap();
@@ -131,7 +142,7 @@ pub fn resolve_toolchain_desc_ext(
             );
             resolve_toolchain_desc_ext(
                 cfg,
-                &lookup_unresolved_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim())?,
+                &lookup_unresolved_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim(), None)?,
                 no_net,
                 use_cache,
             )
@@ -181,7 +192,7 @@ pub fn resolve_toolchain_desc(
 }
 
 pub fn lookup_toolchain_desc(cfg: &Cfg, name: &str) -> Result<ToolchainDesc> {
-    resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, name)?)
+    resolve_toolchain_desc(cfg, &lookup_unresolved_toolchain_desc(cfg, name, None)?)
 }
 
 /// Try to parse a string as a file path, validating it contains a Lean toolchain
@@ -205,6 +216,103 @@ fn try_parse_path_toolchain(
     Ok(Some(ToolchainDesc::Path { path }))
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    /// Create a minimal fake Lean toolchain directory: just `bin/lean[.exe]`.
+    /// Only needs to exist as a file — `try_parse_path_toolchain` checks `is_file()`, not executability.
+    fn make_fake_lean(root: &Path) {
+        let bin = root.join("bin");
+        fs::create_dir_all(&bin).unwrap();
+        let lean = bin.join(format!("lean{}", EXE_SUFFIX));
+        fs::write(&lean, b"").unwrap();
+    }
+
+    #[test]
+    fn absolute_path_resolves_to_itself() {
+        let tc_dir = TempDir::new().unwrap();
+        make_fake_lean(tc_dir.path());
+
+        let result = try_parse_path_toolchain(
+            tc_dir.path().to_str().unwrap(),
+            Path::new("/irrelevant"),
+        )
+        .unwrap();
+
+        if let Some(ToolchainDesc::Path { path }) = result {
+            assert_eq!(path, tc_dir.path());
+        } else {
+            panic!("expected Some(Path)");
+        }
+    }
+
+    #[test]
+    fn relative_path_resolved_from_base_dir() {
+        let base = TempDir::new().unwrap();
+        make_fake_lean(&base.path().join("mytc"));
+
+        let result = try_parse_path_toolchain("mytc", base.path()).unwrap();
+
+        assert!(matches!(result, Some(ToolchainDesc::Path { .. })));
+    }
+
+    #[test]
+    fn relative_path_resolves_against_base_not_cwd() {
+        // Put the toolchain one level up from a subdir — relative path only works
+        // if resolved against the base, not the process CWD.
+        let base = TempDir::new().unwrap();
+        make_fake_lean(&base.path().join("tc"));
+        let subdir = base.path().join("project");
+        fs::create_dir(&subdir).unwrap();
+
+        // Relative from subdir/../tc — only resolves correctly when base=base.path()
+        let result = try_parse_path_toolchain("tc", base.path()).unwrap();
+        assert!(matches!(result, Some(ToolchainDesc::Path { .. })));
+    }
+
+    #[test]
+    fn path_without_lean_binary_returns_none() {
+        let tc_dir = TempDir::new().unwrap();
+        fs::create_dir(tc_dir.path().join("bin")).unwrap();
+        // bin/lean is intentionally absent
+
+        let result = try_parse_path_toolchain(
+            tc_dir.path().to_str().unwrap(),
+            Path::new("/irrelevant"),
+        )
+        .unwrap();
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn nonexistent_path_returns_none() {
+        let result =
+            try_parse_path_toolchain("/nonexistent/path/that/does/not/exist", Path::new("/"))
+                .unwrap();
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn toolchain_name_not_mistaken_for_path() {
+        // Standard toolchain names must not be treated as paths
+        for name in &[
+            "leanprover/lean4:v4.3.0",
+            "v4.3.0",
+            "nightly-2024-01-01",
+            "stable",
+        ] {
+            let result =
+                try_parse_path_toolchain(name, Path::new("/irrelevant")).unwrap();
+            assert!(result.is_none(), "{name} should not parse as a path");
+        }
+    }
+}
+
 pub fn read_unresolved_toolchain_desc_from_file(
     cfg: &Cfg,
     toolchain_file: &Path,
@@ -217,12 +325,7 @@ pub fn read_unresolved_toolchain_desc_from_file(
             .parent()
             .unwrap(); // Every file should have a parent
 
-        // Prefer file path interpretation
-        if let Some(path_desc) = try_parse_path_toolchain(toolchain_name, toolchain_file_dir)? {
-            Ok(UnresolvedToolchainDesc(path_desc))
-        } else {
-            lookup_unresolved_toolchain_desc(cfg, toolchain_name)
-        }
+        lookup_unresolved_toolchain_desc(cfg, toolchain_name, Some(toolchain_file_dir))
     } else {
         Err(Error::from(format!(
             "empty toolchain file '{}'",
@@ -290,6 +393,11 @@ impl<'a> Toolchain<'a> {
         Ok(utils::assert_is_directory(&self.path)?)
     }
     pub fn remove(&self) -> Result<()> {
+        if matches!(self.desc, ToolchainDesc::Path { .. }) {
+            return Err(Error::from(
+                "cannot remove a path toolchain, remove the directory manually instead",
+            ));
+        }
         if self.exists() || self.is_symlink() {
             (self.cfg.notify_handler)(Notification::UninstallingToolchain(&self.desc));
         } else {

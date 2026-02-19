@@ -203,7 +203,7 @@ fn canonical_elan_home() -> Result<String> {
 fn clean_up_old_state() -> Result<()> {
     let cfg = &(common::set_globals(false)?);
     for tc in cfg.list_toolchains()? {
-        let res = lookup_unresolved_toolchain_desc(cfg, &tc.to_string());
+        let res = lookup_unresolved_toolchain_desc(cfg, &tc.to_string(), None);
         if let Ok(desc) = res {
             if desc.0 == tc
                 && !matches!(

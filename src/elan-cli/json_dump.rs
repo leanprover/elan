@@ -87,7 +87,7 @@ impl StateDump {
         let active_override = cfg.find_override(cwd)?;
         let default = match cfg.get_default()? {
             None => None,
-            Some(d) => Some(lookup_unresolved_toolchain_desc(cfg, &d)?),
+            Some(d) => Some(lookup_unresolved_toolchain_desc(cfg, &d, None)?),
         };
         Ok(Self {
             elan_version: Version {

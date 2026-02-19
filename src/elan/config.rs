@@ -160,7 +160,7 @@ impl Cfg {
         // First check ELAN_TOOLCHAIN
         if let Some(ref name) = self.env_override {
             return Ok(Some((
-                lookup_unresolved_toolchain_desc(self, name)?,
+                lookup_unresolved_toolchain_desc(self, name, None)?,
                 OverrideReason::Environment,
             )));
         }
@@ -213,7 +213,7 @@ impl Cfg {
                 {
                     None => {}
                     Some(toml::Value::String(s)) => {
-                        let desc = lookup_unresolved_toolchain_desc(self, s)?;
+                        let desc = lookup_unresolved_toolchain_desc(self, s, None)?;
                         return Ok(Some((desc, OverrideReason::LeanpkgFile(leanpkg_file))));
                     }
                     Some(a) => {
