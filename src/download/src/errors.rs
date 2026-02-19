@@ -20,5 +20,8 @@ error_chain! {
             description("download backend unavailable")
             display("download backend '{}' unavailable", be)
         }
+        ResumeNotSupported {
+            description("server does not support resuming downloads")
+        }
     }
 }
