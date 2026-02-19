@@ -333,10 +333,11 @@ pub fn list_toolchains(cfg: &Cfg) -> Result<()> {
 }
 
 fn get_toolchain_local_target(cfg: &Cfg, t: &ToolchainDesc) -> Result<Option<std::path::PathBuf>> {
-    let ToolchainDesc::Local { .. } = &t else {
-        return Ok(None);
-    };
-    Ok(cfg.get_toolchain(&t, false)?.symlink_target()?)
+    match t {
+        ToolchainDesc::Local { .. } => Ok(cfg.get_toolchain(&t, false)?.symlink_target()?),
+        ToolchainDesc::Path { path } => Ok(Some(path.clone())),
+        _ => Ok(None),
+    }
 }
 
 fn show(cfg: &Cfg) -> Result<()> {

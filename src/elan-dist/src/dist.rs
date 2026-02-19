@@ -10,6 +10,7 @@ use regex::Regex;
 use serde_derive::Serialize;
 
 use std::fmt;
+use std::path::PathBuf;
 
 // Fully-resolved toolchain descriptors. These always have full target
 // triples attached to them and are used for canonical identification,
@@ -27,6 +28,10 @@ pub enum ToolchainDesc {
         release: String,
         // The channel name the release was resolved from, if any
         from_channel: Option<String>,
+    },
+    // A toolchain specified by file path in lean-toolchain
+    Path {
+        path: PathBuf,
     },
 }
 
@@ -69,6 +74,7 @@ impl fmt::Display for ToolchainDesc {
             Self::Remote {
                 origin, release, ..
             } => write!(f, "{}:{}", origin, release),
+            Self::Path { path } => write!(f, "{}", path.display()),
         }
     }
 }
@@ -85,6 +91,7 @@ pub fn install_from_dist<'a>(
         origin, release, ..
     } = toolchain
     else {
+        // Local and Path toolchains are not installed from dist
         return Ok(());
     };
     let res =
