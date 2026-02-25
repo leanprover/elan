@@ -1,4 +1,4 @@
-# Unreleased
+# 4.2.0 - 2026-02-25
 
 - Resume interrupted downloads via HTTP Range headers. When a download fails due to a network error,
   elan now automatically retries once, resuming from where it left off. Also adds a stall timeout
