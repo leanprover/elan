@@ -1,3 +1,7 @@
+# Unreleased
+
+- Fix combining `elan override` with new path-based toolchains.
+
 # 4.2.0 - 2026-02-25
 
 - Resume interrupted downloads via HTTP Range headers. When a download fails due to a network error,
