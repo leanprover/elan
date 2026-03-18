@@ -1,4 +1,4 @@
-# Unreleased
+# 4.2.1 - 2026-03-18
 
 - Fix combining `elan override` with new path-based toolchains.
 
