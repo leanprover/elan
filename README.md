@@ -54,6 +54,10 @@ The toolchains downloaded by elan require some patching on NixOS, which is done 
 ```bash
 $ nix-env -iA nixpkgs.elan
 ```
+## Homebrew
+```bash
+brew install elan-init
+```
 
 # Prerequisites
 
