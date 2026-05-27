@@ -85,6 +85,12 @@ ln -s ./target/debug/elan-init ./elan
 ./elan --help
 ```
 
+On Windows it's
+```
+mklink elan.exe target\debug\elan-init.exe
+elan --help
+```
+
 ## Build on Windows
 
 The windows build requires a 64-bit developer command prompt and a Windows version of `perl.exe` which you can download
