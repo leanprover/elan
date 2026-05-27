@@ -193,9 +193,10 @@ impl Cfg {
                 return Ok(Some((UnresolvedToolchainDesc(name), reason)));
             }
 
-            // Then look for 'lean-toolchain'
+            // Then look for 'lean-toolchain' (we should not be silent about invalid files here)
             let toolchain_file = d.join("lean-toolchain");
-            if let Ok(desc) = read_unresolved_toolchain_desc_from_file(self, &toolchain_file) {
+            if toolchain_file.is_file() {
+                let desc = read_unresolved_toolchain_desc_from_file(self, &toolchain_file)?;
                 let reason = OverrideReason::ToolchainFile(toolchain_file);
                 gc::add_root(self, d)?;
                 return Ok(Some((desc, reason)));
@@ -203,7 +204,8 @@ impl Cfg {
 
             // Then look for 'leanpkg.toml'
             let leanpkg_file = d.join("leanpkg.toml");
-            if let Ok(content) = utils::read_file("leanpkg.toml", &leanpkg_file) {
+            if leanpkg_file.is_file() {
+                let content = utils::read_file("leanpkg.toml", &leanpkg_file)?;
                 let value = content
                     .parse::<toml::Value>()
                     .map_err(|error| ErrorKind::InvalidLeanpkgFile(leanpkg_file.clone(), error))?;
