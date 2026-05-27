@@ -1,3 +1,7 @@
+# Unreleased
+
+- Fix detection of being inside a toolchain directory on Windows when the path is reported with a lowercase drive letter (#199).
+
 # 4.2.1 - 2026-03-18
 
 - Fix combining `elan override` with new path-based toolchains.
