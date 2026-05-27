@@ -218,11 +218,29 @@ fn try_parse_path_toolchain(
 
     // Validate that bin/lean exists
     let lean_binary = path.join("bin").join(format!("lean{}", EXE_SUFFIX));
-    if !lean_binary.is_file() {
-        return Ok(None); // Not a valid Lean toolchain directory
+    if lean_binary.is_file() {
+        return Ok(Some(ToolchainDesc::Path { path }));
     }
 
-    Ok(Some(ToolchainDesc::Path { path }))
+    // Error on path-like input rather than falling through to toolchain-name parsing, which would
+    // silently attempt to download a default toolchain.
+    if looks_like_explicit_path(path_str) {
+        return Err(Error::from(format!(
+            "no Lean toolchain found at '{}': expected '{}' to exist",
+            path.display(),
+            lean_binary.display()
+        )));
+    }
+
+    Ok(None)
+}
+
+fn looks_like_explicit_path(s: &str) -> bool {
+    Path::new(s).is_absolute()
+        || s.starts_with("./")
+        || s.starts_with("../")
+        || s.starts_with(".\\")
+        || s.starts_with("..\\")
 }
 
 #[cfg(test)]
@@ -288,7 +306,7 @@ mod tests {
     }
 
     #[test]
-    fn path_without_lean_binary_returns_none() {
+    fn absolute_path_without_lean_binary_errors() {
         let tc_dir = TempDir::new().unwrap();
         fs::create_dir(tc_dir.path().join("bin")).unwrap();
         // bin/lean is intentionally absent
@@ -296,19 +314,32 @@ mod tests {
         let result = try_parse_path_toolchain(
             tc_dir.path().to_str().unwrap(),
             Path::new("/irrelevant"),
-        )
-        .unwrap();
+        );
 
-        assert!(result.is_none());
+        assert!(result.is_err(), "explicit path with no bin/lean should error");
     }
 
     #[test]
-    fn nonexistent_path_returns_none() {
-        let result =
-            try_parse_path_toolchain("/nonexistent/path/that/does/not/exist", Path::new("/"))
-                .unwrap();
+    fn nonexistent_absolute_path_errors() {
+        // TempDir gives us a platform-absolute path; the joined subpath doesn't exist.
+        let base = TempDir::new().unwrap();
+        let nonexistent = base.path().join("does-not-exist");
+        let result = try_parse_path_toolchain(nonexistent.to_str().unwrap(), Path::new("/"));
 
-        assert!(result.is_none());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn nonexistent_relative_path_with_dot_prefix_errors() {
+        // Regression test for #197: `../foo` in lean-toolchain should error
+        // when the path doesn't contain bin/lean, not silently fall back to a
+        // default toolchain download.
+        let base = TempDir::new().unwrap();
+        let result = try_parse_path_toolchain("../nope/build/stage1", base.path());
+        assert!(result.is_err(), "{result:?}");
+
+        let result = try_parse_path_toolchain("./nope", base.path());
+        assert!(result.is_err(), "{result:?}");
     }
 
     #[test]
