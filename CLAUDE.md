@@ -114,7 +114,7 @@ Two features control HTTP backend (default: curl-backend):
 
 ## Commit Messages
 
-Write the subject as `<type>: <summary> (#<PR or issue>)` (e.g. `fix: path-based toolchain as override (#195)`). A body is optional; when present, separate it from the subject with a blank line and write each paragraph as one long line — do not hard-wrap inside a paragraph. Blank lines between paragraphs are fine.
+Write the subject as `<type>: <summary>` (e.g. `fix: path-based toolchain as override`). GitHub appends ` (#<PR>)` automatically on merge — do not add it yourself. If the commit fixes an issue, reference it in the body (e.g. `Fixes #156.`), not in the subject. A body is optional; when present, separate it from the subject with a blank line and write each paragraph as one long line — do not hard-wrap inside a paragraph. Blank lines between paragraphs are fine.
 
 ## Changelog
 
