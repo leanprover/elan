@@ -224,7 +224,9 @@ impl Cfg {
 
             dir = d.parent();
 
-            if dir == Some(&self.toolchains_dir) {
+            // NOTE: `dir` is already canonicalized, so `==` should be good here
+            let toolchains_dir = utils::canonicalize_path(&self.toolchains_dir, &|n| notify(n.into()));
+            if dir == Some(&*toolchains_dir) {
                 if let Some(last) = d.file_name() {
                     if let Some(last) = last.to_str() {
                         return Ok(Some((
@@ -366,5 +368,50 @@ impl Cfg {
     pub fn open_docs_for_dir(&self, path: &Path, relative: &str) -> Result<()> {
         let (toolchain, _) = self.toolchain_for_dir(path)?;
         toolchain.open_docs(relative)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::TempDir;
+
+    fn make_cfg(elan_dir: PathBuf, toolchains_dir: PathBuf) -> Cfg {
+        Cfg {
+            settings_file: SettingsFile::new(elan_dir.join("settings.toml")),
+            temp_cfg: temp::Cfg::new(elan_dir.join("tmp"), Box::new(|_| {})),
+            elan_dir,
+            toolchains_dir,
+            env_override: None,
+            notify_handler: Arc::new(|_| {}),
+        }
+    }
+
+    // Regression test for #161: on Windows, `cwd` can come back with a
+    // lowercase `c:` while `self.toolchains_dir` (built from env vars) has
+    // `C:`, so the raw equality check failed and elan didn't recognize the
+    // user was inside a toolchain. We simulate the same canonical-vs-raw
+    // mismatch on Linux by giving `toolchains_dir` extra `..` components.
+    #[test]
+    fn detects_inside_toolchain_dir_when_toolchains_dir_path_is_not_canonical() {
+        let elan = TempDir::new().unwrap();
+        let tc_dir = elan
+            .path()
+            .join("toolchains")
+            .join("leanprover--lean4---v4.0.0");
+        fs::create_dir_all(&tc_dir).unwrap();
+
+        let toolchains_dir = elan.path().join("toolchains").join("..").join("toolchains");
+        let cfg = make_cfg(elan.path().to_path_buf(), toolchains_dir);
+
+        let result = cfg
+            .find_override_from_dir_walk(&tc_dir, &Settings::default())
+            .unwrap();
+
+        match result {
+            Some((_, OverrideReason::InToolchainDirectory(_))) => {}
+            other => panic!("expected InToolchainDirectory, got {other:?}"),
+        }
     }
 }
