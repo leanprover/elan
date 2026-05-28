@@ -1,4 +1,4 @@
-# Unreleased
+# 4.2.2 - 2026-05-28
 
 - Fix detection of being inside a toolchain directory on Windows when the path is reported with a lowercase drive letter (#199).
 - Replace leftover Rust term "crate" with "package" in `elan toolchain help link` (#175).
