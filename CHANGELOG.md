@@ -1,4 +1,4 @@
-# Unreleased
+# 4.2.3 - 2026-06-08
 
 - Don't abort toolchain installation when the elan self-update check fails (e.g. due to a network error); emit a warning and continue instead.
 
