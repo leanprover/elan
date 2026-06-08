@@ -65,8 +65,14 @@ impl InstallMethod<'_> {
                 Ok(())
             }
             Self::Dist(toolchain, dl_cfg) => {
-                if let Some(version) = check_self_update()? {
-                    notify_handler(Notification::NewVersionAvailable(version));
+                match check_self_update() {
+                    Ok(Some(version)) => {
+                        notify_handler(Notification::NewVersionAvailable(version))
+                    }
+                    Ok(None) => {}
+                    Err(e) => {
+                        notify_handler(Notification::SelfUpdateCheckFailed(format!("{}", e)))
+                    }
                 }
 
                 let prefix = &InstallPrefix::from(path.to_owned());

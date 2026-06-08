@@ -31,6 +31,7 @@ pub enum Notification<'a> {
     DownloadingLegacyManifest,
     ManifestChecksumFailedHack,
     NewVersionAvailable(String),
+    SelfUpdateCheckFailed(String),
     WaitingForFileLock(&'a Path, &'a str),
 }
 
@@ -71,6 +72,7 @@ impl<'a> Notification<'a> {
             CantReadUpdateHash(_)
             | ExtensionNotInstalled(_)
             | MissingInstalledComponent(_)
+            | SelfUpdateCheckFailed(_)
             | CachedFileChecksumFailed => NotificationLevel::Warn,
             NonFatalError(_) => NotificationLevel::Error,
         }
@@ -126,6 +128,9 @@ impl<'a> Display for Notification<'a> {
                     f,
                     "Version {version} of elan is available! Use `elan self update` to update."
                 )
+            }
+            SelfUpdateCheckFailed(ref error) => {
+                write!(f, "could not check for elan self-update: {}", error)
             }
             WaitingForFileLock(path, pid) => {
                 write!(

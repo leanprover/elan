@@ -1,3 +1,7 @@
+# Unreleased
+
+- Don't abort toolchain installation when the elan self-update check fails (e.g. due to a network error); emit a warning and continue instead.
+
 # 4.2.2 - 2026-05-28
 
 - Fix detection of being inside a toolchain directory on Windows when the path is reported with a lowercase drive letter (#199).
