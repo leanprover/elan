@@ -1,3 +1,7 @@
+# Unreleased
+
+- Fix panic in `elan toolchain gc` when a toolchain directory listed in `~/.elan/toolchains` does not resolve to an existing directory, e.g. after deleting a toolchain manually.
+
 # 4.2.3 - 2026-06-08
 
 - Don't abort toolchain installation when the elan self-update check fails (e.g. due to a network error); emit a warning and continue instead.

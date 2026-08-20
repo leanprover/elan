@@ -84,7 +84,11 @@ pub fn analyze_toolchains(
         .list_toolchains()?
         .into_iter()
         .map(|t| Toolchain::from(cfg, &t))
-        .filter(|t| !t.is_custom() && !used_toolchains_set.contains(&t.desc.to_string()))
+        // a toolchain may have been deleted manually since it was listed, or its
+        // directory name may not map back into the toolchains directory at all
+        .filter(|t| {
+            t.exists() && !t.is_custom() && !used_toolchains_set.contains(&t.desc.to_string())
+        })
         .collect_vec();
     Ok((unused_toolchains, used_toolchains))
 }
