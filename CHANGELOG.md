@@ -1,4 +1,4 @@
-# Unreleased
+# 4.2.4 - 2026-08-25
 
 - `elan install`/`elan toolchain install` now report an already-installed toolchain as such and exit with code 0 instead of failing with `'...' is already installed`.
 - Fix panic in `elan toolchain gc` when a toolchain directory listed in `~/.elan/toolchains` does not resolve to an existing directory, e.g. after deleting a toolchain manually.
