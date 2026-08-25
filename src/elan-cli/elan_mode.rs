@@ -264,11 +264,14 @@ fn install(cfg: &Cfg, m: &ArgMatches<'_>) -> Result<()> {
         let desc = lookup_toolchain_desc(cfg, name)?;
         let toolchain = cfg.get_toolchain(&desc, false)?;
 
-        if !toolchain.exists() || !toolchain.is_custom() {
-            toolchain.install_from_dist()?;
-            println!();
-            common::show_channel_update(cfg, &toolchain.desc)?;
+        if toolchain.exists() {
+            info!("toolchain '{}' is already installed", toolchain.desc);
+            continue;
         }
+
+        toolchain.install_from_dist()?;
+        println!();
+        common::show_channel_update(cfg, &toolchain.desc)?;
     }
 
     Ok(())
