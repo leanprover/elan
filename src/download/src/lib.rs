@@ -139,6 +139,12 @@ pub mod curl {
                 .follow_location(true)
                 .chain_err(|| "failed to set follow redirects")?;
 
+            // The handle is shared with `fetch_url`, which asks for compressed responses; make
+            // sure we get the file's raw bytes here so that content length and resuming work.
+            handle
+                .accept_encoding("identity")
+                .chain_err(|| "failed to set accept encoding")?;
+
             if resume_from > 0 {
                 handle
                     .resume_from(resume_from)
