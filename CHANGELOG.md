@@ -1,3 +1,7 @@
+# Unreleased
+
+- Request compressed responses when querying the release index, shrinking the transfer from ~3.7MB to ~150KB.
+
 # 4.2.4 - 2026-08-25
 
 - `elan install`/`elan toolchain install` now report an already-installed toolchain as such and exit with code 0 instead of failing with `'...' is already installed`.

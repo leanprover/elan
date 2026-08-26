@@ -530,6 +530,8 @@ pub fn fetch_url(url: &str) -> Result<String> {
         let mut handle = handle.borrow_mut();
         handle.url(url).unwrap();
         handle.follow_location(true).unwrap();
+        // request transparent compression; the release index in particular is ~25x smaller gzipped
+        handle.accept_encoding("").unwrap();
         let mut transfer = handle.transfer();
         transfer
             .write_function(|new_data| {
