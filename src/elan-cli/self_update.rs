@@ -176,6 +176,8 @@ static TOOLS: &[&str] = &[
     "leanc",
     "leanmake",
     "lake",
+    "lean-beam",
+    "lean-beam-mcp",
 ];
 
 static UPDATE_ROOT: &str = "https://github.com/leanprover/elan/releases/download";
