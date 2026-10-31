@@ -19,6 +19,7 @@ semver = "0.11.0"
 toml = "0.5.8"
 url = "2.2.1"
 curl = "0.4.34"
+env_proxy = "0.4.1"
 openssl = { version = "0.10", features = ["vendored"] }
 regex = "1.4.3"
 dirs = "3.0.1"

@@ -455,6 +455,7 @@ dependencies = [
  "curl",
  "dirs",
  "download",
+ "env_proxy",
  "error-chain",
  "json",
  "libc",
