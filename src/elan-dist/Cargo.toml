@@ -28,6 +28,9 @@ serde = "1.0.119"
 serde_derive = "1.0.119"
 fslock = "0.2.1"
 
+[dev-dependencies]
+tempfile = "3.2.0"
+
 [target."cfg(windows)".dependencies]
 winapi = { version = "0.3.9", features = ["handleapi", "sysinfoapi", "tlhelp32", "winnt"] }
 winreg = "0.8.0"
