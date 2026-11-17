@@ -2,6 +2,9 @@
 
 - Install `lean-beam` and `lean-beam-mcp` proxies so toolchains that bundle Beam can be selected through the usual Elan toolchain rules.
 - Request compressed responses when querying the release index, shrinking the transfer from ~3.7MB to ~150KB.
+- Fix the elan installation path being displayed without backslashes in the post-install message on Windows (#212).
+- Reject toolchain archive entries that would be extracted outside the destination directory, such as paths containing `..`, absolute paths, hard links, and symbolic links pointing outside their own directory (#211).
+- Respect the usual proxy environment variables (`https_proxy`, `http_proxy`, `all_proxy`, `no_proxy`) when downloading (#117). Note that DNS resolution still uses the system resolver even when a proxy is set.
 
 # 4.2.4 - 2026-08-25
 
