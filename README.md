@@ -61,6 +61,14 @@ On some systems, `lake` will not work out of the box even if installed through e
 
 * You'll need [git](https://git-scm.com/download) to download dependencies through `lake`.
 
+# Beam commands
+
+Elan also installs `lean-beam` and `lean-beam-mcp` proxies. They use the same toolchain selection as `lake`, including project `lean-toolchain` files, directory overrides, `ELAN_TOOLCHAIN`, explicit `+toolchain` arguments, and locally linked toolchains. The selected toolchain must include the requested Beam executable; Elan does not build or install Beam separately for it.
+
+An MCP client can register the absolute proxy path, `$ELAN_HOME/bin/lean-beam-mcp` (`%ELAN_HOME%\bin\lean-beam-mcp.exe` on Windows), once rather than naming a particular toolchain's binary. If `ELAN_HOME` is unset, its default is `~/.elan` (`%USERPROFILE%\.elan` on Windows). Write the expanded absolute path in the client configuration. The client's launch directory and environment select the toolchain when the server starts. A running server remains on that toolchain; changing the project selector takes effect on its next launch. Elan does not edit MCP client configuration.
+
+Normal `PATH` precedence still applies to bare command names: a standalone Beam command earlier on `PATH` takes precedence over the Elan proxy. An absolute standalone or SDK command path stays pinned to that installation, regardless of `PATH`. In particular, an existing MCP registration naming a standalone command by absolute path must be changed explicitly to use the Elan proxy. When the selected toolchain lacks Beam, the proxy reports the missing binary; an existing standalone installation can still be invoked by its own path.
+
 # Implementation
 
 *elan* is basically a fork of [rustup](https://github.com/rust-lang-nursery/rustup.rs). Apart from new features and adaptions to the Lean infrastructure, these are the basic changes to the original code:

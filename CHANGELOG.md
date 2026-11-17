@@ -1,5 +1,6 @@
 # Unreleased
 
+- Install `lean-beam` and `lean-beam-mcp` proxies so toolchains that bundle Beam can be selected through the usual Elan toolchain rules.
 - Request compressed responses when querying the release index, shrinking the transfer from ~3.7MB to ~150KB.
 
 # 4.2.4 - 2026-08-25
