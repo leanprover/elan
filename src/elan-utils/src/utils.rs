@@ -528,6 +528,11 @@ pub fn fetch_url(url: &str) -> Result<String> {
     let mut data = Vec::new();
     ::download::curl::EASY.with::<_, Result<()>>(|handle| {
         let mut handle = handle.borrow_mut();
+
+        if let Some(proxy) = env_proxy::for_url_str(url).to_string() {
+            handle.proxy(&proxy).chain_err(|| "failed to set proxy")?;
+        }
+
         handle.url(url).unwrap();
         handle.follow_location(true).unwrap();
         // request transparent compression; the release index in particular is ~25x smaller gzipped

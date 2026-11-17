@@ -134,6 +134,10 @@ pub mod curl {
         EASY.with(|handle| {
             let mut handle = handle.borrow_mut();
 
+            if let Some(proxy) = env_proxy::for_url(&url).to_string() {
+                handle.proxy(&proxy).chain_err(|| "failed to set proxy")?;
+            }
+
             handle.url(url.as_ref()).chain_err(|| "failed to set url")?;
             handle
                 .follow_location(true)
