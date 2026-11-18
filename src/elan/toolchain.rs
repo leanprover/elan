@@ -9,7 +9,7 @@ use elan_dist::manifest::Component;
 use elan_dist::manifestation::get_json_uri_for_releases;
 use elan_dist::manifestation::DEFAULT_ORIGIN;
 use elan_utils::utils;
-use elan_utils::utils::fetch_url;
+use elan_utils::utils::fetch_github;
 use itertools::Itertools;
 
 use serde_derive::Serialize;
@@ -149,9 +149,14 @@ pub fn resolve_toolchain_desc_ext(
                 "https://raw.githubusercontent.com/{}/HEAD/lean-toolchain",
                 origin
             );
+            let (toolchain, _) = fetch_github(
+                &toolchain_url,
+                &format!("repos/{}/contents/lean-toolchain", origin),
+                "application/vnd.github.raw+json",
+            )?;
             resolve_toolchain_desc_ext(
                 cfg,
-                &lookup_unresolved_toolchain_desc(cfg, fetch_url(&toolchain_url)?.trim(), None)?,
+                &lookup_unresolved_toolchain_desc(cfg, toolchain.trim(), None)?,
                 no_net,
                 use_cache,
             )

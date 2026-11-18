@@ -25,17 +25,19 @@ pub enum Event<'a> {
 fn download_with_backend(
     backend: Backend,
     url: &Url,
+    headers: &[String],
     resume_from: u64,
     callback: &dyn Fn(Event<'_>) -> Result<()>,
 ) -> Result<()> {
     match backend {
-        Backend::Curl => curl::download(url, resume_from, callback),
+        Backend::Curl => curl::download(url, headers, resume_from, callback),
     }
 }
 
 pub fn download_to_path_with_backend(
     backend: Backend,
     url: &Url,
+    headers: &[String],
     path: &Path,
     resume_from_partial: bool,
     callback: Option<&dyn Fn(Event<'_>) -> Result<()>>,
@@ -86,7 +88,7 @@ pub fn download_to_path_with_backend(
 
         let file = RefCell::new(file);
 
-        download_with_backend(backend, url, resume_from, &|event| {
+        download_with_backend(backend, url, headers, resume_from, &|event| {
             if let Event::DownloadDataReceived(data) = event {
                 file.borrow_mut()
                     .write_all(data)
@@ -113,7 +115,7 @@ pub mod curl {
 
     use super::Event;
     use crate::errors::*;
-    use curl::easy::Easy;
+    use curl::easy::{Easy, List};
     use std::cell::RefCell;
     use std::str;
     use std::time::Duration;
@@ -121,8 +123,23 @@ pub mod curl {
 
     thread_local!(pub static EASY: RefCell<Easy> = RefCell::new(Easy::new()));
 
+    /// Sets the request headers of `handle` to exactly `headers`, replacing those of previous
+    /// requests on the same handle.
+    ///
+    /// libcurl does not forward an `Authorization` header to other hosts on redirects.
+    pub fn set_headers(handle: &mut Easy, headers: &[String]) -> Result<()> {
+        let mut list = List::new();
+        for header in headers {
+            list.append(header).chain_err(|| "failed to set header")?;
+        }
+        handle
+            .http_headers(list)
+            .chain_err(|| "failed to set header")
+    }
+
     pub fn download(
         url: &Url,
+        headers: &[String],
         resume_from: u64,
         callback: &dyn Fn(Event<'_>) -> Result<()>,
     ) -> Result<()> {
@@ -139,6 +156,7 @@ pub mod curl {
             }
 
             handle.url(url.as_ref()).chain_err(|| "failed to set url")?;
+            set_headers(&mut handle, headers)?;
             handle
                 .follow_location(true)
                 .chain_err(|| "failed to set follow redirects")?;

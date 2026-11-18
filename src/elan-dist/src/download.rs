@@ -27,11 +27,17 @@ impl ops::Deref for File {
 }
 
 impl<'a> DownloadCfg<'a> {
-    pub fn download_and_check(&self, url_str: &str) -> Result<temp::File<'a>> {
+    pub fn download_and_check(
+        &self,
+        url_str: &str,
+        headers: &[String],
+    ) -> Result<temp::File<'a>> {
         let url = utils::parse_url(url_str)?;
         let file = self.temp_cfg.new_file()?;
 
-        utils::download_file(&url, &file, &|n| (self.notify_handler)(n.into()))?;
+        utils::download_file_with_headers(&url, headers, &file, &|n| {
+            (self.notify_handler)(n.into())
+        })?;
 
         Ok(file)
     }
