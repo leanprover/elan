@@ -8,7 +8,7 @@ use crate::errors::*;
 use crate::notifications::*;
 use crate::prefix::InstallPrefix;
 use crate::temp;
-use elan_utils::utils::fetch_url;
+use elan_utils::utils::{fetch_github, fetch_url, github_api_headers, github_token};
 use elan_utils::{raw::read_file, utils};
 use fslock::LockFile;
 
@@ -100,7 +100,10 @@ impl Manifestation {
         // For historical reasons, the informal target for Linux x64 is a substring of Linux
         // aarch64; make sure we don't confuse them
         let name_substring = informal_target.clone() + ".";
-        let url = if let Some(url) = get_json_uri_for_releases(origin) {
+        let no_package =
+            || format!("binary package was not provided for '{}'", informal_target);
+        // The download URL, any headers needed to access it, and the file name of the archive
+        let (url, headers, name) = if let Some(url) = get_json_uri_for_releases(origin) {
             let json = fetch_url(url)?;
             let releases = json::parse(&json)
                 .chain_err(|| format!("failed to parse release data: {}", url))?;
@@ -109,29 +112,49 @@ impl Manifestation {
                 .ok_or_else(|| format!("no such release: '{}'", release))?;
             let asset = release["assets"].members()
                 .find(|asset| asset["name"].as_str().iter().any(|name| name.contains(&name_substring)))
-                .ok_or_else(|| format!("binary package was not provided for '{}'", informal_target))?;
-            asset["browser_download_url"].as_str().unwrap().to_owned()
+                .ok_or_else(no_package)?;
+            let url = asset["browser_download_url"].as_str().unwrap().to_owned();
+            (url.clone(), vec![], url)
         } else {
             let url = format!(
                 "https://github.com/{}/releases/expanded_assets/{}",
                 origin, release
             );
-            let re = Regex::new(format!(r#"/{}/releases/download/[^"]+"#, origin).as_str()).unwrap();
-            let html = fetch_url(&url)?;
-            let url = re
-                .find_iter(&html)
-                .map(|m| m.as_str().to_string())
-                .find(|m| m.contains(&name_substring));
-            if url.is_none() {
-                return Err(
-                    format!("binary package was not provided for '{}'", informal_target).into(),
-                );
+            let (body, from_api) = fetch_github(
+                &url,
+                &format!("repos/{}/releases/tags/{}", origin, release),
+                "application/vnd.github+json",
+            )?;
+            if from_api {
+                let release = json::parse(&body)
+                    .chain_err(|| format!("failed to parse release data for '{}'", release))?;
+                let (name, url) = release["assets"]
+                    .members()
+                    .filter_map(|asset| Some((asset["name"].as_str()?, asset["url"].as_str()?)))
+                    .find(|(name, _)| name.contains(&name_substring))
+                    .ok_or_else(no_package)?;
+                // `github_token` cannot fail after `fetch_github` used the API
+                let token = github_token().unwrap_or_default();
+                (
+                    url.to_owned(),
+                    github_api_headers(&token, "application/octet-stream"),
+                    name.to_owned(),
+                )
+            } else {
+                let re = Regex::new(format!(r#"/{}/releases/download/[^"]+"#, origin).as_str())
+                    .unwrap();
+                let url = re
+                    .find_iter(&body)
+                    .map(|m| m.as_str().to_string())
+                    .find(|m| m.contains(&name_substring))
+                    .ok_or_else(no_package)?;
+                let url = format!("https://github.com{}", url);
+                (url.clone(), vec![], url)
             }
-            format!("https://github.com{}", url.unwrap())
         };
         notify_handler(Notification::DownloadingComponent(&url));
 
-        let installer_file = dlcfg.download_and_check(&url)?;
+        let installer_file = dlcfg.download_and_check(&url, &headers)?;
 
         notify_handler(Notification::InstallingComponent(&prefix.to_string_lossy()));
 
@@ -149,14 +172,14 @@ impl Manifestation {
         })?;
 
         // Extract new files
-        if url.ends_with(".tar.gz") {
+        if name.ends_with(".tar.gz") {
             TarGzPackage::unpack_file(&installer_file, &unpack_dir)?
-        } else if url.ends_with(".tar.zst") {
+        } else if name.ends_with(".tar.zst") {
             TarZstdPackage::unpack_file(&installer_file, &unpack_dir)?
-        } else if url.ends_with(".zip") {
+        } else if name.ends_with(".zip") {
             ZipPackage::unpack_file(&installer_file, &unpack_dir)?
         } else {
-            return Err(format!("unsupported archive format: {}", url).into());
+            return Err(format!("unsupported archive format: {}", name).into());
         }
 
         utils::rename_dir("temp toolchain directory", &unpack_dir, prefix)?;

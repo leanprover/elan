@@ -1,3 +1,7 @@
+# Unreleased
+
+- Use the GitHub access token in the environment variable `GH_TOKEN` or `GITHUB_TOKEN`, if set, to look up and download toolchains from origins other than `leanprover/lean4` via the GitHub API instead of scraping unauthenticated GitHub pages, which are rate-limited (#84). As one consequence, toolchains can now be installed from private repositories, such as `myorg/lean4-private:v4.0.0`. If the token does not work for an origin, elan falls back to the unauthenticated lookup. Without a token, a release that cannot be found is now reported as such, with a hint about `GH_TOKEN`, instead of claiming that no binary package was provided.
+
 # 4.3.0 - 2026-11-17
 
 - Install `lean-beam` and `lean-beam-mcp` proxies so toolchains that bundle Beam can be selected through the usual Elan toolchain rules.

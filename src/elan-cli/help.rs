@@ -40,7 +40,10 @@ pub static TOOLCHAIN_HELP: &str = r"DISCUSSION:
     the toolchain is downloaded from the archive for that date.
     'origin' can be used to refer to custom forks of Lean on Github;
     the default is 'leanprover/lean4'. For nightly versions, '-nightly'
-    is appended to the value of 'origin'.
+    is appended to the value of 'origin'. If the environment variable
+    'GH_TOKEN' (or 'GITHUB_TOKEN') is set to a GitHub access token, it
+    is used for accessing such forks, which is required for forks in
+    private repositories.
 
     elan can also manage symlinked local toolchain builds, which are
     often used to for developing Lean itself. For more information see

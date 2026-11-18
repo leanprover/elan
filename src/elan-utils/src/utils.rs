@@ -127,17 +127,27 @@ pub fn download_file(
     path: &Path,
     notify_handler: &dyn Fn(Notification<'_>),
 ) -> Result<()> {
-    download_file_with_resume(url, path, false, notify_handler)
+    download_file_with_headers(url, &[], path, notify_handler)
+}
+
+pub fn download_file_with_headers(
+    url: &Url,
+    headers: &[String],
+    path: &Path,
+    notify_handler: &dyn Fn(Notification<'_>),
+) -> Result<()> {
+    download_file_with_resume(url, headers, path, false, notify_handler)
 }
 
 pub fn download_file_with_resume(
     url: &Url,
+    headers: &[String],
     path: &Path,
     resume_from_partial: bool,
     notify_handler: &dyn Fn(Notification<'_>),
 ) -> Result<()> {
     use download::ErrorKind as DEK;
-    match download_file_(url, path, resume_from_partial, notify_handler) {
+    match download_file_(url, headers, path, resume_from_partial, notify_handler) {
         Ok(_) => Ok(()),
         Err(e) => {
             let is_client_error = match e.kind() {
@@ -154,7 +164,7 @@ pub fn download_file_with_resume(
                     | &ErrorKind::Download(DEK::ResumeNotSupported)
             );
             if should_restart_fresh {
-                match download_file_(url, path, false, notify_handler) {
+                match download_file_(url, headers, path, false, notify_handler) {
                     Ok(_) => return Ok(()),
                     Err(retry_err) => {
                         return Err(retry_err).chain_err(|| ErrorKind::DownloadingFile {
@@ -167,7 +177,7 @@ pub fn download_file_with_resume(
 
             // On network errors, retry once with resume from the partial file.
             if !is_client_error && !resume_from_partial {
-                match download_file_(url, path, true, notify_handler) {
+                match download_file_(url, headers, path, true, notify_handler) {
                     Ok(_) => return Ok(()),
                     Err(retry_err) => {
                         return Err(retry_err).chain_err(|| ErrorKind::DownloadingFile {
@@ -197,6 +207,7 @@ pub fn download_file_with_resume(
 
 fn download_file_(
     url: &Url,
+    headers: &[String],
     path: &Path,
     resume_from_partial: bool,
     notify_handler: &dyn Fn(Notification<'_>),
@@ -227,7 +238,14 @@ fn download_file_(
 
     let (backend, notification) = (Backend::Curl, Notification::UsingCurl);
     notify_handler(notification);
-    download_to_path_with_backend(backend, url, path, resume_from_partial, Some(callback))?;
+    download_to_path_with_backend(
+        backend,
+        url,
+        headers,
+        path,
+        resume_from_partial,
+        Some(callback),
+    )?;
 
     notify_handler(Notification::DownloadFinished);
 
@@ -525,8 +543,13 @@ pub fn toolchain_sort<T: AsRef<str>>(v: &mut Vec<T>) {
 }
 
 pub fn fetch_url(url: &str) -> Result<String> {
+    fetch_url_with_headers(url, &[]).map(|(_, body)| body)
+}
+
+/// Fetches `url`, returning the HTTP status code and the response body.
+fn fetch_url_with_headers(url: &str, headers: &[String]) -> Result<(u32, String)> {
     let mut data = Vec::new();
-    ::download::curl::EASY.with::<_, Result<()>>(|handle| {
+    let code = ::download::curl::EASY.with::<_, Result<u32>>(|handle| {
         let mut handle = handle.borrow_mut();
 
         if let Some(proxy) = env_proxy::for_url_str(url).to_string() {
@@ -534,46 +557,110 @@ pub fn fetch_url(url: &str) -> Result<String> {
         }
 
         handle.url(url).unwrap();
+        ::download::curl::set_headers(&mut handle, headers)?;
         handle.follow_location(true).unwrap();
         // request transparent compression; the release index in particular is ~25x smaller gzipped
         handle.accept_encoding("").unwrap();
-        let mut transfer = handle.transfer();
-        transfer
-            .write_function(|new_data| {
-                data.extend_from_slice(new_data);
-                Ok(new_data.len())
-            })
-            .unwrap();
-        transfer.perform().chain_err(|| "error during download")
+        {
+            let mut transfer = handle.transfer();
+            transfer
+                .write_function(|new_data| {
+                    data.extend_from_slice(new_data);
+                    Ok(new_data.len())
+                })
+                .unwrap();
+            transfer.perform().chain_err(|| "error during download")?;
+        }
+        handle
+            .response_code()
+            .chain_err(|| "failed to get response code")
     })?;
     ::std::str::from_utf8(&data)
         .chain_err(|| "failed to decode response")
-        .map(|s| s.to_owned())
+        .map(|s| (code, s.to_owned()))
 }
 
-// fetch from HTML page instead of Github API to avoid rate limit
+/// Returns the GitHub access token from the environment, if any.
+pub fn github_token() -> Option<String> {
+    ["GH_TOKEN", "GITHUB_TOKEN"]
+        .iter()
+        .filter_map(|var| env::var(var).ok())
+        .find(|token| !token.is_empty())
+}
+
+/// Returns the headers for an authenticated GitHub API request for the given media type.
+pub fn github_api_headers(token: &str, accept: &str) -> Vec<String> {
+    vec![
+        format!("Authorization: Bearer {}", token),
+        format!("Accept: {}", accept),
+        "X-GitHub-Api-Version: 2022-11-28".to_owned(),
+        "User-Agent: elan".to_owned(),
+    ]
+}
+
+/// Fetches the equivalent `api_path` from the GitHub API if an access token is available, and
+/// otherwise, or if that fails, `url` from GitHub without authentication.
+///
+/// Returns the response body and whether it came from the API.
+pub fn fetch_github(url: &str, api_path: &str, api_accept: &str) -> Result<(String, bool)> {
+    let mut api_status = None;
+    if let Some(token) = github_token() {
+        let api_url = format!("https://api.github.com/{}", api_path);
+        let (code, body) =
+            fetch_url_with_headers(&api_url, &github_api_headers(&token, api_accept))?;
+        if code < 400 {
+            return Ok((body, true));
+        }
+        // The token may be stale or not cover this repository, which may still be public
+        api_status = Some(code);
+    }
+    let (code, body) = fetch_url_with_headers(url, &[])?;
+    match (code, api_status) {
+        // GitHub also reports private repositories as not found
+        (404, None) => Err(format!(
+            "{} not found; if it is in a private repository, set `GH_TOKEN` to a GitHub access token that can read it",
+            url
+        )
+        .into()),
+        (404, Some(401)) => Err(format!(
+            "{} not found, and the GitHub access token in `GH_TOKEN`/`GITHUB_TOKEN` was rejected",
+            url
+        )
+        .into()),
+        (404, Some(_)) => Err(format!(
+            "{} not found, also when using the GitHub access token in `GH_TOKEN`/`GITHUB_TOKEN`",
+            url
+        )
+        .into()),
+        (400.., _) => Err(format!("failed to fetch {}: HTTP status {}", url, code).into()),
+        _ => Ok((body, false)),
+    }
+}
+
+// without a token, fetch from HTML page instead of Github API to avoid rate limit
 pub fn fetch_latest_release_tag(repo_slug: &str, no_net: bool) -> Result<String> {
     use regex::Regex;
 
+    if no_net {
+        return Err("Cannot fetch latest release tag under `--no-net`".into());
+    }
     let latest_url = format!("https://github.com/{}/releases/latest", repo_slug);
-    let res = if no_net {
-        Err(Error::from(
-            "Cannot fetch latest release tag under `--no-net`",
-        ))
-    } else {
-        fetch_url(&latest_url)
-    };
-    match res {
-        Ok(redirect) => {
-            let re = Regex::new(r#"/tag/([-a-z0-9.]+)"#).unwrap();
-            let capture = re.captures(&redirect);
-            let tag = match capture {
-                Some(cap) => cap.get(1).unwrap().as_str().to_string(),
-                None => return Err("failed to parse latest release tag".into()),
-            };
-            Ok(tag)
-        }
-        Err(e) => Err(e),
+    let (body, from_api) = fetch_github(
+        &latest_url,
+        &format!("repos/{}/releases/latest", repo_slug),
+        "application/vnd.github+json",
+    )?;
+    if from_api {
+        let release = json::parse(&body).chain_err(|| "failed to parse latest release data")?;
+        return release["tag_name"]
+            .as_str()
+            .map(|tag| tag.to_owned())
+            .ok_or_else(|| "failed to parse latest release tag".into());
+    }
+    let re = Regex::new(r#"/tag/([-a-z0-9.]+)"#).unwrap();
+    match re.captures(&body) {
+        Some(cap) => Ok(cap.get(1).unwrap().as_str().to_string()),
+        None => Err("failed to parse latest release tag".into()),
     }
 }
 
